@@ -1,4 +1,4 @@
-"""Synthetic VACA artifact checks; no network, downloads or device access."""
+"""Synthetic optional APK checks; no network, downloads or device access."""
 import io
 import json
 from pathlib import Path
@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 import artifacts
 
 
-class VacaArtifactTests(unittest.TestCase):
+class OptionalApkChecks:
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
@@ -23,7 +23,7 @@ class VacaArtifactTests(unittest.TestCase):
         self.patch.stop()
         self.temp.cleanup()
 
-    def make_artifact(self, name='vaca-fixture.apk'):
+    def make_artifact(self, name='optional-fixture.apk'):
         path = self.root / 'downloads' / name
         path.parent.mkdir(exist_ok=True)
         with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_STORED) as package:
@@ -34,30 +34,30 @@ class VacaArtifactTests(unittest.TestCase):
     def record(self, path):
         self.metadata = {'name': path.name, 'size': path.stat().st_size,
                          'sha256': artifacts.digest(path),
-                         'url': 'https://example.invalid/vaca-fixture.apk'}
-        (self.root / 'vaca-artifact.json').write_text(json.dumps(self.metadata))
+                         'url': 'https://example.invalid/optional-fixture.apk'}
+        (self.root / (self.kind + '-artifact.json')).write_text(json.dumps(self.metadata))
 
-    def test_vaca_apk_verifies_and_cli_accepts_kind(self):
+    def test_apk_verifies_and_cli_accepts_kind(self):
         path = self.make_artifact()
-        self.assertEqual(artifacts.verify('vaca'), path)
-        with mock.patch.object(sys, 'argv', ['artifacts.py', 'verify', 'vaca']), \
+        self.assertEqual(artifacts.verify(self.kind), path)
+        with mock.patch.object(sys, 'argv', ['artifacts.py', 'verify', self.kind]), \
                 mock.patch('builtins.print') as output:
             artifacts.main()
         output.assert_called_once_with('Verified ' + str(path))
 
-    def test_vaca_rejects_wrong_container_suffix(self):
-        self.make_artifact('vaca-fixture.zip')
+    def test_rejects_wrong_container_suffix(self):
+        self.make_artifact('optional-fixture.zip')
         with self.assertRaisesRegex(ValueError, 'Unexpected file type'):
-            artifacts.verify('vaca')
+            artifacts.verify(self.kind)
 
-    def test_vaca_rejects_hash_matching_non_archive(self):
+    def test_rejects_hash_matching_non_archive(self):
         path = self.make_artifact()
         path.write_bytes(b'Not an APK archive')
         self.record(path)
         with self.assertRaises(zipfile.BadZipFile):
-            artifacts.verify('vaca')
+            artifacts.verify(self.kind)
 
-    def test_vaca_checks_crc_even_when_manifest_digest_matches(self):
+    def test_checks_crc_even_when_manifest_digest_matches(self):
         path = self.make_artifact()
         with zipfile.ZipFile(path) as package:
             member = package.getinfo('AndroidManifest.xml')
@@ -67,28 +67,36 @@ class VacaArtifactTests(unittest.TestCase):
         path.write_bytes(data)
         self.record(path)
         with self.assertRaisesRegex(ValueError, 'Archive CRC'):
-            artifacts.verify('vaca')
+            artifacts.verify(self.kind)
 
-    def test_vaca_fetch_uses_manifest_and_verifies_download(self):
+    def test_fetch_uses_manifest_and_verifies_download(self):
         path = self.make_artifact()
         payload = path.read_bytes()
         path.unlink()
         with mock.patch.object(artifacts.urllib.request, 'urlopen', return_value=io.BytesIO(payload)) as get:
-            self.assertEqual(artifacts.fetch('vaca'), path)
+            self.assertEqual(artifacts.fetch(self.kind), path)
         request = get.call_args[0][0]
         self.assertEqual(request.full_url, self.metadata['url'])
         self.assertEqual(path.read_bytes(), payload)
         self.assertFalse(path.with_name(path.name + '.partial').exists())
 
-    def test_vaca_fetch_rejects_modified_bytes_without_publishing_file(self):
+    def test_fetch_rejects_modified_bytes_without_publishing_file(self):
         path = self.make_artifact()
         payload = path.read_bytes() + b'modified'
         path.unlink()
         with mock.patch.object(artifacts.urllib.request, 'urlopen', return_value=io.BytesIO(payload)):
             with self.assertRaisesRegex(ValueError, 'size/SHA256'):
-                artifacts.fetch('vaca')
+                artifacts.fetch(self.kind)
         self.assertFalse(path.exists())
         self.assertFalse(path.with_name(path.name + '.partial').exists())
+
+
+class VacaArtifactTests(OptionalApkChecks, unittest.TestCase):
+    kind = 'vaca'
+
+
+class AndroidIpCameraArtifactTests(OptionalApkChecks, unittest.TestCase):
+    kind = 'androidipcamera'
 
 
 if __name__ == '__main__':

@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "id": "androidipcamera",
+  "name": "androidipcamera-0.14.0-armeabi-v7a-release.apk",
+  "version": "0.14.0",
+  "url": "https://github.com/DigitallyRefined/android-ip-camera/releases/download/v0.14.0/androidipcamera-0.14.0-armeabi-v7a-release.apk",
+  "size": 5125398,
+  "sha256": "53388d91e475f2ab73390e2ad026d4eaa24d7e0918fd3ca143ff8c7f2ac13af6",
+  "source": "https://github.com/DigitallyRefined/android-ip-camera/releases/tag/v0.14.0",
+  "release_published_at": "2026-09-24T11:21:49Z",
+  "asset_id": 585803118,
+  "github_digest": "sha256:53388d91e475f2ab73390e2ad026d4eaa24d7e0918fd3ca143ff8c7f2ac13af6",
+  "checksum_provenance": "Downloaded bytes match the SHA-256 digest published in the official GitHub release asset metadata.",
+  "android_package": "com.github.digitallyrefined.androidipcamera",
+  "version_code": 140,
+  "apk_manifest_observed": {
+    "min_sdk": 24,
+    "target_sdk": 34,
+    "native_abis": ["armeabi-v7a"]
+  },
+  "apk_signature": {
+    "verification": "Android SDK build-tools 36.0.0 apksigner verify --verbose --print-certs passed APK Signature Scheme v2 with one signer.",
+    "certificate_dn": "CN=DigitallyRefined",
+    "certificate_sha256": "1111be81c861e199c6485d367c37680c4b778fba301980d2f0f9a2800f77f70a",
+    "matches_upstream_readme": true,
+    "scope": "Separate recorded signature audit of this pinned APK. scripts/artifacts.py checks size, SHA-256, APK suffix and ZIP CRC; it does not invoke apksigner."
+  },
+  "source_inspection": {
+    "repository": "DigitallyRefined/android-ip-camera",
+    "commit": "4a723736d207f3a44bffb3d99417c9b30309f993",
+    "scope": "Pinned source review, not proof of reproducible compilation or camera/audio acceptance on every device."
+  },
+  "purpose": "Optional authenticated HTTPS video pilot on Android 11 ARMv7, with a separately evaluated half-duplex audio route. Device credentials, images and configuration are not distributed."
+}
