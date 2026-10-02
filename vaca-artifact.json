@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "id": "vaca",
+  "name": "vaca-0.13.4.apk",
+  "version": "0.13.4",
+  "url": "https://github.com/msp1974/ViewAssist_Companion_App/releases/download/v0.13.4/vaca-0.13.4.apk",
+  "size": 120488136,
+  "sha256": "8769df7bca33c14254a58049a825cf58d3dd7b3272156225662bb4810b9f8f8d",
+  "source": "https://github.com/msp1974/ViewAssist_Companion_App/releases/tag/v0.13.4",
+  "release_published_at": "2026-09-28T10:55:06Z",
+  "asset_id": 595157229,
+  "github_digest": "sha256:8769df7bca33c14254a58049a825cf58d3dd7b3272156225662bb4810b9f8f8d",
+  "checksum_provenance": "Digest published in the official GitHub release asset metadata; no independent signing-certificate audit.",
+  "android_package": "com.msp1974.vacompanion",
+  "source_inspection": {
+    "android_repository": "msp1974/ViewAssistCompanionApp",
+    "android_commit": "65906aebffd2f39772773b44729b22fd022a1f3c",
+    "integration_repository": "msp1974/ViewAssist_Companion_App",
+    "integration_commit": "4948528bd016c24c395bf8dc3d86c1c7ec60eb73",
+    "scope": "Pinned source review; not proof of reproducible APK compilation or physical wake-word acceptance."
+  },
+  "purpose": "Optional private custom wake-word satellite alongside the official authenticated Companion dashboard. Match the HA integration version; model files and device configuration are not distributed."
+}
