@@ -4,6 +4,8 @@ Tools and an attended runbook for reusing an **Amazon Echo Show 5, second genera
 
 **Validation status, 2026-10-02:** a physical cronos device has completed the guarded TWRP conversion and first **Android 11 / LineageOS 18.1** boot. The raw backups passed validation on both NAS and workstation, and the pinned **Home Assistant Companion minimal APK installed successfully**. Companion is authenticated to HA and renders the existing dashboard. Optional **VACA 0.13.4** is installed with a local custom model, a running wake-word engine and an idle HA satellite connection. After settling onboarding permissions, VACA restarted unattended through one normal Android reboot, reconnected to HA and kept capture active with Companion back in the foreground. Controlled physical voice, power-cycle and multi-day reliability tests remain pending. See [validation status](docs/preparation-status.md) for the evidence and remaining checks.
 
+The optional [camera pilot](docs/camera-and-intercom.md) delivered authenticated **640×480 MJPEG at 5.19 fps over a 20-second sample**, while Companion stayed in the foreground and VACA capture remained active. HA retrieved a valid camera image and has a dedicated camera dashboard. Manual camera stop/restart passed; camera boot start is off. Intercom, video calls and longer camera reliability checks remain pending.
+
 ## Conversion route
 
 Stock Show 5 Gen2 → **amonet-cronos 2.0.1** → TWRP → verified off-device backup → **unofficial LineageOS 18.1 v0.4 / Android 11** → **Home Assistant Companion 2026.8.4 minimal** → your Home Assistant server.
@@ -44,10 +46,11 @@ For a unit already unlocked and in TWRP, use `probe-recovery` instead. Do not re
 - [Installation runbook](docs/runbook.md): host setup, device identification, unlock, backup, formatting, ROM and APK installation.
 - [Android and Home Assistant](docs/android-and-home-assistant.md): dashboard, Assist, optional wake word and acceptance tests.
 - [Private custom wake word with VACA](docs/vaca-private-wakeword.md): optional pinned APK, private model handling and deployment/acceptance boundaries.
+- [Camera and intercom pilot](docs/camera-and-intercom.md): optional authenticated HTTPS camera, HA MJPEG setup and microphone ownership for experimental half-duplex audio.
 - [Release audit](docs/release-audit.md): the actual amonet archive and bundled host tools.
 - [Source audit](docs/upstream-audit.md): why the GitHub source checkout alone does not replace the release.
 - [Script review](docs/script-review.md) and [validation status](docs/preparation-status.md): verification and remaining limitations.
-- [Amonet metadata](amonet-artifact.json), [reviewed file inventory](amonet-review.json), [ROM metadata](lineage-artifact.json) and [Companion metadata](companion-artifact.json) and [optional VACA metadata](vaca-artifact.json): pinned provenance and integrity checks.
+- [Amonet metadata](amonet-artifact.json), [reviewed file inventory](amonet-review.json), [ROM metadata](lineage-artifact.json), [Companion metadata](companion-artifact.json), [optional VACA metadata](vaca-artifact.json) and [optional camera metadata](androidipcamera-artifact.json): pinned provenance and integrity checks.
 - `host/synology/`: separate Docker host definition.
 - `scripts/` and `tests/`: explicit stages and regression checks.
 
