@@ -42,9 +42,27 @@ The operator granted the app's background battery exception and microphone permi
 
 **Controlled physical voice acceptance remains pending.** Permissions, assistant selection and a healthy server connection do not establish successful microphone capture, audible responses, wake-word reliability or multi-day stability. No ambient capture or private transcript is treated as an acceptance test.
 
+## Optional custom wake-word deployment
+
+**VACA 0.13.4 is installed and its satellite connection is established.** The APK passed the pinned size/hash checks. Its matching HA integration was installed, and HA returned healthy after one restart. The satellite reports **idle** with the selected Russian-language pipeline. The official Companion dashboard remains authenticated, and its own continuous wake-word listener is off.
+
+The custom JSON/TFLite pair was placed only in VACA's app-private storage. File hashes, application ownership and SELinux labels were checked. The intended private model and **microWakeWord** engine were selected; HA's experimental threshold is **9.9**, corresponding to **0.99** in the app. Android reports the foreground service and TCP10800 listener, **`MICROWAKEWORD` engine status `Started`**, and wake handler **`RUNNING`**. These establish deployment state, not physical recognition accuracy.
+
+Temporary rooted debugging was disabled after import; an independent ADB identity check returned the nonroot shell UID **2000**. The previous display timeout was restored. Microphone permission is granted; optional camera and shared-storage permissions are denied for this voice-only route.
+
+**Onboarding permission state and one unattended normal Android reboot are verified.** Camera and shared-storage permissions remain denied with Android's **`USER_FIXED`** state after the actual **Deny and don't ask again** UI flow; microphone access is granted. Write Settings and notification-policy access are allowed. The active VACA device-administrator receiver's reviewed policy is **force-lock only**, with no wipe policy. The test device had no PIN configured; its non-credential swipe lock was disabled for the unattended Home-app route. The foreground service was active after these choices were settled.
+
+This permission state matters because VACA checks both core and optional permissions at each activity launch. Default Home alone does not bypass the request flow. On Android 11, the reviewed automatic-start route uses VACA as the default Home app with onboarding settled before voice initialization. With those settings settled, a normal Android reboot completed **without an Android unlock or manual app launch**. Live checks confirmed completed boot, an automatically started VACA process, its foreground service and TCP10800 listener, the intended local model, microWakeWord **`Starting` → `Started`**, and handler **`RUNNING`**. The microphone capture path reported active and unsilenced, no fatal application exception was found, and ADB remained the nonroot shell UID **2000**.
+
+This verifies one normal reboot, not a power-cycle or physical wake-phrase test. Returning Companion to the foreground while retaining capture, and fresh HA reconnection evidence after reboot, are still being checked. No supported service-only startup mode that automatically foregrounds Companion was found. Physical wake-word acceptance and the 72-hour soak remain pending.
+
+Model files, phrases, household identifiers and deployment records are excluded from this public repository and HA's `/vaca` static directory. This does not imply an absence of app telemetry: the reviewed code contains Firebase wake-event calls with a model identifier and score, and no app-level opt-out was found. See [the private-model guide](vaca-private-wakeword.md) for telemetry scope, the pinned source review, destructive Sync behavior and threshold semantics.
+
 ## Script checks
 
 The expanded preparation, raw-backup and attended-operation suite passed **all 63 tests on both the workstation and the NAS's Python 3.8.15**. This includes fail-closed readback checks for the new System-write stage. The CI workflow runs the same synthetic suite on **Python 3.8 and 3.11**, without firmware downloads or device access.
+
+Six additional synthetic VACA artifact tests pass locally, bringing the local total to **69**. They cover APK type and CRC validation, CLI selection, manifest-based downloading and rejection of modified bytes; they do not run the APK or contact a device. The last recorded NAS run remains the 63-test suite; CI is configured to run the complete current suite on both supported Python versions.
 
 The tests exercise serial and model rejection, ambiguous USB selection, recovery identity, neighboring conversion locks, artifact type/model validation, audited package changes, host-image binding, backup completion evidence, split/archive structure, raw capture integrity and guarded operation behavior. Synthetic fixtures establish validation behavior; they do not establish successful hardware restoration.
 
@@ -52,6 +70,6 @@ See [script review](script-review.md) for resolved findings and [release audit](
 
 ## Remaining acceptance
 
-1. Run controlled button-driven voice tests and verify both recognition and audible responses.
-2. Test a harmless dashboard action, optional wake-word behavior and recovery after interruptions; verify screen and startup behavior separately.
-3. Complete the multi-day acceptance checks in [the HA guide](android-and-home-assistant.md).
+1. Confirm fresh HA satellite reconnection and that Companion can resume the dashboard while VACA capture remains active.
+2. Run deliberate wake-word and button-driven voice tests, checking recognition and audible responses rather than deployment status alone.
+3. Test a harmless dashboard action, screen behavior and recovery after a power cycle or network interruption, then complete the 72-hour checks in [the HA guide](android-and-home-assistant.md).

@@ -6,7 +6,7 @@ This guide starts **after** unlock, a verified off-device backup and successful 
 
 The target is **Echo Show 5 Gen2 / 2021 / cronos** running the unofficial **LineageOS 18.1 v0.4 / Android 11** build. The Show becomes an Android client of an existing Home Assistant server. Home Assistant Server does not run on the Show. Replacing Fire OS does not preserve Alexa, Amazon routines or Drop In.
 
-Start with the official **Home Assistant Companion minimal APK** for a dashboard and Assist. Add View Assist Companion App (VACA) only after basic display and speech tests pass. TECHO5 is a separate Alpine Linux firmware path, outside this Android runbook.
+Start with the official **Home Assistant Companion minimal APK** for a dashboard and Assist. VACA is an optional custom wake-word extension once the dashboard is working; record physical speech acceptance separately if it cannot yet be tested. TECHO5 is a separate Alpine Linux firmware path, outside this Android runbook.
 
 ## ROM capabilities and limitations
 
@@ -83,13 +83,13 @@ With local detection, the app processes the wake phrase on the Show and then sen
 
 ## Optional View Assist Companion App
 
-For a more integrated room display with screen/brightness controls, a media-player entity and View Assist screens, evaluate **VACA** after ordinary Companion acceptance. The researched version is [v0.13.4](https://github.com/msp1974/ViewAssist_Companion_App/releases/tag/v0.13.4), published 2026-09-28. Install its HA integration and Android APK at matching versions, updating the integration first. The additional View Assist integration supplies visual workflows and is separate from VACA's required integration. [VACA setup](https://github.com/msp1974/ViewAssist_Companion_App/wiki/Getting-Started).
+For a custom wake phrase or a room display with additional screen/media controls, evaluate **VACA** alongside the working Companion dashboard. Keep Companion wake-word detection off while VACA owns the microphone, and retain any untested voice behavior as an open acceptance item. The researched version is [v0.13.4](https://github.com/msp1974/ViewAssist_Companion_App/releases/tag/v0.13.4), published 2026-09-28. Install its HA integration and Android APK at matching versions, updating the integration first. The additional View Assist integration supplies visual workflows and is separate from VACA's required integration. [VACA setup](https://github.com/msp1974/ViewAssist_Companion_App/wiki/Getting-Started).
 
 VACA uses Android WebView and supports local microWakeWord. Stop Companion's wake-word listener before enabling VACA's. Generic noise suppression or music ducking does not establish stock-Alexa acoustic echo cancellation.
 
 VACA adds **HA → Show TCP10800** by default through Wyoming; use the port actually shown by the app. Show → HA HTTP(S), WebSocket and media access is still needed. Across routed networks, configure the device explicitly if mDNS discovery does not work. Keep that control port private. [Transport implementation](https://github.com/msp1974/ViewAssistCompanionApp/blob/main/app/src/main/java/com/msp1974/vacompanion/wyoming/WyomingTCPServer.kt).
 
-VACA is not installed by the core conversion scripts. Choosing another OS such as TECHO5 is a separate conversion path, not an Android app installation.
+The project can fetch and verify the optional pinned VACA APK, but the core conversion scripts do not install it or deploy its HA integration. On Android 11, the reviewed VACA automatic-start route requires settled onboarding permissions and VACA as the default Home app; Companion can resume the dashboard after the VACA service starts. Follow [the private custom wake-word guide](vaca-private-wakeword.md) for startup limits, the pinned artifact, app-private model placement, static-path exposure, telemetry scope, destructive Sync behavior and threshold semantics. Choosing another OS such as TECHO5 is a separate conversion path, not an Android app installation.
 
 ## Acceptance checklist
 

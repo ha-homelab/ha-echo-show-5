@@ -2,7 +2,7 @@
 
 Tools and an attended runbook for reusing an **Amazon Echo Show 5, second generation (2021), codename `cronos`**, as an Android Home Assistant display and voice client. This project targets a physical **x86_64 Synology NAS** as the USB host, controlled over SSH from a separate computer.
 
-**Validation status, 2026-10-02:** a physical cronos device has completed the guarded TWRP conversion and first **Android 11 / LineageOS 18.1** boot. The raw backups passed validation on both NAS and workstation, and the pinned **Home Assistant Companion minimal APK installed successfully**. Companion is authenticated to HA and renders the existing dashboard. Android assistant permissions and the selected language pipeline are configured; controlled physical voice acceptance and multi-day reliability tests remain pending. See [validation status](docs/preparation-status.md) for the evidence and remaining checks.
+**Validation status, 2026-10-02:** a physical cronos device has completed the guarded TWRP conversion and first **Android 11 / LineageOS 18.1** boot. The raw backups passed validation on both NAS and workstation, and the pinned **Home Assistant Companion minimal APK installed successfully**. Companion is authenticated to HA and renders the existing dashboard. Optional **VACA 0.13.4** is installed with a local custom model, a running wake-word engine and an idle HA satellite connection. After settling onboarding permissions, VACA restarted unattended through one normal Android reboot with its wake engine active. Controlled physical voice, power-cycle and multi-day reliability tests remain pending. See [validation status](docs/preparation-status.md) for the evidence and remaining checks.
 
 ## Conversion route
 
@@ -43,10 +43,11 @@ For a unit already unlocked and in TWRP, use `probe-recovery` instead. Do not re
 
 - [Installation runbook](docs/runbook.md): host setup, device identification, unlock, backup, formatting, ROM and APK installation.
 - [Android and Home Assistant](docs/android-and-home-assistant.md): dashboard, Assist, optional wake word and acceptance tests.
+- [Private custom wake word with VACA](docs/vaca-private-wakeword.md): optional pinned APK, private model handling and deployment/acceptance boundaries.
 - [Release audit](docs/release-audit.md): the actual amonet archive and bundled host tools.
 - [Source audit](docs/upstream-audit.md): why the GitHub source checkout alone does not replace the release.
 - [Script review](docs/script-review.md) and [validation status](docs/preparation-status.md): verification and remaining limitations.
-- [Amonet metadata](amonet-artifact.json), [reviewed file inventory](amonet-review.json), [ROM metadata](lineage-artifact.json) and [Companion metadata](companion-artifact.json): pinned provenance and integrity checks.
+- [Amonet metadata](amonet-artifact.json), [reviewed file inventory](amonet-review.json), [ROM metadata](lineage-artifact.json) and [Companion metadata](companion-artifact.json) and [optional VACA metadata](vaca-artifact.json): pinned provenance and integrity checks.
 - `host/synology/`: separate Docker host definition.
 - `scripts/` and `tests/`: explicit stages and regression checks.
 
