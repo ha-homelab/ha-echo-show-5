@@ -16,6 +16,10 @@ The ROM documentation still lists Wi-Fi fast-roaming problems and potentially qu
 
 Booting with the red hardware Mute state engaged can leave the camera unavailable. When diagnosing that case, the maintainer recommends rebooting with Mute off and using double-tap-to-wake for the display. [Camera and mute explanation](https://xdaforums.com/posts/90728899/).
 
+The Mute/Power coupling is two separate input paths: the privacy button sends **`KEY_POWER`**, while its hardware state sends **`SW_MUTE_DEVICE`**. Pressing it can therefore put the screen to sleep while unmuting the microphone, or wake the screen while muting it. On the tested device, Android reported `mLastSleepReason=power_button` and `mic mute FromSwitch=true`, confirming both paths. An active VACA recorder with `silenced:false` does **not** override or rule out this hardware microphone mute. [Build-era button mapping](https://github.com/amazon-oss/android_kernel_amazon_mt8163/blob/8d928c5176cc1ced93a564dd8a949a6cda3b8231/arch/arm64/boot/dts/mediatek/cronos.dtsi#L51).
+
+For independent screen wake, enable **Settings → Display → Tap to wake**, then test a physical double tap with the red mute light off. The equivalent command inside an authorized, identity-verified Android shell is `settings put secure double_tap_to_wake 1`. Read back that setting and `mDoubleTapWakeEnabled`; these confirm configuration, not a successful physical touch-wake test. A selected-device `input keyevent 224` (Android `KEYCODE_WAKEUP`) is an independent USB recovery path that leaves the privacy switch unchanged. Keep hardware mute off for voice acceptance, and verify the hardware state separately from VACA's software mute switch. Do not remap keys or write arbitrary touch-driver sysfs files to work around this behavior.
+
 Start with a small dashboard and one microphone-owning app. Far-field speech, interruption during music, reliable camera playback, DRM streaming and unattended operation require tests on the actual device. An Android boot alone establishes none of those capabilities.
 
 ## Complete initial Android setup and enable USB debugging

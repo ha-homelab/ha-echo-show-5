@@ -56,13 +56,13 @@ MJPEG supplies a video camera entity. It does not add the app's audio upload or 
 
 The tested stream is **4:3**, while the Show display is **960×480 (2:1)**. Filling that entire screen can crop or stretch the picture. Compare a direct MJPEG frame with a full-resolution still before changing capture resolution to compensate for a display problem.
 
-Use an explicit ratio and proportional fitting in the dedicated HA card:
+Use proportional fitting in the dedicated HA card. The 16:9 card viewport below fits this landscape screen with room for the HA header and card footer; the 4:3 image stays centered inside it:
 
 ```yaml
 type: picture-entity
 entity: camera.echo_show_camera # Replace with your camera entity.
 camera_view: live
-aspect_ratio: "4:3"
+aspect_ratio: "16:9"
 fit_mode: contain
 show_state: false
 ```
