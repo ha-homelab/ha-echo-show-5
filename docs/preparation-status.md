@@ -54,7 +54,7 @@ Temporary rooted debugging was disabled after import; an independent ADB identit
 
 This permission state matters because VACA checks both core and optional permissions at each activity launch. Default Home alone does not bypass the request flow. On Android 11, the reviewed automatic-start route uses VACA as the default Home app with onboarding settled before voice initialization. With those settings settled, a normal Android reboot completed **without an Android unlock or manual app launch**. Live checks confirmed completed boot, an automatically started VACA process, its foreground service and TCP10800 listener, the intended local model, microWakeWord **`Starting` → `Started`**, and handler **`RUNNING`**. The microphone capture path reported active and unsilenced, no fatal application exception was found, and ADB remained the nonroot shell UID **2000**.
 
-This verifies one normal reboot, not a power-cycle or physical wake-phrase test. Returning Companion to the foreground while retaining capture, and fresh HA reconnection evidence after reboot, are still being checked. No supported service-only startup mode that automatically foregrounds Companion was found. Physical wake-word acceptance and the 72-hour soak remain pending.
+This verifies one normal reboot, not a power-cycle or physical wake-phrase test. Fresh HA reconnection was verified using corresponding live connection evidence on Android and the HA side, together with post-boot application traffic. Companion was returned to the foreground while VACA's foreground service and active, unsilenced microphone capture continued in the background. The intended permission choices, nonroot ADB state and restored display setting were rechecked. No supported service-only startup mode that automatically foregrounds Companion was found. Physical wake-word acceptance and the 72-hour soak remain pending.
 
 Model files, phrases, household identifiers and deployment records are excluded from this public repository and HA's `/vaca` static directory. This does not imply an absence of app telemetry: the reviewed code contains Firebase wake-event calls with a model identifier and score, and no app-level opt-out was found. See [the private-model guide](vaca-private-wakeword.md) for telemetry scope, the pinned source review, destructive Sync behavior and threshold semantics.
 
@@ -70,6 +70,6 @@ See [script review](script-review.md) for resolved findings and [release audit](
 
 ## Remaining acceptance
 
-1. Confirm fresh HA satellite reconnection and that Companion can resume the dashboard while VACA capture remains active.
-2. Run deliberate wake-word and button-driven voice tests, checking recognition and audible responses rather than deployment status alone.
-3. Test a harmless dashboard action, screen behavior and recovery after a power cycle or network interruption, then complete the 72-hour checks in [the HA guide](android-and-home-assistant.md).
+1. Run deliberate wake-word and button-driven voice tests, checking recognition and audible responses rather than deployment status alone.
+2. Test a harmless dashboard action, screen behavior and recovery after a power cycle or network interruption.
+3. Complete the 72-hour checks in [the HA guide](android-and-home-assistant.md).
