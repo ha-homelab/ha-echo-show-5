@@ -48,7 +48,7 @@ Use your device's actual address; `show-camera.example.com` below is a placehold
 - **Username / Password:** the values configured in the camera app.
 - **Verify SSL:** keep enabled with a certificate trusted by HA. For the pilot's self-signed certificate, disable verification **only on this camera integration** (`verify_ssl=false`). HTTPS still encrypts traffic, but this exception removes certificate identity verification; do not disable verification globally.
 
-With `still_image_url` omitted, the reviewed core MJPEG implementation extracts the first JPEG from the stream for an image request. This avoids calling the app's physical still-capture endpoint for HA thumbnails. Keep `/video/snapshot` available for deliberate diagnostics, not as the preferred HA still image URL. See the [core MJPEG image implementation](https://github.com/home-assistant/core/blob/2026.9.4/homeassistant/components/mjpeg/camera.py).
+With `still_image_url` omitted, the reviewed core MJPEG implementation extracts the first JPEG from the stream for an image request. This avoids calling the app's physical still-capture endpoint for HA thumbnails. Keep `/video/snapshot` available for deliberate diagnostics, not as the preferred HA still image URL. See the [core MJPEG image implementation](https://github.com/home-assistant/core/blob/2026.9.1/homeassistant/components/mjpeg/camera.py), matching the tested HA version.
 
 MJPEG supplies a video camera entity. It does not add the app's audio upload or a call button. Verify the camera entity can retrieve fresh images from HA itself, rather than assuming a browser on another network has the same access. No public port forwarding is part of this setup.
 
