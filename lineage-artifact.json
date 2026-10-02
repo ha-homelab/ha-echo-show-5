@@ -1,0 +1,11 @@
+{
+  "id": "lineage",
+  "name": "lineage-18.1-20260904-UNOFFICIAL-cronos.zip",
+  "url": "https://github.com/amazon-oss/releases/releases/download/lineage-18.1-cronos-v0.4/lineage-18.1-20260904-UNOFFICIAL-cronos.zip",
+  "size": 484847340,
+  "sha256": "4c355998061a454792128d4b730932b47ed05a3d2a6d2628599218f44cc84678",
+  "published_at": "2026-09-05T00:53:11Z",
+  "source": "https://github.com/amazon-oss/releases/releases/tag/lineage-18.1-cronos-v0.4",
+  "checksum_provenance": "Published by the ROM author in the GitHub release body; also compare GitHub asset digest.",
+  "github_digest": "sha256:4c355998061a454792128d4b730932b47ed05a3d2a6d2628599218f44cc84678"
+}
