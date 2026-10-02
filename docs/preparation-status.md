@@ -34,7 +34,13 @@ The required post-installation **final Format Data** completed. Fresh recovery e
 
 The guarded `install-companion` action then passed its complete Android identity probe: **cronos**, **Android 11**, **LineageOS 18.1** and completed boot. Installation of the pinned **Home Assistant Companion 2026.8.4 minimal APK** returned **`Performing Streamed Install`** followed by **`Success`**. Independent installed-package inspection through `dumpsys` confirmed **versionName `2026.8.4-minimal`**, **versionCode `24228`**, **minSdk `23`** and **targetSdk `37`**.
 
-**Device-to-HA routing, login, dashboard operation and physical voice acceptance remain pending.** Android boot and APK installation do not establish microphone capture, audible Assist responses, wake-word reliability or multi-day stability. Server-side Assist checks remain distinct from tests on the Show.
+**Companion login and authenticated dashboard rendering are confirmed.** The operator signed in on the device, and the existing dashboard displayed household entity states without changing the global dashboard configuration. Read-only server checks confirmed an enabled Companion device registration, its device-tracking and notification entities, and a healthy server-side HA WebSocket session.
+
+Home Assistant was selected as Android's default digital assistant through the OS interface; the configured assistant component was independently verified as `AssistVoiceInteractionService`. Companion's **Fullscreen** and **Keep screen on** settings were visibly enabled. Keep screen on applies while the dashboard is active; automatic startup and unattended kiosk behavior remain separate acceptance items.
+
+The operator granted the app's background battery exception and microphone permission through Android's interfaces. A separate device-idle whitelist check confirmed the battery exception. A **Russian-language Assist pipeline** was available on the server and selected in the device's Assist dialog, with the selected dropdown state verified. The server's global default assistant was unchanged.
+
+**Controlled physical voice acceptance remains pending.** Permissions, assistant selection and a healthy server connection do not establish successful microphone capture, audible responses, wake-word reliability or multi-day stability. No ambient capture or private transcript is treated as an acceptance test.
 
 ## Script checks
 
@@ -46,6 +52,6 @@ See [script review](script-review.md) for resolved findings and [release audit](
 
 ## Remaining acceptance
 
-1. Verify the Show's network route to the HA server and complete Companion login.
-2. Test dashboard/display behavior, button-driven voice, optional wake word and recovery after interruptions.
+1. Run controlled button-driven voice tests and verify both recognition and audible responses.
+2. Test a harmless dashboard action, optional wake-word behavior and recovery after interruptions; verify screen and startup behavior separately.
 3. Complete the multi-day acceptance checks in [the HA guide](android-and-home-assistant.md).

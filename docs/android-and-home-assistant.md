@@ -53,9 +53,9 @@ The USB host is only needed for conversion and app installation. Normal Companio
 
 1. Complete Android setup, join the intended Wi-Fi, set time/time zone and check touch, screen and speaker operation. Keep the Show's normal power adapter connected.
 2. Open your actual Home Assistant URL from the Show, such as `https://ha.example.com`. This is an example address; replace it with the endpoint reachable from your network. Verify routing, DNS and TLS before changing app settings.
-3. Open Companion, select the existing server and log in on the device. A dedicated non-administrator HA user is suitable for a persistent room display. Keep credentials and authorization tokens out of project files, shell history and public screenshots.
+3. Open Companion, select the existing server and log in on the device. On the **960×480** screen, onboarding controls such as manual server-address entry can be below the visible area: **scroll before assuming the control is missing**. A dedicated non-administrator HA user is suitable for a persistent room display. Keep credentials and authorization tokens out of project files, shell history and public screenshots.
 4. Load a simple dashboard appropriate for the **960×480** screen. Verify live state updates and a harmless action before adding heavy custom cards.
-5. If desired, enable the app's screen-on option and test screen sleep/wake and reboot behavior. Auto-start and kiosk behavior need separate configuration and verification.
+5. If desired, enable Companion's **Fullscreen** and **Keep screen on** options. Keep screen on applies while the dashboard is active. Test screen sleep/wake and reboot behavior separately; these switches do not establish automatic startup or unattended kiosk operation.
 
 Companion needs **Show → HA HTTP(S), WebSocket and returned media/TTS URL access**. Depending on the endpoint, that is commonly TCP8123 on a private route or TCP443 for HTTPS. Verify that HA-generated audio URLs are reachable from the Show, including their hostnames. A working NAS-side request does not establish the Show's own Wi-Fi route.
 
@@ -64,18 +64,18 @@ The plain Companion path does not require MQTT, ESPHome TCP6053 or VACA TCP10800
 ## Test Assist with a button first
 
 1. In HA, send a harmless **typed** Assist command to test the selected conversation agent and exposed entities.
-2. Select an Assist pipeline with working **speech-to-text and text-to-speech**. Configure the desired language consistently across its stages. An available pipeline name alone is not evidence that its backend works.
+2. Open the **Assist dialog** and use its **pipeline dropdown** to select an assistant with working speech-to-text and text-to-speech. Configure the desired language consistently across its stages. This device/dialog selection does not require changing HA's global default assistant. An available pipeline name alone is not evidence that its backend works.
 3. In Companion, tap the on-screen Assist/microphone control and grant Android microphone permission. This is the app control, not the Show's Mute/Power button.
 4. Speak a short command, inspect the transcript, confirm the intended action and listen for a response. Repeat five times, including a command immediately after a response.
 5. If it fails, inspect HA's Assist debug stages to separate capture, recognition, conversation and playback failures before changing wake-word settings.
 
-For Russian or another language, create or select an appropriately configured pipeline and choose it explicitly for this device. Keep household-specific pipeline IDs, engine credentials and test transcripts in ignored local records. Existing working speech services can be reused; this project does not require a particular provider or deploy new speech servers.
+For Russian or another language, create or select an appropriately configured pipeline and choose it explicitly in the Assist dialog. Native **Companion app → Assist for Android** settings govern Android assistant integration and wake-word behavior; they are distinct from the pipeline dropdown. Keep household-specific pipeline IDs, engine credentials and test transcripts in ignored local records. Existing working speech services can be reused; this project does not require a particular provider or deploy new speech servers.
 
 ## Optional hands-free operation
 
 Official Companion documents experimental **on-device microWakeWord** from version 2026.2.3 onward. Open **Settings → Companion app → Assist for Android**, choose Home Assistant as the default digital assistant, enable **Wake word detection**, and select a supplied phrase. Confirm the controls exist in the installed minimal build, then repeat a command already verified with the button. [Official Android Assist instructions](https://www.home-assistant.io/voice_control/android/).
 
-Test with the dashboard visible and after screen sleep. Keep only one continuous microphone listener active. If wake-word mode makes the app unresponsive, setting Android's default digital assistant to another app or None disables it so button-driven testing can resume.
+Grant Android microphone permission and, when enabling sustained listening, approve the intended app's background battery exception. Check the actual permission/settings state rather than assuming the prompt succeeded. Test with the dashboard visible and after screen sleep. Keep only one continuous microphone listener active. If wake-word mode makes the app unresponsive, setting Android's default digital assistant to another app or None disables it so button-driven testing can resume.
 
 Documented choices include **Hey Nabu, Hey Jarvis and Hey Mycroft**. Changing the speech pipeline language does not change the wake phrase. Arbitrary custom wake-word import is not established for the pinned Companion build. VACA separately documents importing a trained microWakeWord **`.tflite` + `.json`** pair. [VACA custom files](https://github.com/msp1974/ViewAssist_Companion_App/wiki/Custom-Files).
 
