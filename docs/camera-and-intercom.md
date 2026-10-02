@@ -52,6 +52,23 @@ With `still_image_url` omitted, the reviewed core MJPEG implementation extracts 
 
 MJPEG supplies a video camera entity. It does not add the app's audio upload or a call button. Verify the camera entity can retrieve fresh images from HA itself, rather than assuming a browser on another network has the same access. No public port forwarding is part of this setup.
 
+### Preserve the camera's proportions
+
+The tested stream is **4:3**, while the Show display is **960×480 (2:1)**. Filling that entire screen can crop or stretch the picture. Compare a direct MJPEG frame with a full-resolution still before changing capture resolution to compensate for a display problem.
+
+Use proportional fitting in the dedicated HA card. The 16:9 card viewport below fits this landscape screen with room for the HA header and card footer; the 4:3 image stays centered inside it:
+
+```yaml
+type: picture-entity
+entity: camera.echo_show_camera # Replace with your camera entity.
+camera_view: live
+aspect_ratio: "16:9"
+fit_mode: contain
+show_state: false
+```
+
+The [picture-entity card's `contain` mode](https://www.home-assistant.io/dashboards/picture-entity/) preserves proportions and includes the whole image; unused space is expected on a wider display. `cover` crops and `fill` can distort the picture. Keep the view sized to fit the display height as well as its width. The camera app's own local preview is a separate renderer: this HA setting does not modify the APK. Use the HA camera view for the fitted display while the camera service runs in the background.
+
 ## Experimental audio and microphone handoff
 
 The pinned source exposes two separate audio directions:
