@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "purpose": "Official no-Google-Play-Services Home Assistant Companion APK for the Echo Show 5 Gen2 Android 11 pilot",
+  "repository": "home-assistant/android",
+  "version": "2026.8.4",
+  "release_id": 379645705,
+  "release_url": "https://github.com/home-assistant/android/releases/tag/2026.8.4",
+  "release_published_at": "2026-08-31T09:42:13Z",
+  "prerelease": false,
+  "asset_id": 537771948,
+  "upstream_filename": "app-minimal-release.apk",
+  "download_url": "https://github.com/home-assistant/android/releases/download/2026.8.4/app-minimal-release.apk",
+  "relative_path": "downloads/home-assistant-2026.8.4-minimal.apk",
+  "size_bytes": 51871377,
+  "sha256": "8f58a7df71c61447d3370f5d5956a66e3523625dc4b51c8434bd166d3e731bea",
+  "upstream_digest": "sha256:8f58a7df71c61447d3370f5d5956a66e3523625dc4b51c8434bd166d3e731bea",
+  "checksum_verified_against_upstream": true,
+  "downloaded_at_utc": "2026-10-02T01:29:31.439161+00:00",
+  "native_abis_observed": [
+    "arm64-v8a",
+    "armeabi-v7a",
+    "x86",
+    "x86_64"
+  ],
+  "compatibility": {
+    "target": "Echo Show 5 Gen2 (cronos), LineageOS 18.1 / Android 11 / ARMv7 userspace",
+    "flavor": "minimal",
+    "google_play_services_required": false,
+    "armv7_native_libraries_present": true,
+    "tested_on_physical_device": false
+  },
+  "provenance": {
+    "metadata_url": "https://api.github.com/repos/home-assistant/android/releases/tags/2026.8.4",
+    "metadata_provider": "Official GitHub REST API release metadata",
+    "binary_source": "Official home-assistant/android GitHub release asset; no third-party APK mirror",
+    "flavor_documentation": "https://companion.home-assistant.io/docs/core/android-flavors/",
+    "signer_certificate_verification": "Not independently performed; downloaded bytes match the SHA-256 digest published in the official GitHub asset metadata."
+  },
+  "apk_manifest_observed": {
+    "manifest": {
+      "versionCode": 24228,
+      "versionName": "2026.8.4-minimal",
+      "compileSdkVersion": 37,
+      "compileSdkVersionCodename": "17",
+      "package": "io.homeassistant.companion.android.minimal",
+      "platformBuildVersionCode": 37,
+      "platformBuildVersionName": 17
+    },
+    "uses-sdk": {
+      "minSdkVersion": 23,
+      "targetSdkVersion": 37
+    }
+  },
+  "id": "companion",
+  "name": "home-assistant-2026.8.4-minimal.apk",
+  "url": "https://github.com/home-assistant/android/releases/download/2026.8.4/app-minimal-release.apk",
+  "size": 51871377,
+  "source": "https://github.com/home-assistant/android/releases/tag/2026.8.4"
+}
