@@ -18,6 +18,14 @@ Booting with the red hardware Mute state engaged can leave the camera unavailabl
 
 Start with a small dashboard and one microphone-owning app. Far-field speech, interruption during music, reliable camera playback, DRM streaming and unattended operation require tests on the actual device. An Android boot alone establishes none of those capabilities.
 
+## Complete initial Android setup and enable USB debugging
+
+Finish the Lineage welcome/setup flow. If it offers **Update Lineage Recovery alongside the OS**, leave that option unchecked for this TWRP-based workflow. This is the project's recommendation to retain the existing TWRP recovery, not a stated requirement from the ROM maintainer.
+
+Developer options are initially hidden. Open **Settings → About tablet** (or **About device**), tap **Build number seven times**, then open **System → Advanced → Developer options** and enable **USB debugging**. Connect the data cable and approve the intended NAS host's RSA key on the Show. Choose **Always allow from this computer** only when deliberately authorizing that project's persistent host key.
+
+The scripts cannot approve this on-screen prompt for you. Once authorized, rerun USB inventory if its mode or node changed, then use the complete observed serial for `probe-android` and installation. USB enumeration without an ADB interface before debugging is enabled does not by itself indicate a failed Android boot.
+
 ## Pinned Companion APK
 
 The selected artifact is **Home Assistant Companion 2026.8.4-minimal** from the [official release](https://github.com/home-assistant/android/releases/tag/2026.8.4):
