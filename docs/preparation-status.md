@@ -30,7 +30,11 @@ The installed system uses a **system-as-root** layout. Mounted at `/system` in r
 
 The required post-installation **final Format Data** completed. Fresh recovery evidence showed successful `mke2fs` and `e2fsdroid` return codes; independent inspection confirmed a new ext4 filesystem UUID, approximately **7.7 MiB used of 3.7 GiB** (1%), and only `lost+found` and `media` in Data.
 
-The **System reboot command was accepted**. USB briefly disappeared, then the same selected physical unit re-enumerated as **1949:0331**, described as **Echo Show 5 (2nd Generation)**. The observed interface was vendor-specific (class/subclass/protocol `ff/ff/00`), and `adb devices` returned no device. An ADB interface was not available for reading Android properties or installing the APK. **First Android boot is still pending verification** from the device screen; USB re-enumeration alone does not establish a successful boot. There is **no recorded completion** of Companion installation or physical Home Assistant audio/display acceptance. Reading the installed system properties from TWRP proves the written image identity, not a successful Android boot. Server-side Assist checks are also distinct from microphone and speaker tests on the Show.
+**First Android boot is confirmed.** The operator completed the Lineage welcome/setup flow, enabled USB debugging and explicitly authorized the intended persistent NAS ADB key on the device. The earlier USB session without an ADB interface was superseded by an authorized Android ADB connection. Live reads confirmed **`sys.boot_completed=1`**, **`device_provisioned=1`** and **`user_setup_complete=1`**. The running OS reported **Android 11** and **LineageOS 18.1-20260905-UNOFFICIAL-cronos**.
+
+The guarded `install-companion` action then passed its complete Android identity probe: **cronos**, **Android 11**, **LineageOS 18.1** and completed boot. Installation of the pinned **Home Assistant Companion 2026.8.4 minimal APK** returned **`Performing Streamed Install`** followed by **`Success`**. Independent installed-package inspection through `dumpsys` confirmed **versionName `2026.8.4-minimal`**, **versionCode `24228`**, **minSdk `23`** and **targetSdk `37`**.
+
+**Device-to-HA routing, login, dashboard operation and physical voice acceptance remain pending.** Android boot and APK installation do not establish microphone capture, audible Assist responses, wake-word reliability or multi-day stability. Server-side Assist checks remain distinct from tests on the Show.
 
 ## Script checks
 
@@ -42,6 +46,6 @@ See [script review](script-review.md) for resolved findings and [release audit](
 
 ## Remaining acceptance
 
-1. Confirm Android completes its first boot and reports the expected build; authorize USB debugging deliberately when needed.
-2. Install Companion, log in to the operator's HA server, and test display, button-driven voice, optional wake word and recovery after interruptions.
+1. Verify the Show's network route to the HA server and complete Companion login.
+2. Test dashboard/display behavior, button-driven voice, optional wake word and recovery after interruptions.
 3. Complete the multi-day acceptance checks in [the HA guide](android-and-home-assistant.md).
