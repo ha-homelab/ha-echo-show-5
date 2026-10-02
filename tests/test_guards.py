@@ -281,6 +281,41 @@ class Guards(unittest.TestCase):
         dev.adb_probe.assert_not_called()
         dev.command.assert_not_called()
 
+    def test_enable_system_writes_requires_zero_readback(self):
+        self.make_backup()
+        dev = mock.Mock(serial=SERIAL)
+        dev.adb.return_value = 'tw_mount_system_ro = 0\r\n'
+        with mock.patch.object(nas, 'confirm'), mock.patch.object(nas, 'twrp_step') as step, \
+                mock.patch('builtins.print'):
+            nas.prepare_partition(dev, 'enable-system-writes')
+        step.assert_called_once_with(dev, ['remountrw'])
+        dev.adb.assert_called_once_with('shell', 'twrp', 'get', 'tw_mount_system_ro', timeout=15)
+
+    def test_enable_system_writes_rejects_nonzero_unknown_or_ambiguous_readback(self):
+        self.make_backup()
+        for response in ('tw_mount_system_ro = 2', 'tw_mount_system_ro = unknown', '',
+                         'unrelated = 0', 'tw_mount_system_ro = 0\ntw_mount_system_ro = 2'):
+            with self.subTest(response=response):
+                dev = mock.Mock(serial=SERIAL)
+                dev.adb.return_value = response
+                with mock.patch.object(nas, 'confirm'), mock.patch.object(nas, 'twrp_step') as step, \
+                        mock.patch('builtins.print'), self.assertRaisesRegex(RuntimeError, 'not confirmed'):
+                    nas.prepare_partition(dev, 'enable-system-writes')
+                step.assert_called_once_with(dev, ['remountrw'])
+                dev.adb.assert_called_once_with('shell', 'twrp', 'get', 'tw_mount_system_ro', timeout=15)
+
+    def test_enable_system_writes_query_failure_stops_without_retry(self):
+        self.make_backup()
+        for error in (nas.subprocess.TimeoutExpired('adb', 15), RuntimeError('ADB disconnected')):
+            with self.subTest(error=type(error).__name__):
+                dev = mock.Mock(serial=SERIAL)
+                dev.adb.side_effect = error
+                with mock.patch.object(nas, 'confirm'), mock.patch.object(nas, 'twrp_step') as step, \
+                        mock.patch('builtins.print'), self.assertRaisesRegex(RuntimeError, 'failed or timed out'):
+                    nas.prepare_partition(dev, 'enable-system-writes')
+                step.assert_called_once_with(dev, ['remountrw'])
+                dev.adb.assert_called_once_with('shell', 'twrp', 'get', 'tw_mount_system_ro', timeout=15)
+
     def test_old_recovery_log_cannot_verify_new_operation(self):
         old = "I:Command 'format data' received\nI:Done reading ORS command from command line\n"
         dev = mock.Mock(serial=SERIAL)

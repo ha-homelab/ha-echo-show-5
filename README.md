@@ -2,7 +2,7 @@
 
 Tools and an attended runbook for reusing an **Amazon Echo Show 5, second generation (2021), codename `cronos`**, as an Android Home Assistant display and voice client. This project targets a physical **x86_64 Synology NAS** as the USB host, controlled over SSH from a separate computer.
 
-**Validation status, 2026-10-02:** the pinned amonet release has unlocked a physical cronos device and booted verified **TWRP 3.7.0_9-0**. A raw off-device backup also passed complete size, hash and GPT validation. This project does **not yet claim** a completed LineageOS installation, Companion installation, or physical Home Assistant acceptance test. See [validation status](docs/preparation-status.md).
+**Validation status, 2026-10-02:** the pinned amonet release has unlocked a physical cronos device and booted verified **TWRP 3.7.0_9-0**. Raw backups passed size, hash and GPT validation on both NAS and workstation. **LineageOS installation completed in TWRP**, with successful updater output, matching boot-image bytes and independently checked Android 11/cronos system properties. The final Data format passed independent verification and the System reboot command was accepted. The device reappeared on USB without an available ADB interface. **First Android boot is still pending verification**; Companion installation and physical Home Assistant acceptance are not yet claimed. See [validation status](docs/preparation-status.md).
 
 ## Conversion route
 
