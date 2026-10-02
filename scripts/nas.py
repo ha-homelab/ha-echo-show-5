@@ -443,13 +443,27 @@ def twrp_step(dev, command):
 
 
 def prepare_partition(dev, action):
-    commands = {'format-data': ['format', 'data'], 'wipe-data': ['wipe', 'data'],
+    commands = {'enable-system-writes': ['remountrw'],
+                'format-data': ['format', 'data'], 'wipe-data': ['wipe', 'data'],
                 'wipe-system': ['wipe', 'system'], 'wipe-cache': ['wipe', 'cache']}
     command = commands[action]
     print('Verified backup:', verify_backup(dev.serial))
     dev.adb_probe()
     confirm(action, dev.serial)
     twrp_step(dev, command)
+    if action == 'enable-system-writes':
+        # The pinned CLI prints "name = value" but does not propagate every
+        # remountrw failure. One bounded readback must establish its effect.
+        try:
+            result = dev.adb('shell', 'twrp', 'get', 'tw_mount_system_ro', timeout=15)
+        except (RuntimeError, subprocess.SubprocessError) as exc:
+            raise RuntimeError('System write-state query failed or timed out. Stop and inspect recovery; '
+                               'do not retry the operation automatically.') from exc
+        values = re.findall(r'^tw_mount_system_ro[ \t]*=[ \t]*([^\r\n]*)\r?$', result, re.M)
+        if [value.strip() for value in values] != ['0']:
+            raise RuntimeError('System writes were not confirmed: expected one tw_mount_system_ro = 0 '
+                               'response. Stop before wiping or installing System.')
+        print('Confirmed tw_mount_system_ro = 0. System modifications are enabled in TWRP.')
 
 
 def install_rom(dev):
@@ -504,7 +518,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('action', choices=['inventory', 'preflight', 'prepare-host', 'probe-fastboot',
         'probe-recovery', 'probe-android', 'unlock', 'backup', 'backup-raw', 'verify-backup', 'stage-rom',
-        'install-rom', 'install-companion', 'format-data', 'wipe-data', 'wipe-system', 'wipe-cache'])
+        'install-rom', 'install-companion', 'enable-system-writes',
+        'format-data', 'wipe-data', 'wipe-system', 'wipe-cache'])
     ap.add_argument('--port', help='Exact physical USB port from inventory, e.g. 1-3')
     ap.add_argument('--serial', help='Complete observed serial; never a suffix')
     args = ap.parse_args()
@@ -543,7 +558,7 @@ def main():
                 confirm('backup-raw', dev.serial)
                 print('Verified off-device raw backup:', create_raw_backup(dev))
                 return
-            if args.action in ('format-data', 'wipe-data', 'wipe-system', 'wipe-cache'):
+            if args.action in ('enable-system-writes', 'format-data', 'wipe-data', 'wipe-system', 'wipe-cache'):
                 prepare_partition(dev, args.action)
                 return
             actions = {'probe-fastboot': lambda: print(json.dumps(dev.fastboot_probe(), indent=2)),

@@ -166,6 +166,21 @@ Proceed only after the off-device backup passes verification and its documented 
 
 Use either TWRP's attended UI controls or the guarded CLI stages below. Do not perform both as duplicate sequences. Run and inspect **one stage at a time**; the displayed command blocks are references, not unattended batch scripts.
 
+After the backup is verified, allow System modifications in TWRP. The tested
+recovery initially reported `tw_mount_system_ro=2`; the guarded CLI equivalent
+uses TWRP's `remountrw` command before wiping or installing System:
+
+```bash
+python3 scripts/remote.py enable-system-writes --port PORT --serial FULL_SERIAL
+```
+
+The wrapper then issues one `twrp get tw_mount_system_ro` query with a 15-second
+timeout and requires the single observed value to be **`0`**. A nonzero,
+unrecognized or ambiguous response, query failure, or timeout stops this stage
+without a retry. Do not wipe or install System until this state is confirmed;
+inspect recovery before attempting another operation. If using the UI instead,
+explicitly confirm that System is no longer restricted to read-only access.
+
 First use **Wipe → Format Data** in the UI, or:
 
 ```bash
@@ -177,8 +192,11 @@ Then use **Advanced Wipe → Data, System, Cache**, or the following individual 
 ```bash
 python3 scripts/remote.py wipe-data --port PORT --serial FULL_SERIAL
 python3 scripts/remote.py wipe-system --port PORT --serial FULL_SERIAL
-python3 scripts/remote.py wipe-cache --port PORT --serial FULL_SERIAL
 ```
+
+On the tested TWRP build, CLI `wipe data` also formatted Cache. If its fresh log
+and resulting filesystem confirm that operation succeeded, do not repeat it.
+Otherwise run the separate guarded `wipe-cache` stage and verify its result.
 
 Do not select unrelated bootloader partitions. Each guarded stage revalidates TWRP identity and the saved backup, requires the exact action/serial phrase and retains before/after recovery evidence under private `logs/FULL_SERIAL/TIMESTAMP-operation/`. CLI completion alone does not establish success.
 
@@ -189,7 +207,23 @@ python3 scripts/remote.py stage-rom --port PORT --serial FULL_SERIAL
 python3 scripts/remote.py install-rom --port PORT --serial FULL_SERIAL
 ```
 
-Inspect the new installation log and installed image. Only after successful installation, **Format Data again** through the UI or the guarded `format-data` command. Then choose **Reboot → System**. Installation does not automatically format or reboot. Allow first boot to finish, join Wi-Fi and verify the installed OS and basic touch/audio operation.
+Inspect the new installation log and installed image. The tested build reported
+`Updater process ended with RC=0` and wrote exactly its expected block count.
+Its installed Boot prefix was read back for the exact length of `boot.img` from
+the verified ZIP and its SHA256 matched. Do not hash the entire larger Boot
+partition as though it were the smaller ZIP member.
+
+This Android 11 image uses a system-as-root layout: when its partition is
+temporarily mounted read-only at `/system` in TWRP, its properties are at
+`/system/system/build.prop`. The tested file confirmed Android 11, product
+`cronos` and LineageOS 18.1. Unmount that temporary inspection mount afterward.
+Absence of `/system/build.prop` at that recovery mount point alone is not an
+installation failure.
+
+Only after successful installation and readback, **Format Data again** through
+the UI or the guarded `format-data` command. Then choose **Reboot → System**.
+Installation does not automatically format or reboot. Allow first boot to finish,
+join Wi-Fi and verify the installed OS and basic touch/audio operation.
 
 GApps and root packages are unnecessary for the pinned minimal Companion APK. Do not manually flash Preloader, LK, TEE or an Amazon update through stock fastboot.
 
