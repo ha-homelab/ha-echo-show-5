@@ -13,7 +13,9 @@ The following checks were performed on the converted device and installed HA ins
 - **Synthetic video lifecycle and membership guards:** live WS checks passed for replacing a caller membership on the same connection, rejecting the old member's actions/signals, surviving an obsolete unsubscribe, relaying inactive offer/answer data, rejecting a stale call ID, receiving restoration events and returning to the previous mute state. All ten checks passed. These clients created no real WebRTC media; the results establish protocol behavior and service/microphone cleanup, not fresh camera frames.
 - **Camera recovery:** an answered call reported `NotFoundError` while the browser enumerated audio input/output only and Android's camera service reported zero cameras. After an ordinary reboot with hardware privacy off, both the camera service and public camera API reported one camera. Manually starting the camera app and Companion returned two different fresh authenticated MJPEG frames, held only in memory. This demonstrates manual recovery; it does not identify the cause of the earlier camera loss.
 - **Isolated WebView capture:** separate `getUserMedia` checks acquired audio in 977 ms, video in 1,376 ms at 640×480, and both in 1,488 ms. The exact production constraints also acquired both in 1,450 ms at 640×480. These establish local media acquisition after camera recovery, not peer connectivity, received media or sound heard by a person.
-- **Actual browser video:** earlier full-call attempts failed during connection or preparation. A forty-five-second connection deadline, safe diagnostics and the optional lightweight receiver below are implemented; a complete call through that receiver remains pending validation.
+- **Actual browser video:** after repairing the Companion endpoint, the lightweight panel loaded, authenticated and joined the room. It received an incoming call and Answer was selected on the Show. Backend handoff completed; the caller acquired media and submitted an offer. The Show's debugger then timed out, and no media between peers was confirmed. This does not identify the cause. Video remains experimental and unverified.
+- **Final cleanup after that attempt:** the backend returned to idle without recovery pending. Independent checks found different fresh MJPEG frames, the camera app's microphone permission denied and one VACA recorder active. These establish the recovered camera/microphone baseline, not physical audibility or wake-word acceptance.
+- **Final daily-use pilot state:** `video_enabled: false` and `call_panel: false` were applied, configuration validation passed, and one normal HA restart completed. Video cards and the call panel were absent; the audio card remained. Companion home reconnected automatically, and VACA, Android Debug Bridge and camera entities were idle. Checks confirmed one VACA recorder, denied camera microphone permission, the retained Always-on Display override and two different fresh MJPEG frames. A test announcement completed, restored its volume and returned to idle/unmuted; physical audibility remains unverified. USB is not required for this running Wi-Fi session, but the Android-reboot recovery limitation below still applies.
 - **Related controls:** an announcement action completed and restored its previous volume, but physical sound was not confirmed. The dedicated home dashboard rendered at 960×480. With the original Android setting backed up and `doze_always_on=0`, key event 223 produced display OFF after five seconds while wakefulness remained `Dozing`; key event 224 restored display ON and `Awake`. This verifies display-state transitions, not deep CPU suspend or long-term voice operation with the screen off. See [the setting change and rollback](../../docs/android-and-home-assistant.md#screen-sleep-and-always-on-display).
 
 Network ADB was lost during that ordinary reboot and restored through the already trusted USB host. The Always-on Display override persisted and VACA autostarted, but camera and Companion startup was manual. Camera Start on Boot remains off, so unattended intercom recovery is not established. No new physical wake-word or audibility acceptance was performed. A successful action or signal exchange does not substitute for those checks.
@@ -28,6 +30,17 @@ Network ADB was lost during that ordinary reboot and restored through the alread
 Talkback and Listen are half duplex. The WebRTC path requests browser echo cancellation and bidirectional media, but physical echo behavior and intelligibility need attended testing. Audio is held in memory by this implementation; it does not write audio files. Do not enable WebSocket payload debug logging during use, because transport logging could retain base64 audio.
 
 The existing [HA MJPEG camera](../../docs/camera-and-intercom.md) remains the ordinary video view. A working camera preview does not establish a working call.
+
+### Daily-use configuration without experimental video
+
+To finish video testing and retain dashboard, camera, voice and separately configured audio controls, set both fields in the existing integration configuration:
+
+```yaml
+video_enabled: false
+call_panel: false
+```
+
+End the active call and verify cleanup first. Remove the video-call cards and navigation buttons from the daily dashboard, validate configuration, restart HA once and check that the existing device connections return. This does not remove the camera integration, VACA or the talkback/listen controls; keep their individual settings and acceptance limits. After the restart, verify idle intercom status with no recovery pending, fresh authenticated camera frames, camera microphone permission denied and resumed VACA capture. A successful restart does not establish unattended Android reboot recovery or long-term reliability.
 
 ## Access and session ownership
 
@@ -141,6 +154,8 @@ The panel reuses `show5-video-call-card` for membership, media ownership and cle
 ## Optional Companion readiness workaround
 
 Companion Android **2026.8.4** has a ten-second native frontend-handshake timeout. On this Show, a saved log recorded the connection message more than eleven seconds after the initial bridge configuration. A working HA WebSocket can therefore coexist with the native connection-timeout overlay. This timing is evidence for a delayed handshake; it does not classify every connection error as the same problem.
+
+Check [Companion endpoint reachability](../../docs/android-and-home-assistant.md#repair-an-obsolete-companion-server-address) first. A separate pilot investigation confirmed an obsolete external hostname returning NXDOMAIN; updating the existing server's External URL to a verified same-instance HTTPS/WSS endpoint retained authentication. That DNS outage and the earlier frontend timing observations are distinct findings. The helper below cannot repair an unresolved hostname, TLS failure or failed authentication, and the address repair alone does not validate a video call.
 
 For this specific slow-start case, the same JS resource includes an opt-in, zero-size helper. Add it to each relevant `echo-show` view only after confirming the frontend underneath the overlay really renders and connects:
 

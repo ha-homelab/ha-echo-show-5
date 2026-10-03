@@ -94,6 +94,19 @@ Companion needs **Show → HA HTTP(S), WebSocket and returned media/TTS URL acce
 
 The plain Companion path does not require MQTT, ESPHome TCP6053 or VACA TCP10800. Keep any later device-control port within trusted networks. If HA or speech services are remote, local wake-word detection does not make the entire assistant work offline.
 
+### Repair an obsolete Companion server address
+
+During this pilot, the existing server's external hostname returned **NXDOMAIN**: that name no longer resolved. An alternate HTTPS address was verified to reach the **same HA instance**, with authenticated HTTPS and secure WebSocket access working. Updating only **External URL** in the existing Companion server entry preserved its authentication. **Internal URL remained unset.** This is a confirmed address repair; it does not establish a working video call or explain every earlier slow frontend load.
+
+Use the following order when Companion cannot connect:
+
+1. Inspect the selected server's current External URL and any Internal URL in Companion's app settings. Check the hostname from the Show's network. NXDOMAIN is a DNS failure; a cached dashboard, a reachable ADB port or another host's successful request does not prove that this URL resolves on the Show.
+2. Verify any replacement address belongs to the intended HA instance before using the existing authentication with it. Check DNS resolution, the HTTPS certificate and the served instance. Then verify authenticated HTTPS and **WSS** access; an unauthenticated landing page or HTTP 200 alone is insufficient. Keep credentials and diagnostic payloads private.
+3. In **Companion app settings**, select the **existing server** and edit its **External URL** to the verified same-instance HTTPS address. Use the supported settings UI, retain that server entry and save the change. This repair does not require clearing app data, deleting/re-adding the server or changing HA's global URL settings. The tested configuration had no Internal URL; preserve the existing routing policy unless a different local route is deliberately being configured.
+4. Reopen the dashboard and confirm fresh state updates and authenticated WebSocket operation through the selected address. Retest media/TTS URLs and the intended call separately. A repaired server connection does not prove camera access, peer connectivity or audible output.
+
+Keep endpoint reachability separate from frontend readiness. The [optional readiness workaround](../integrations/show5-intercom/README.md#optional-companion-readiness-workaround) addresses a measured native handshake delay after the frontend connects. It cannot repair DNS, TLS or authentication failures. Verify those prerequisites before attributing a loading overlay to dashboard performance.
+
 ## Test Assist with a button first
 
 1. In HA, send a harmless **typed** Assist command to test the selected conversation agent and exposed entities.

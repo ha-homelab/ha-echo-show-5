@@ -43,6 +43,7 @@ jobs:
         run: |
           python -m unittest discover -s integrations/show5-intercom/tests -v
           node --check integrations/show5-intercom/www/show5-intercom-card.js
+          node --input-type=module --check < integrations/show5-intercom/www/show5-call-panel.js
           node integrations/show5-intercom/tests/test_frontend.cjs
           node integrations/show5-intercom/tests/test_readiness.cjs
           node integrations/show5-intercom/tests/test_duplicate_import.cjs
