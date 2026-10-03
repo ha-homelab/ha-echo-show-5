@@ -9,6 +9,10 @@ show5_intercom:
   adb_entity: media_player.REPLACE_WITH_VERIFIED_SHOW_ADB
   listen_enabled: false
   video_enabled: false
+  # Independent native-app pilot; keep false until installed and accepted.
+  jitsi_enabled: false
+  # Fixed private HTTPS room, no credentials/query/fragment. No public default.
+  # jitsi_room_url: https://meet.example.invalid/show-room
 
 # Register /local/show5-intercom-card.js as a JavaScript module resource in
 # the existing Lovelace resource registry. The JS contains no secrets.

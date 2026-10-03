@@ -1,0 +1,56 @@
+# Ingress isolation only: DNS and upstream LLM egress remain unchanged.
+# Requires a CNI that enforces Kubernetes NetworkPolicy.
+# Match the actual Home Assistant labels/namespace before applying.
+# For hostNetwork Home Assistant, pod selectors are not portable. Add its
+# verified policy-evaluation source IPv4 /32 (or IPv6 /128) as a separate
+# ipBlock peer in a PRIVATE overlay. Routing/SNAT can make this differ from
+# status.hostIP, the socket source, or a later packet capture. Do not apply
+# this base alone to a hostNetwork deployment. That route is NOT validated
+# by this template: require successful HA Describe and unrelated-pod denial.
+# This peer trusts every flow translated to that same node/CNI source, not
+# an exclusive HA identity. Verify an unrelated pod remains denied, and
+# revalidate the observed source after routing or HA/bridge placement changes.
+# If the bridge rule blocks HA, remove only that optional policy and retain
+# gateway isolation; the internal bridge then trusts reachable cluster clients.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fcc-voice-bridge-ingress
+  namespace: homeassistant
+spec:
+  podSelector:
+    matchLabels:
+      app: fcc-voice-bridge
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: homeassistant
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: home-assistant
+              app.kubernetes.io/instance: home-assistant
+      ports:
+        - protocol: TCP
+          port: 10400
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fcc-voice-gateway-ingress
+  namespace: homeassistant
+spec:
+  podSelector:
+    matchLabels:
+      app: fcc-voice-gateway
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        # Without namespaceSelector this peer is confined to this namespace.
+        - podSelector:
+            matchLabels:
+              app: fcc-voice-bridge
+      ports:
+        - protocol: TCP
+          port: 8082

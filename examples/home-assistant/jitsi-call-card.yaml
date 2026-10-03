@@ -1,0 +1,46 @@
+# Add to an administrator-only dashboard after the native Jitsi pilot passes.
+# Replace this example URL with the same room configured privately in HA.
+# A link to an unlisted room grants access to anyone who possesses it.
+type: vertical-stack
+cards:
+  - type: markdown
+    content: |
+      ## Call the Show with Jitsi
+      Start Jitsi on the Show, then join the same room from this device.
+      On the Show, tap Join and enable the microphone and camera when ready.
+  - type: grid
+    columns: 2
+    square: false
+    cards:
+      - type: button
+        name: Start Jitsi on Show
+        icon: mdi:video
+        icon_height: 48px
+        tap_action:
+          action: perform-action
+          perform_action: show5_intercom.jitsi_start
+        hold_action:
+          action: none
+      - type: button
+        name: End and restore voice
+        icon: mdi:phone-hangup
+        icon_height: 48px
+        tap_action:
+          action: perform-action
+          perform_action: show5_intercom.jitsi_end
+        hold_action:
+          action: none
+  - type: button
+    name: Join from this device
+    icon: mdi:video-account
+    icon_height: 48px
+    tap_action:
+      action: url
+      url_path: https://meet.example.invalid/REPLACE_WITH_CONFIGURED_ROOM
+    hold_action:
+      action: none
+  - type: markdown
+    content: |
+      This pilot allows two minutes, including startup. Use **End and restore voice**
+      in Home Assistant to return the Show to its camera view and voice assistant.
+      The Jitsi hang-up button alone does not notify Home Assistant.

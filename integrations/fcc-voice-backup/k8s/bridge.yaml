@@ -1,0 +1,60 @@
+# Build and distribute this project-local image before applying.
+# Use a private overlay for node placement and a registry digest where available.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fcc-voice-bridge
+  namespace: homeassistant
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: fcc-voice-bridge}
+  template:
+    metadata:
+      labels: {app: fcc-voice-bridge}
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: bridge
+          image: fcc-voice-bridge:0.1.1
+          imagePullPolicy: Never
+          env:
+            - {name: FCC_BASE_URL, value: "http://fcc-voice-gateway.homeassistant.svc.cluster.local:8082"}
+            - {name: FCC_MODEL, value: "anthropic/open_router/liquid/lfm-2.5-2.6b:free"}
+            - {name: FCC_API_KEY_FILE, value: /run/secrets/proxy-token}
+            - {name: FCC_TIMEOUT_SECONDS, value: "30"}
+          ports: [{name: wyoming, containerPort: 10400}]
+          readinessProbe:
+            tcpSocket: {port: wyoming}
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 25m, memory: 48Mi}
+            limits: {cpu: 500m, memory: 192Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: credentials, mountPath: /run/secrets, readOnly: true}
+      volumes:
+        - name: credentials
+          secret:
+            secretName: fcc-voice-credentials
+            defaultMode: 0444
+            items: [{key: proxy-token, path: proxy-token}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fcc-voice-bridge
+  namespace: homeassistant
+spec:
+  type: ClusterIP
+  selector: {app: fcc-voice-bridge}
+  ports: [{name: wyoming, port: 10400, targetPort: wyoming}]

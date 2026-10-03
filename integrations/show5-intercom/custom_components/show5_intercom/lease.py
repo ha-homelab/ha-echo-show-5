@@ -58,7 +58,7 @@ class LeaseGuard:
         async with self.lock:
             if self.active:
                 raise ValueError("Device is already in a session or needs recovery")
-            if mode not in {"talk", "listen", "video"} or not 0 < seconds <= 120:
+            if mode not in {"talk", "listen", "video", "jitsi"} or not 0 < seconds <= 120:
                 raise ValueError("Invalid session")
             prior = await self.snapshot()
             lease = Lease(secrets.token_hex(16), owner, mode, prior, time.monotonic() + seconds)
@@ -104,7 +104,7 @@ class LeaseGuard:
 
     async def recover(self, record: dict):
         async with self.lock:
-            if record.get("mode") not in {"talk", "listen", "video"} or type(record.get("prior_muted")) is not bool:
+            if record.get("mode") not in {"talk", "listen", "video", "jitsi"} or type(record.get("prior_muted")) is not bool:
                 raise ValueError("Invalid recovery journal")
             self.active = Lease(secrets.token_hex(16), "recovery", record["mode"], record["prior_muted"], 0)
             await self._restore_locked()
