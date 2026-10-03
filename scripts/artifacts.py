@@ -27,13 +27,12 @@ def metadata(kind):
     return data
 
 
-def verify(kind):
-    item = metadata(kind)
-    p = ROOT / 'downloads' / item['name']
+def verify_file(kind, item, p):
+    """Check content at p using the validated artifact's final filename."""
     if p.stat().st_size != item['size'] or digest(p) != item['sha256']:
         raise ValueError('Artifact size/SHA256 mismatch: ' + str(p))
     expected_suffix = '.apk' if kind in ('companion', 'vaca', 'androidipcamera', 'jitsi') else '.zip'
-    if p.suffix != expected_suffix:
+    if Path(item['name']).suffix != expected_suffix:
         raise ValueError('Unexpected file type for ' + kind)
     if kind in ('lineage', 'companion', 'amonet', 'vaca', 'androidipcamera', 'jitsi'):
         with zipfile.ZipFile(p) as z:
@@ -45,6 +44,11 @@ def verify(kind):
                 if fields.get('pre-device') != 'cronos':
                     raise ValueError('ROM is not for cronos')
     return p
+
+
+def verify(kind):
+    item = metadata(kind)
+    return verify_file(kind, item, ROOT / 'downloads' / item['name'])
 
 
 def fetch(kind):
@@ -61,10 +65,9 @@ def fetch(kind):
         with urllib.request.urlopen(req, timeout=60) as src, partial.open('wb') as dst:
             for block in iter(lambda: src.read(4 * 1024 * 1024), b''):
                 dst.write(block)
-        if partial.stat().st_size != item['size'] or digest(partial) != item['sha256']:
-            raise ValueError('Downloaded artifact size/SHA256 mismatch')
+        verify_file(kind, item, partial)
         os.replace(partial, p)
-        return verify(kind)
+        return p
     finally:
         partial.unlink(missing_ok=True)
 
