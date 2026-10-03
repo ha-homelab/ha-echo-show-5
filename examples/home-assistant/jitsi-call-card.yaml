@@ -15,6 +15,7 @@ cards:
       - type: button
         name: Start Jitsi on Show
         icon: mdi:video
+        icon_height: 48px
         tap_action:
           action: perform-action
           perform_action: show5_intercom.jitsi_start
@@ -23,6 +24,7 @@ cards:
       - type: button
         name: End and restore voice
         icon: mdi:phone-hangup
+        icon_height: 48px
         tap_action:
           action: perform-action
           perform_action: show5_intercom.jitsi_end
@@ -31,6 +33,7 @@ cards:
   - type: button
     name: Join from this device
     icon: mdi:video-account
+    icon_height: 48px
     tap_action:
       action: url
       url_path: https://meet.example.invalid/REPLACE_WITH_CONFIGURED_ROOM
