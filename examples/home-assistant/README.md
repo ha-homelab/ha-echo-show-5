@@ -33,6 +33,8 @@ The tested ROM enabled Always-on Display by default, so sleep initially left the
 
 Navigation expects an `echo-show` dashboard with `home`, `camera`, `voice`, `music`, and `receive` view paths. `script.echo_show_show_calls` opens `/echo-show/receive` on the physical Show, where the video-call card has the receiving `show` role. A phone or desktop places calls from the separate `/echo-show/calls` controller view. Opening the receiving view does not automatically answer a call.
 
+The five remote navigation commands use `NEW_TASK | CLEAR_TASK` (`-f 0x10008000`) before opening the supported Companion deep link. This clears Companion’s UI history so repeated commands do not retain additional dashboard activities and WebViews. One device trial reduced three instances to one; it did not establish fast loading. Prefer ordinary dashboard navigation while Companion is open, and allow cold loads to finish before sending another remote command. Slow frontend loading and connection stalls remain separate limitations.
+
 Change those fixed paths if your dashboard differs. The command targets the minimal Companion package, `io.homeassistant.companion.android.minimal`; a full Companion installation uses a different package ID. These wrappers use the authenticated HA Android Debug Bridge integration, not notification delivery, and never accept arbitrary commands from script callers.
 
 Camera and intercom lifecycle is deliberately outside this package. A session controller must coordinate microphone ownership and app cleanup before camera/audio transitions; these navigation scripts only change the displayed view.

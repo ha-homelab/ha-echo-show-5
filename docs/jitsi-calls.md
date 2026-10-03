@@ -6,6 +6,8 @@ This pilot uses the stock **Jitsi Meet Android app** with an operator-controlled
 
 Explicit **HA End passed after the successful media test**: the integration reported no active session or recovery pending, and the Jitsi process was absent. The camera returned two different fresh MJPEG frames with microphone permission denied. One unsilenced VACA recorder was active with software mute off, and Companion home visibly rendered with a live authenticated HA WebSocket confirming the server was running. After both participants closed, the bridge had no participants or receiver queue drops. This validates the observed handoff and restoration, not long-term recovery or physical sound quality. Keep the existing [camera](camera-and-intercom.md) and [VACA](vaca-private-wakeword.md) baseline available for recovery.
 
+A later navigation check found that repeated Companion deep links retained three activities and WebViews. The remote navigation examples now clear the prior Android task; one activity and one WebView were observed after that launch. The home view eventually rendered, but cold loading and reconnecting were slow. A separate transient HA response stall also recovered without a restart; its cause remains unproven. The successful call and restoration checks do not establish sustained dashboard responsiveness.
+
 ## Reproduce the artifact
 
 The [pinned manifest](../jitsi-artifact.json) selects **Jitsi Meet 26.0.0**, package `org.jitsi.meet`, version code `26000001`, **armeabi-v7a**, minimum SDK26 and target SDK35. This is the F-Droid signing lineage, distinct from the Play Store app. Do not replace an existing installation from another signing lineage without considering its retained data and settings.
