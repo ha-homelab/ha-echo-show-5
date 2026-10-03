@@ -1,100 +1,78 @@
-# FCC voice backup and Homeway switching
+# FCC backup and Homeway switching
 
-This optional standby keeps the wake word and Echo apps unchanged. It adds a separate Russian Assist pipeline: local Whisper speech recognition, HA local intents, an FCC text conversation bridge, and local Piper speech synthesis. Homeway remains installed and selected until the operator explicitly switches a satellite.
+**FCC (`fcc-claude`) is the Homeway backup. Local Whisper and Piper are not required and are no longer part of the active deployment.** The user explicitly deferred local recognition on 2026-10-03. The dedicated authenticated FCC gateway and Wyoming conversation bridge stay running on the designated worker, each with one replica. The shared FCC installation and the existing Homeway selections are unchanged.
 
-**Current acceptance status (2026-10-03):** all four services are deployed continuously on the designated standby worker and the Russian speech roundtrip is correct, but the warm sample took **25.094 seconds for TTS and 137.945 seconds for STT**. This is not accepted for interactive voice use. Homeway remains primary. Do not mistake loaded HA entities or Kubernetes Ready for an acceptable response time. The operator explicitly chose to keep the services resident on that worker; they were not moved to the HA server.
+The verified backup capability is Russian **text conversation** through our FCC infrastructure to an external free model. Microphone audio transport and independent cloud speech synthesis still need a verified integration before this is a complete voice replacement for Homeway. Do not present a model catalog entry or a working text response as proof that the HTTP endpoint accepts audio.
 
 ```mermaid
 flowchart LR
-    Echo[Echo wake word and microphone] --> HA[Home Assistant Assist]
-    HA --> Whisper[Local Whisper · Russian]
-    Whisper --> Intent[HA local intents]
+    Text[HA recognized or typed text] --> Intent[HA local intents]
     Intent -->|matched command| Action[HA action]
-    Intent -->|unmatched question| Bridge[Local Wyoming FCC bridge]
-    Bridge --> FCC[Authenticated local FCC gateway]
+    Intent -->|unmatched question| Bridge[Wyoming conversation bridge]
+    Bridge --> FCC[Our authenticated FCC gateway]
     FCC --> Model[External free text model]
-    Action --> Piper[Local Piper · Russian]
-    Model --> Piper
-    Piper --> Echo
+    Model --> Answer[Russian answer text]
 ```
 
-Audio is processed by the operator-controlled HA/Whisper/Piper infrastructure in this route, which may include privately managed cloud nodes. Unmatched recognized text is sent through the local FCC gateway to an external model provider. This is **independent of Homeway, but not fully offline AI**. Ordinary HA commands that match the local intent recognizer do not need the external model. The fallback model has no HA access token, home state, device tools, browsing, clock, or conversation history. It cannot reproduce Sage's memories or arbitrary tool-based home control. Supported device commands depend on HA's exposed entities and Russian sentences.
+The desired voice path is Echo → HA → cloud audio through the FCC integration → answer → Echo. Its missing audio transport must be implemented explicitly; there is no local inference model to warm or tune on the worker. HA local intents should remain preferred for supported household commands. The bridge has no HA token, home state, device tools, browsing, clock or conversation history and declares `supports_home_control=false`.
 
-The bridge deliberately declares `supports_home_control=false`. Keep **Prefer handling commands locally** enabled in this pipeline. A question that needs current information must not be treated as evidence of live weather, device state or a completed action.
+## Current scope and status
 
-## Where recognition runs
+- `fcc-voice-gateway`: our isolated FCC service with an existing provider credential and its own proxy authentication.
+- `fcc-voice-bridge`: a stateless Wyoming conversation endpoint forwarding text to FCC.
+- Both remain resident with one replica on the designated worker. Model inference is upstream; the worker runs the gateway and adapter, not the model itself.
+- Experimental `voice-backup-whisper` and `voice-backup-piper` Deployments are stopped (`replicas: 0`). Existing model PVCs are preserved; they are not part of the active recovery bundle and must not be automatically restored or deleted.
+- The `FCC Russian Backup` HA pipeline now has no STT/TTS engine selected. Its conversation engine remains usable for text; voice switching is explicitly blocked until cloud speech is configured. Removing the old speech selections avoids relying on cached HA provider availability after stopping a service.
+- Homeway remains the active assistant on reachable satellites. No automatic failover is configured.
 
-The existing **Homeway** pipeline uses Homeway's cloud STT and TTS. The **137.945-second** measurement belongs to the new **local Whisper on the standby worker**, not Homeway or the cloud text model. FCC receives a transcript in the deployed standby; it does not receive the microphone audio. These are separate recognition, conversation and synthesis stages.
+The **138-second recognition measurement was local Whisper**, not FCC or Homeway cloud recognition. FCC text checks returned complete synthetic Russian answers in 1.82 seconds directly, 2.16 seconds through the Wyoming bridge and 8.28–8.68 seconds in HA Assist. After stopping local speech, HA conversation through FCC still returned a synthetic Russian answer in **2.354 seconds**. These are individual observations, not latency guarantees. Historical local speech diagnostics are retained in [the deferred experiment record](fcc-local-speech-experiment.md); they are not a tuning task or current deployment requirement.
 
-A possible hybrid pipeline can retain Homeway STT/TTS and select the FCC conversation agent. It would bypass the local speech bottleneck but would still depend on Homeway, so it is not an independent outage backup. This hybrid has not been deployed or benchmarked. Independently hosted cloud recognition, such as Groq's multilingual `whisper-large-v3-turbo`, needs its own audio adapter, credential and verified free-tier allowance. Its audio endpoint is separate from FCC chat; this option is not yet implemented. See the [route and model notes](fcc-audio-models.md). Keep the existing Homeway selections until the chosen replacement passes end-to-end acceptance.
+## Audio boundary and model selection
 
-## Models and the supplied catalog
+The existing Homeway assistant uses Homeway cloud STT/TTS. Reusing those with the FCC conversation engine is a possible hybrid, but it remains dependent on Homeway and is not the independent backup requested here. No such hybrid was installed.
 
-The supplied `~/fcc-models.txt` was inspected without modifying it. It is a discovery snapshot, not a guarantee of free access, audio support or a working API route. See [the audio/model shortlist](fcc-audio-models.md) for exact catalog IDs, current upstream capabilities and exclusions.
+The inspected FCC HTTP routes accept `/v1/messages` and Responses-style text requests, without an HA audio-transcription endpoint or `input_audio` transport in the inbound message schema. **FCC already has a provider-owned NVIDIA NIM/Riva cloud audio backend**, currently wired to messaging voice notes. Its built-in Parakeet multilingual route supports Russian, and the operator already has an NVIDIA credential. That backend needs a bounded HA audio adapter and a synthetic account/latency check; answer synthesis also remains an integration gap. See the [existing backend and exact settings](fcc-audio-models.md#existing-fcc-cloud-audio-backend). No new provider account or local speech model is assumed. Do not launch local Whisper as an implicit fallback.
 
-The selected and synthetically verified text route is:
+See [the catalog and audio route notes](fcc-audio-models.md). The supplied `~/fcc-models.txt` was inspected and left intact. The currently verified conversation route is:
 
 ```text
 anthropic/open_router/liquid/lfm-2.5-2.6b:free
 ```
 
-It is text-only. Whisper handles the actual audio. Its free provider discloses that prompts and outputs may be retained for training; decide whether that is appropriate before using household questions. The alternative shortlisted free text route is `claude-3-freecc-no-thinking/open_router/google/gemma-4-26b-a4b-it:free`. Current route success and latency must be checked on the actual account. The normal `anthropic/` alias succeeded in 1.82 seconds for one synthetic Russian question. The `no-thinking` Liquid alias failed with HTTP 400 because the provider requires reasoning; the bridge removes reasoning blocks from the spoken answer. Gemma returned upstream HTTP 429 in the same session and is not configured as a fallback. Neither the FCC prefix nor the catalog implies unlimited quota.
+This route is text-only and currently has zero prompt/completion price. Its provider discloses prompt/output retention for training. The adjacent `no-thinking` alias failed with HTTP 400 because this endpoint requires reasoning; the bridge returns only final text. A Gemma free route returned HTTP 429 and is not configured as a fallback. Catalog names do not guarantee working transport, unlimited capacity or a free account allowance. Never substitute a paid route silently.
 
-FCC's inspected HTTP interface accepts Anthropic-style `/v1/messages` and Responses-style requests, but does not provide `/v1/audio/transcriptions` or pass `input_audio` through its typed message schema. Selecting an audio-capable model name does not add audio transport. FCC's separate messaging voice-note helper is not an HA speech endpoint; the inspected helper also forces English recognition. This implementation uses the standard [Wyoming protocol](https://github.com/OHF-Voice/wyoming) instead.
+## Deploy and recover the FCC services
 
-## Components and deployment
-
-Public implementation lives in [`integrations/fcc-voice-backup/`](../integrations/fcc-voice-backup/):
-
-- `bridge.py`: a stateless Wyoming conversation service translating a transcript into one FCC `/v1/messages` request. No tools, subprocesses or HA credentials.
-- `Dockerfile` and `requirements.txt`: Python 3.11 image and pinned direct dependencies.
-- `k8s/speech.yaml`: official digest-pinned [Wyoming Whisper](https://github.com/OHF-Voice/wyoming-faster-whisper) and [Piper](https://github.com/OHF-Voice/wyoming-piper) images, persistent model caches and resource limits. Whisper uses multilingual `base-int8` weights with `float32` compute, Russian, two CPU threads, one OpenBLAS/MKL thread, passive OpenMP waiting and beam size one; Piper uses `ru_RU-irina-medium`.
-- `k8s/gateway.yaml`: an isolated FCC instance with its own provider configuration and proxy authentication. It does not change another FCC deployment or its default model.
-- `k8s/bridge.yaml`: the bridge Deployment and internal ClusterIP Service.
-- `k8s/network-policy.yaml`: ingress isolation for the bridge and gateway. See the host-network note below before applying.
-
-The manifests use namespace `homeassistant`; they do not create it. All four services run continuously with one replica; there is no scale-to-zero or idle shutdown. Whisper preloads its configured transcriber and Piper retains its most recently used voice, so normal requests reuse resident models after the first synthesis. Persistent model caches also avoid downloads on ordinary restarts. Choose a CPU node with enough spare memory in a private scheduling overlay. The speech services reserve 1.1 CPU / 1.125 GiB and allow up to 3 CPU / 3.5 GiB in total. Piper uses an image-specific startup adapter in a ConfigMap to limit ONNX intra/inter-op threads to one and disable spinning; default ONNX threading caused a 60-second synthesis timeout under a one-CPU container quota. Whisper also limits BLAS threads separately from CTranslate2; beam one trades some decoding accuracy for shorter-command latency. Revalidate the adapter if changing the pinned image. Initial image/model downloads can take several minutes. Models stay on the two PVCs; deleting the Deployments does not delete those caches. Local-volume scheduling must follow the node holding the PVCs.
-
-Build the bridge for the cluster's architecture:
+Implementation lives in [`integrations/fcc-voice-backup/`](../integrations/fcc-voice-backup/): the bridge, pinned dependencies/image, `k8s/gateway.yaml`, `k8s/bridge.yaml` and optional network policies. No speech model download, local Whisper/Piper deployment or model PVC is required for this active scope. The operator's `k3s-self-healing` repository owns the reviewed placement and recovery copy.
 
 ```bash
 docker build -t fcc-voice-bridge:0.1.1 integrations/fcc-voice-backup
 ```
 
-The supplied bridge manifest uses `imagePullPolicy: Never` for an explicitly imported local image. Import that exact image into every eligible node's Kubernetes container runtime, or replace the image with your private registry's immutable digest and use an appropriate pull policy. An image existing in workstation/NAS Docker is not automatically present in k3s/containerd. Pin the Deployment to the node where you imported it if only one node has the image.
+The bridge manifest uses `imagePullPolicy: Never`. Import the image into the selected node's Kubernetes/containerd image store, or deliberately use a private-registry immutable digest and corresponding pull policy. Workstation/NAS Docker storage is separate from k3s/containerd. Keep scheduling pinned to the node with the imported image.
 
-Create the credentials from private files, never literal command-line values. Obtain the OpenRouter key through your existing secret store, write it to `private/openrouter-api-key` with mode 0600, and create a separate random proxy token. Do not copy the provider key to the bridge or to HA.
+Namespace `homeassistant` and Secret `fcc-voice-credentials` must exist. For an initial deployment only, obtain the existing provider credential through your private secret store and create a separate proxy token without putting either in command arguments:
 
 ```bash
 umask 077
 mkdir -p private
+# Populate private/openrouter-api-key from the existing secret store first.
 python3 -c 'import secrets; from pathlib import Path; Path("private/fcc-proxy-token").write_text(secrets.token_urlsafe(36))'
 kubectl -n homeassistant create secret generic fcc-voice-credentials \
   --from-file=openrouter-api-key=private/openrouter-api-key \
   --from-file=proxy-token=private/fcc-proxy-token
 ```
 
-The gateway reads both credentials; the bridge mounts only the proxy token. The pinned FCC image uses Bearer proxy authentication. `MODEL_FALLBACKS` is empty to prevent an unavailable free model from silently selecting a different or paid model. The bridge requires an explicit `anthropic/open_router/...:free` or `claude-3-freecc-no-thinking/open_router/...:free` ID. Recheck provider pricing before changing it; suffix validation is not a billing guarantee. This deployment uses no paid plugins or model fallback list.
+Preserve existing credentials during recovery. The gateway reads both; the bridge mounts only the proxy token. The pinned FCC gateway uses Bearer authentication and empty `MODEL_FALLBACKS`. The bridge accepts explicit FCC OpenRouter `:free` IDs; that suffix is not a billing guarantee. The existing shared FCC deployment is untouched.
 
-Apply private overlays for scheduling and network access, then the speech, gateway and bridge resources. Wait for readiness before registering them with HA. A TCP readiness probe proves a listening socket, not that the external provider has quota; run a synthetic conversation check too.
+Apply only the reviewed gateway, bridge and accepted gateway-ingress policy with your private scheduling overlay. TCP readiness proves a listening process, not provider quota or complete voice capability. In HA, register the bridge through **Settings → Devices & services → Add integration → Wyoming Protocol**, host `fcc-voice-bridge.homeassistant.svc.cluster.local`, port `10400`. HA outside the cluster needs a private reachable address. The Echo connects to HA, not to cluster DNS directly.
 
-**Network access:** Wyoming itself has no authentication. Do not expose ports 10200, 10300 or 10400 through a public Ingress/NodePort. The bridge policy allows the HA pod selector, and the gateway policy allows only bridge pods. For HA using `hostNetwork: true`, a pod selector alone is insufficient: add the verified source address observed at the bridge as an exact `/32` (`/128` for IPv6) to the bridge ingress in a private overlay. Host-to-Service traffic can be SNATed to a node/CNI address, so HA's reported hostIP may be the wrong peer. Verify your CNI actually enforces the policy and that an unrelated ordinary pod remains denied. A post-SNAT rule permits all traffic sharing that source, not a uniquely identifiable HA process. Policies are additive; another broad allow policy can widen access. Speech endpoints should also remain restricted to the trusted infrastructure network.
-
-**Deployed host-network limitation:** the gateway ingress policy was verified (bridge allowed; an unrelated ordinary pod denied; missing proxy token rejected). The bridge policy blocked the actual HA host-network path despite two exact-source rules, so it was removed from the running standby. The bridge remains an internal ClusterIP and is reachable by trusted cluster clients; network isolation of its unauthenticated Wyoming port is **not** claimed. Do not blindly apply the public bridge policy or a rejected private overlay to this installation. Resolve the CNI/SNAT path in a separate bounded change before treating it as isolated from untrusted cluster workloads.
-
-## Register the standby in Home Assistant
-
-In **Settings → Devices & services → Add integration → Wyoming Protocol**, register these internal services from an HA instance that can resolve cluster DNS:
-
-- Whisper: `voice-backup-whisper.homeassistant.svc.cluster.local`, port `10300`.
-- Piper: `voice-backup-piper.homeassistant.svc.cluster.local`, port `10200`.
-- FCC conversation: `fcc-voice-bridge.homeassistant.svc.cluster.local`, port `10400`.
-
-An HA installation outside Kubernetes needs private reachable addresses instead. Do not paste cluster DNS into an Echo app: the Echo connects to HA, and HA connects to these providers.
-
-Create **FCC Russian Backup** in **Settings → Voice assistants**. Select Russian, the new FCC conversation agent, the new Whisper STT provider and the new Piper TTS provider/Irina voice. Enable local intent handling. Keep the existing Homeway pipeline and preferred assistant unchanged during preparation. Adding these providers does not require an HA restart.
+All services are internal ClusterIP. Wyoming is unauthenticated. The gateway ingress policy was verified to allow bridge pods and deny an unrelated ordinary pod; missing proxy credentials were rejected. The optional bridge policy blocked the actual HA host-network path despite exact-source exceptions and is not deployed. Therefore bridge access trusts cluster clients and is not claimed to be network-isolated. Do not blindly apply `network-policy.yaml` in full or reintroduce a rejected bridge policy during recovery. No public Ingress or NodePort is required.
 
 ## Switch one or several satellites
+
+
+**Voice switching is gated until independent cloud speech is configured and verified.** The current FCC conversation works with text, but the retired local speech providers must not be selected. The CLI intentionally refuses a voice switch when an STT/TTS engine is missing or unavailable. The following is the prepared workflow for a complete pipeline.
 
 The simple UI route is each satellite's **Assistant** select: choose **FCC Russian Backup** to use the standby, or the existing Homeway assistant to return. Choosing HA's global preferred pipeline alone does not override a satellite with an explicit assistant selection. No APK reinstall, firmware update, wake-word retraining or USB connection is needed.
 
@@ -145,34 +123,16 @@ There is **no automatic failover**. It would need separate design for duplicate 
 
 ## Limits and acceptance
 
-The bridge allows one in-flight question, a 30-second FCC deadline, 2,000 input characters, a 1,024-token generation budget, a 256 KiB upstream response and 4,000 final answer characters. It sends no prior turns, does not retry requests, and rejects unfinished/tool responses. Provider-side routing/retry behavior is separate. Overlapping questions get a busy error rather than a queue of stale commands. These are bridge limits, not the model's published context size or HA's audio limits.
+The bridge allows one in-flight question, a 30-second FCC deadline, 2,000 input characters, a 1,024-token generation budget, a 256 KiB upstream response and 4,000 final answer characters. It sends no prior turns, does not retry requests, and rejects unfinished/tool responses. Overlapping questions get a busy error. Provider routing/retries and account quotas are separate.
 
-Free provider quotas are account dependent. Use OpenRouter's authenticated `/api/v1/key` to inspect the current free-model daily counter/ceiling where reported; a missing field is unknown, not unlimited. Shared account traffic consumes the same allowance. A healthy local FCC process does not prove free-model capacity. [OpenRouter limit documentation](https://openrouter.ai/docs/api-reference/limits).
+Check current free-model allowance through OpenRouter's authenticated `/api/v1/key`; absent counters mean unknown, not unlimited. Other account traffic shares the allowance. [OpenRouter limits](https://openrouter.ai/docs/api-reference/limits).
 
-Before selecting the standby for daily use:
+Before completing the voice backup:
 
-1. Verify all three Wyoming integrations are loaded and the FCC agent is not advertised as a home-control agent.
-2. Use a synthetic Russian sentence to test Piper → Whisper, then an Assist run through STT → FCC → TTS. Fetch the generated answer audio without playing it on a household device.
-3. Test a harmless local HA intent separately and confirm it avoids the external model.
-4. Switch one attended satellite, say the existing wake phrase, ask a short question, then return to Homeway and repeat. Check physical audibility and microphone recovery after calls.
-5. Check concurrent-device behavior, a provider timeout/quota error, restart recovery and longer-term reliability before expanding the scope.
+1. Verify the FCC conversation returns a bounded synthetic Russian response through HA. Test a harmless local HA intent separately.
+2. Verify a Russian cloud audio route available to our FCC installation, its actual transport and credential/quota requirements. Do not deploy local Whisper/Piper implicitly.
+3. Add and test the HA audio adapter and answer-synthesis route. Use only synthetic recordings for unattended tests. Confirm neither depends on Homeway before calling it an independent backup.
+4. Update the FCC Assist pipeline's STT/TTS engines only after that route works. Run synthetic end-to-end recognition, conversation and answer-audio checks, including timeout/quota errors.
+5. Switch one attended satellite, test the existing wake phrase, microphone and speaker, then return to Homeway. Expand only after acceptable latency and reliability.
 
-Keep recordings, transcripts, provider responses, endpoints, account counters and filled mappings in `private/`. Public documentation should contain only synthetic test results and aggregate timings. The source catalog and downloaded models are not added to Git.
-
-## Deployment evidence, 2026-10-03
-
-The dedicated FCC gateway uses the pinned 5.14.0 image; the separate workstation installation inspected for audio support was 5.15.2. The existing shared FCC deployment was left unchanged. Its missing OpenRouter credential was one reason to isolate the voice configuration instead of modifying the shared service.
-
-The actual normal Liquid alias returned a complete Russian answer in 1.82 seconds through FCC HTTP. A subsequent HA-host → Wyoming bridge → FCC → model roundtrip returned a final answer in 2.16 seconds with bridge version 0.1.1. An HA Assist text run later took 8.28 seconds through the same FCC agent, while a local “what time is it?” intent took 0.004 seconds. These are individual synthetic observations, not latency percentiles or an availability guarantee. The no-thinking alias failed with a mandatory-reasoning HTTP400; Gemma returned upstream capacity HTTP429. No paid model fallback was enabled.
-
-The new conversation entity advertises zero home-control features. A separate `FCC Russian Backup` pipeline was created with local-intent preference; the original pipelines, global preference and all four inventoried satellite selections were preserved. Guarded switching previews passed for the second Show and the three reachable assistant selectors together. The disconnected first Show has its own mapping for later use.
-
-Gateway access/authentication and the bridge ingress-isolation limitation are recorded above. Physical wake-word response, microphone capture, speaker quality and long-term stability remain separate attended acceptance checks.
-
-The speech-only acceptance used a generated 2.519-second Russian phrase and returned the exact normalized transcript. The warm run took 25.094 seconds for synthesis and 137.945 seconds for recognition; the first base-model decode took about 139.3 seconds. Models remained resident in the same processes, so cold loading does not explain the steady-state delay. Earlier Small-model runs also exceeded the 90-second client deadline. Base fits the configured resource budget but has not met the latency gate.
-
-A subsequent complete synthetic Assist run used a 2.011-second recording of “Почему лёд плавает в воде?”. STT finished at 136.354 seconds from run start but misrecognized “лёд” as “лет”; this is distinct from the earlier exact short-phrase result. The FCC conversation stage took 8.682 seconds. HA reported `run-end` at 145.038 seconds with a TTS URL, but the first answer-audio byte arrived only at 192.427 seconds and the complete 11.624-second answer recording was downloaded at 221.019 seconds. This proves the protocol path completed, not acceptable recognition or interactive performance. The benchmark used a test-only 300-second pipeline deadline; production deadlines were not extended. A separate local time intent completed its text path in 0.0035 seconds, with first generated audio at 13.407 seconds. No audio was played on household devices.
-
-Read-only host diagnostics found 94.7% guest CPU utilization, CPU pressure around 69–74% and load around 60 on 16 virtual CPUs while the speech services were idle. Batch video encoding and provisioning work were active. Ancestor cgroups had no hidden CPU quota; accumulated speech-container throttling was under 2 seconds and does not by itself explain the measured delay. The worker CPU also lacks AVX2/FMA. These observations establish contention and limited CPU features, not a single proven cause of every slow request. The physical host was unreachable during the audit, so host swapping/hypervisor limits remain unverified.
-
-Keep models resident and repeat a bounded warm acceptance during a coordinated lower-load window before enabling this as an everyday fallback. Do not restart HA, repeatedly restart speech workers, delete whole PVCs or pause unrelated workloads automatically to make a latency check pass. One interrupted Base download left a partial HuggingFace snapshot missing `model.bin`; only that incomplete re-downloadable model cache was removed, preserving the PVC and other model caches. Repair a partial cache only after verifying the failure and stopping that worker's download activity.
+No household audio has been uploaded for these experiments. Keep raw provider responses, recordings, tokens, account counters and filled deployment mappings in ignored `private/`. Source catalog, downloaded model caches and temporary evidence do not belong in Git.

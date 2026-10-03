@@ -1,8 +1,8 @@
 # FCC Voice Backup
 
-Stateless Wyoming → FCC conversation bridge, plus optional local Russian Whisper/Piper and an isolated authenticated FCC gateway.
+Stateless Wyoming → FCC conversation bridge and our authenticated FCC gateway. These two services form the prepared conversation backup for Homeway; no local speech model is deployed.
 
-Read the [deployment, limits and switching guide](../../docs/fcc-voice-backup.md) and [model shortlist](../../docs/fcc-audio-models.md). The bridge handles text after local STT; it does not add an audio endpoint to FCC. It has no Home Assistant tools or credentials.
+Read the [deployment, limits and switching guide](../../docs/fcc-voice-backup.md) and [model shortlist](../../docs/fcc-audio-models.md). The bridge handles recognized or typed text; it does not itself add an audio endpoint to FCC. Independent cloud audio integration remains pending. It has no Home Assistant tools or credentials.
 
 ```bash
 python3.11 -m venv private/voice-tools
