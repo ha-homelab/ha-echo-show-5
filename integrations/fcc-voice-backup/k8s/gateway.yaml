@@ -1,0 +1,75 @@
+# Optional isolated FCC instance. Create fcc-voice-credentials privately first.
+# This does not modify another FCC deployment or its default model/provider.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fcc-voice-gateway
+  namespace: homeassistant
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: fcc-voice-gateway}
+  template:
+    metadata:
+      labels: {app: fcc-voice-gateway}
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: gateway
+          image: ghcr.io/4alvit/free-claude-code@sha256:198ec8fa0cdb55d43b36119f59e5fa03fcab529693a56c7bcd20500ff09fb3aa
+          env:
+            - {name: HOST, value: "0.0.0.0"}
+            - {name: PORT, value: "8082"}
+            - {name: FCC_OPEN_BROWSER, value: "false"}
+            - {name: MESSAGING_PLATFORM, value: "none"}
+            - {name: MODEL, value: "open_router/liquid/lfm-2.5-2.6b:free"}
+            - {name: MODEL_FALLBACKS, value: ""}
+            - {name: PROXY_AUTH_ENABLED, value: "true"}
+            - {name: LOG_LEVEL, value: "WARNING"}
+            - {name: LOG_RAW_API_PAYLOADS, value: "false"}
+            - {name: LOG_RAW_SSE_EVENTS, value: "false"}
+            - {name: LOG_API_ERROR_TRACEBACKS, value: "false"}
+            - name: OPENROUTER_API_KEY
+              valueFrom:
+                secretKeyRef: {name: fcc-voice-credentials, key: openrouter-api-key}
+            - name: ANTHROPIC_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef: {name: fcc-voice-credentials, key: proxy-token}
+          ports: [{name: http, containerPort: 8082}]
+          readinessProbe:
+            tcpSocket: {port: http}
+            periodSeconds: 10
+          startupProbe:
+            tcpSocket: {port: http}
+            periodSeconds: 5
+            failureThreshold: 36
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {cpu: "1", memory: 768Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: config, mountPath: /home/fcc/.fcc}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - {name: config, emptyDir: {}}
+        - {name: tmp, emptyDir: {}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fcc-voice-gateway
+  namespace: homeassistant
+spec:
+  type: ClusterIP
+  selector: {app: fcc-voice-gateway}
+  ports: [{name: http, port: 8082, targetPort: http}]

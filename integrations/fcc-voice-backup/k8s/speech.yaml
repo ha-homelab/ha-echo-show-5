@@ -1,0 +1,296 @@
+# Standby Russian speech services. Applying this file does not change HA pipelines.
+# Official images: https://github.com/OHF-Voice/wyoming-faster-whisper
+#                 https://github.com/OHF-Voice/wyoming-piper
+# Image indexes resolved from Docker Hub on 2026-10-03; refresh deliberately.
+# Model downloads persist on PVCs. The cluster's default StorageClass is used.
+# Add environment-specific scheduling in a private overlay, not in this file.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: voice-backup-whisper-models
+  namespace: homeassistant
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 4Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: voice-backup-piper-models
+  namespace: homeassistant
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: voice-backup-whisper
+  namespace: homeassistant
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: voice-backup-whisper
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: voice-backup-whisper
+        app.kubernetes.io/part-of: fcc-voice-backup
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: whisper
+          image: docker.io/rhasspy/wyoming-whisper@sha256:ba6fcb6056ebe237d15a325381763a80af2fc8fcedaa04f6a714a7375eb20d80
+          args:
+            - --model
+            - base-int8
+            - --language
+            - ru
+            - --compute-type
+            # Keep compute type explicit; benchmark it on the target CPU.
+            - float32
+            - --cpu-threads
+            - "2"
+            # Greedy decoding favors response time for short fallback commands.
+            - --beam-size
+            - "1"
+          env:
+            - name: HOME
+              value: /tmp
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+            - name: HF_HUB_DISABLE_TELEMETRY
+              value: "1"
+            - name: OMP_NUM_THREADS
+              value: "2"
+            - name: OMP_WAIT_POLICY
+              value: PASSIVE
+            - name: OPENBLAS_NUM_THREADS
+              value: "1"
+            - name: MKL_NUM_THREADS
+              value: "1"
+          ports:
+            - name: wyoming
+              containerPort: 10300
+          resources:
+            requests:
+              cpu: "1"
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 3Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: models
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+          startupProbe:
+            tcpSocket:
+              port: wyoming
+            periodSeconds: 10
+            failureThreshold: 90
+          readinessProbe:
+            tcpSocket:
+              port: wyoming
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: wyoming
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 6
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: voice-backup-whisper-models
+        - name: tmp
+          emptyDir:
+            sizeLimit: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: voice-backup-whisper
+  namespace: homeassistant
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: voice-backup-whisper
+  ports:
+    - name: wyoming
+      port: 10300
+      targetPort: wyoming
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: voice-backup-piper-runtime
+  namespace: homeassistant
+data:
+  run.py: |
+    """Constrain Piper's ONNX pool to the container's one-CPU budget.
+
+    The pinned Piper version creates default SessionOptions and has no CLI
+    thread setting. OMP_NUM_THREADS does not constrain ONNX's native pool.
+    https://onnxruntime.ai/docs/performance/tune-performance/threading.html
+    """
+    import runpy
+    import sys
+
+    sys.path.insert(0, "/usr/src")
+    import onnxruntime as ort
+    import piper.voice as voice_module
+
+    class PiperRuntime:
+        def __getattr__(self, name):
+            return getattr(ort, name)
+
+        @staticmethod
+        def SessionOptions():
+            options = ort.SessionOptions()
+            options.intra_op_num_threads = 1
+            options.inter_op_num_threads = 1
+            options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+            options.add_session_config_entry("session.intra_op.allow_spinning", "0")
+            options.add_session_config_entry("session.inter_op.allow_spinning", "0")
+            return options
+
+    # Scope the adapter to Piper; do not replace ONNX's global API.
+    voice_module.onnxruntime = PiperRuntime()
+    runpy.run_module("wyoming_piper", run_name="__main__")
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: voice-backup-piper
+  namespace: homeassistant
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: voice-backup-piper
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: voice-backup-piper
+        app.kubernetes.io/part-of: fcc-voice-backup
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: piper
+          image: docker.io/rhasspy/wyoming-piper@sha256:7d39aafac409c2b6b09d999ed04d84c311d632e558b35baa60fad6aac722af7a
+          command: ["/usr/src/.venv/bin/python3", "/opt/piper-runtime/run.py"]
+          args:
+            - --uri
+            - tcp://0.0.0.0:10200
+            - --data-dir
+            - /data
+            - --download-dir
+            - /data
+            - --voice
+            - ru_RU-irina-medium
+          env:
+            - name: HOME
+              value: /tmp
+            - name: XDG_CACHE_HOME
+              value: /data
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+            - name: OMP_NUM_THREADS
+              value: "1"
+            - name: OPENBLAS_NUM_THREADS
+              value: "1"
+          ports:
+            - name: wyoming
+              containerPort: 10200
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: models
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+            - name: runtime
+              mountPath: /opt/piper-runtime
+              readOnly: true
+          startupProbe:
+            tcpSocket:
+              port: wyoming
+            periodSeconds: 10
+            failureThreshold: 90
+          readinessProbe:
+            tcpSocket:
+              port: wyoming
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: wyoming
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 6
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: voice-backup-piper-models
+        - name: tmp
+          emptyDir:
+            sizeLimit: 128Mi
+        - name: runtime
+          configMap:
+            name: voice-backup-piper-runtime
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: voice-backup-piper
+  namespace: homeassistant
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: voice-backup-piper
+  ports:
+    - name: wyoming
+      port: 10200
+      targetPort: wyoming
