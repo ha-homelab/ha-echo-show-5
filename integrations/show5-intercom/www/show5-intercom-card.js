@@ -1,6 +1,6 @@
 /* Private pilot: HA-authenticated WS only. No credentials or tokens in URLs. */
 const TYPE = "show5_intercom/";
-const styles = `:host{display:block}ha-card{padding:12px}h3{font-size:18px;margin:0 0 6px}button{margin:4px;padding:9px;font:inherit;border:1px solid var(--divider-color,#aaa);border-radius:8px;background:var(--card-background-color,#fff);color:var(--primary-text-color,#222)}button:disabled{opacity:.4}p{min-height:2em;margin:6px 0}.video-stage{position:relative;height:clamp(120px,40vh,240px);background:#111}.video-stage video{width:100%;height:100%;object-fit:contain}.video-stage video.local{position:absolute;right:6px;bottom:6px;width:25%;height:30%;background:#111}.row{display:flex;flex-wrap:wrap}`;
+const styles = `:host{display:block}ha-card{display:block;padding:12px}h3{font-size:18px;margin:0 0 6px}button{margin:4px;padding:9px;font:inherit;border:1px solid var(--divider-color,#aaa);border-radius:8px;background:var(--card-background-color,#fff);color:var(--primary-text-color,#222)}button:disabled{opacity:.4}p{min-height:2em;margin:6px 0}.video-stage{position:relative;height:clamp(120px,40vh,240px);background:#111}.video-stage video{width:100%;height:100%;object-fit:contain}.video-stage video.local{position:absolute;right:6px;bottom:6px;width:25%;height:30%;background:#111}.row{display:flex;flex-wrap:wrap}`;
 function base64(bytes) {
   let s = "";
   for (let i=0;i<bytes.length;i+=8192) s += String.fromCharCode(...bytes.subarray(i,i+8192));
@@ -89,22 +89,36 @@ class ShowIntercomCard extends HTMLElement {
     finally{let restored=true;if(session){try{await this.ws("end",{session});}catch(error){restored=false;}}this.session=null;this.starting=false;this.controls(false);if(epoch===this.epoch&&session)this.status(restored?"Listening ended; prior VACA mute state restored.":"Show restoration is unconfirmed. Check Status / Recover.");}
   }
 }
-customElements.define("show5-intercom-card",ShowIntercomCard);
+if(!customElements.get("show5-intercom-card"))customElements.define("show5-intercom-card",ShowIntercomCard);
 
 const callStages = Object.freeze({media:"camera/microphone",rtc_setup:"media setup",offer:"offer creation",answer:"answer creation",local_description:"local negotiation",remote_description:"remote negotiation",ice_candidate:"network candidate",signal:"signaling",connection:"connection",event:"call handling",command:"call request",hangup:"restoration request"});
 const callErrorCodes = new Set(["NotAllowedError","NotFoundError","NotReadableError","OverconstrainedError","AbortError","SecurityError","InvalidStateError","OperationError","NotSupportedError","TypeError","TimeoutError","NetworkError","intercom_failed","room_unavailable","unauthorized","invalid_format","connection_failed","connection_timeout","connection_disconnected"]);
+const callMilestones = new Set(["ready_received","media_requested","media_acquired","rtc_created","offer_sent","answer_sent","connected"]);
 class ShowVideoCallCard extends HTMLElement {
   setConfig(config){if(!["caller","show"].includes(config.role))throw new Error("Set role: caller or show");this.config=config;if(!this.shadowRoot)this.attachShadow({mode:"open"});this.render();}
-  set hass(value){this._hass=value;if(this.isConnected&&!this.joining&&!this.unsubscribe)this.join();}
+  set hass(value){this._hass=value;if(this.isConnected){this.watchConnection();this.join();}}
   getCardSize(){return 5;}
-  connectedCallback(){this.epoch=(this.epoch||0)+1;this.onHidden=()=>{if(document.hidden)this.hangup();};document.addEventListener("visibilitychange",this.onHidden);if(this._hass)this.join();}
-  disconnectedCallback(){document.removeEventListener("visibilitychange",this.onHidden);this.membershipEpoch=(this.membershipEpoch||0)+1;this.hangup();if(this.unsubscribe)Promise.resolve(this.unsubscribe()).catch(()=>{});this.unsubscribe=null;this.peerId=null;this.setPhase("joining");}
-  render(){this.shadowRoot.innerHTML=`<style>${styles}</style><ha-card><h3>Private Show video call</h3><p id="status">Connecting to the private HA room…</p><div class="video-stage"><video id="remote" autoplay playsinline></video><video class="local" id="local" autoplay playsinline muted></video></div><div class="row"><button id="start" disabled>${this.config.role==="show"?"Answer":"Call Show"}</button><button id="end">End</button><button id="audio">Play received audio</button></div></ha-card>`;this.shadowRoot.getElementById("start").onclick=()=>this.command(this.config.role==="show"?"accept":"call");this.shadowRoot.getElementById("end").onclick=()=>this.hangup();this.shadowRoot.getElementById("audio").onclick=()=>this.shadowRoot.getElementById("remote").play().catch(()=>{});this.setPhase(this.phase||"joining");}
+  connectedCallback(){this.epoch=(this.epoch||0)+1;this.onHidden=()=>{if(document.hidden)this.hangup();};document.addEventListener("visibilitychange",this.onHidden);if(this._hass){this.watchConnection();this.join();}}
+  disconnectedCallback(){document.removeEventListener("visibilitychange",this.onHidden);this.unwatchConnection();this.membershipEpoch=(this.membershipEpoch||0)+1;this.hangup();if(this.unsubscribe)Promise.resolve(this.unsubscribe()).catch(()=>{});this.unsubscribe=null;this.peerId=null;this.joining=false;this.setPhase("joining");}
+  render(){this.shadowRoot.innerHTML=`<style>${styles}</style><ha-card><h3>Private Show video call</h3><p id="status">Connecting to the private HA room…</p><div class="video-stage"><video id="remote" autoplay playsinline></video><video class="local" id="local" autoplay playsinline muted></video></div><div class="row"><button id="start" disabled>${this.config.role==="show"?"Answer":"Call Show"}</button><button id="end">End</button><button id="audio">Play received audio</button><button id="retry" disabled>Retry room</button></div></ha-card>`;this.shadowRoot.getElementById("start").onclick=()=>this.command(this.config.role==="show"?"accept":"call");this.shadowRoot.getElementById("end").onclick=()=>this.hangup();this.shadowRoot.getElementById("audio").onclick=()=>this.shadowRoot.getElementById("remote").play().catch(()=>{});this.shadowRoot.getElementById("retry").onclick=()=>this.retryJoin();this.setPhase(this.phase||"joining");}
   status(text){this.shadowRoot.getElementById("status").textContent=text;}
   ws(command,data={}){return this._hass.callWS({type:TYPE+command,...data});}
   roomWS(command,data={},peerId=this.peerId){if(!/^[0-9a-f]{32}$/.test(peerId||""))return Promise.reject({code:"room_unavailable"});return this.ws(command,{...data,peer_id:peerId});}
-  canStart(){return /^[0-9a-f]{32}$/.test(this.peerId||"")&&(this.config?.role==="show"?this.phase==="incoming":this.phase==="idle");}
-  setPhase(phase){this.phase=phase;const button=this.shadowRoot?.getElementById("start");if(button)button.disabled=!this.canStart();}
+  canStart(){return this._hass?.connection?.connected!==false&&/^[0-9a-f]{32}$/.test(this.peerId||"")&&(this.config?.role==="show"?this.phase==="incoming":this.phase==="idle");}
+  setPhase(phase){this.phase=phase;const button=this.shadowRoot?.getElementById("start");if(button)button.disabled=!this.canStart();const retry=this.shadowRoot?.getElementById("retry");if(retry)retry.disabled=!this.joinFailed||this.joining||this._hass?.connection?.connected===false;}
+  unwatchConnection(){const binding=this.connectionBinding;if(binding){binding.connection.removeEventListener?.("disconnected",binding.disconnected);binding.connection.removeEventListener?.("ready",binding.ready);this.connectionBinding=null;}}
+  resetMembership(){this.membershipEpoch=(this.membershipEpoch||0)+1;this.joining=false;this.peerId=null;const unsubscribe=this.unsubscribe;this.unsubscribe=null;this.localStop();if(unsubscribe)Promise.resolve(unsubscribe()).catch(()=>{});this.setPhase("joining");}
+  watchConnection(){
+    const connection=this._hass?.connection;if(!connection||this.connectionBinding?.connection===connection)return;
+    if(this.connectionBinding){this.unwatchConnection();this.resetMembership();}
+    if(this.transportConnection!==connection){this.transportConnection=connection;this.transportEpoch=(this.transportEpoch||0)+1;}this.joinFailed=false;
+    const binding={connection};this.connectionBinding=binding;
+    binding.disconnected=()=>{if(this.connectionBinding!==binding)return;this.transportEpoch++;this.resetMembership();this.joinFailed=false;this.status("HA disconnected. Local media stopped; waiting to rejoin the room.");};
+    binding.ready=()=>{if(this.connectionBinding!==binding||!this.isConnected)return;this.joinFailed=false;this.join();};
+    connection.addEventListener?.("disconnected",binding.disconnected);connection.addEventListener?.("ready",binding.ready);
+  }
+  retryJoin(){if(!this.joinFailed||this.joining||!this.isConnected||this._hass?.connection?.connected===false)return;this.joinFailed=false;this.join();}
+  milestone(name){if(callMilestones.has(name))console.info("SHOW5_CALL_STAGE",name);}
   failure(stage,error){
     if(this.lastFailure)return;
     stage=Object.hasOwn(callStages,stage)?stage:"event";
@@ -120,65 +134,70 @@ class ShowVideoCallCard extends HTMLElement {
   }
   async failAndHangup(stage,error,epoch=this.epoch){if(epoch!==this.epoch)return;this.failure(stage,error);await this.hangup();}
   async join(){
-    if(this.joining||this.unsubscribe||!this.config)return;
+    if(this.joining||this.unsubscribe||this.joinFailed||!this.config||!this.isConnected||!this._hass?.connection||this._hass.connection.connected===false)return;
+    this.watchConnection();const connection=this._hass.connection,transportEpoch=this.transportEpoch;
     this.joining=true;const membershipEpoch=this.membershipEpoch=(this.membershipEpoch||0)+1;let receivedCallEvent=false;
     this.setPhase("joining");
     try{
       this.events=Promise.resolve();
       // home-assistant-js-websocket passes message.event, not the WS envelope.
-      const unsubscribe=await this._hass.connection.subscribeMessage(event=>{
+      const unsubscribe=await connection.subscribeMessage(event=>{
         if(membershipEpoch!==this.membershipEpoch||!this.isConnected)return;
         if(event.event==="joined"){
-          if(event.role===this.config.role&&/^[0-9a-f]{32}$/.test(event.peer_id||"")){this.peerId=event.peer_id;this.setPhase("idle");}
+          if(event.role===this.config.role&&/^[0-9a-f]{32}$/.test(event.peer_id||"")){this.peerId=event.peer_id;this.setPhase("idle");if(!receivedCallEvent)this.status("Ready. Calls require an explicit answer; maximum two minutes.");}
           return;
         }
         if(["incoming","ready","signal","ended","restored"].includes(event.event))receivedCallEvent=true;
+        if(event.event==="ready")this.milestone("ready_received");
         if(event.event==="ended"){this.localStop();this.endStatus("Call ended; restoring the Show…");this.events=Promise.resolve();return;}
         if(event.event==="restored"){this.setPhase("idle");this.endStatus("Restoration command completed.");return;}
         const eventEpoch=this.epoch;
         this.events=this.events.then(()=>{if(eventEpoch===this.epoch)return this.event(event);}).catch(error=>this.failAndHangup("event",error,eventEpoch));
-      },{type:TYPE+"room_join",role:this.config.role});
-      if(membershipEpoch!==this.membershipEpoch||!this.isConnected){Promise.resolve(unsubscribe()).catch(()=>{});return;}
+      },{type:TYPE+"room_join",role:this.config.role},{resubscribe:false});
+      if(membershipEpoch!==this.membershipEpoch||!this.isConnected){if((transportEpoch===this.transportEpoch||connection!==this._hass?.connection)&&connection.connected!==false)Promise.resolve(unsubscribe()).catch(()=>{});return;}
       this.unsubscribe=unsubscribe;
       // The backend can ring immediately after registering this subscription,
       // before the async subscribeMessage promise has finished resolving.
-      if(!receivedCallEvent)this.status("Ready. Calls require an explicit answer; maximum two minutes.");
-    }catch(error){this.status("Video room is disabled or occupied. Device handoff must be verified first.");}
-    finally{this.joining=false;}
+      if(!receivedCallEvent&&!this.peerId)this.status("Waiting for room membership confirmation…");
+    }catch(error){if(membershipEpoch!==this.membershipEpoch||!this.isConnected)return;this.joinFailed=true;this.peerId=null;this.setPhase("unavailable");this.status("Video room is disabled or occupied. Check the device, then use Retry room.");}
+    finally{if(membershipEpoch===this.membershipEpoch){this.joining=false;this.setPhase(this.phase);}}
   }
-  async command(action){if(!this.canStart())return;const peerId=this.peerId,membershipEpoch=this.membershipEpoch;this.lastFailure=null;this.setPhase(action==="call"?"ringing":"answering");try{await this.roomWS("room_action",{action},peerId);if(peerId!==this.peerId||membershipEpoch!==this.membershipEpoch)return;if(action==="call"&&this.phase==="ringing")this.status("Waiting for an answer on the Show…");}catch(error){if(peerId!==this.peerId||membershipEpoch!==this.membershipEpoch)return;this.setPhase("idle");this.failure("command",error);this.endStatus("Check both room endpoints.");}}
+  async command(action){if(!this.canStart())return;const peerId=this.peerId,membershipEpoch=this.membershipEpoch;this.lastFailure=null;this.setPhase(action==="call"?"ringing":"answering");this.status(action==="call"?"Opening the receiver on the Show…":"Preparing the Show camera and microphone…");try{await this.roomWS("room_action",{action},peerId);if(peerId!==this.peerId||membershipEpoch!==this.membershipEpoch)return;if(action==="call"&&this.phase==="ringing")this.status("Waiting for an answer on the Show…");}catch(error){if(peerId!==this.peerId||membershipEpoch!==this.membershipEpoch)return;this.setPhase("idle");this.failure("command",error);this.endStatus("Check both room endpoints.");}}
   localStop(){this.epoch++;this.setPhase("ending");this.callId=null;clearTimeout(this.connectTimer);clearTimeout(this.disconnectedTimer);this.stream?.getTracks().forEach(t=>t.stop());this.stream=null;if(this.pc){this.pc.onicecandidate=null;this.pc.onconnectionstatechange=null;this.pc.ontrack=null;this.pc.close();this.pc=null;}for(const id of ["remote","local"])this.shadowRoot.getElementById(id).srcObject=null;this.candidates=[];}
   async hangup(){const peerId=this.peerId,membershipEpoch=this.membershipEpoch;this.localStop();if(!peerId){this.endStatus("Call ended locally; no room membership.");return;}this.endStatus("Call ended; restoring the Show…");try{await this.roomWS("room_action",{action:"end"},peerId);if(peerId!==this.peerId||membershipEpoch!==this.membershipEpoch)return;this.setPhase("idle");this.endStatus("Restoration command completed.");}catch(error){if(peerId!==this.peerId||membershipEpoch!==this.membershipEpoch)return;this.failure("hangup",error);this.endStatus("Restoration is unconfirmed. Check Status / Recover.");}}
   async media(){
     const epoch=this.epoch;let stream;
+    this.milestone("media_requested");
     try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:{facingMode:"user",width:{ideal:640,max:640},height:{ideal:480,max:480},frameRate:{ideal:15,max:15}}});}
     catch(error){if(epoch===this.epoch)this.failure("media",error);throw error;}
     if(epoch!==this.epoch){stream.getTracks().forEach(t=>t.stop());throw new Error("Call cancelled");}
+    this.milestone("media_acquired");this.status("Connecting audio and video…");
     this.stream=stream;this.shadowRoot.getElementById("local").srcObject=stream;this.candidates=[];
     let pc;
     try{pc=this.pc=new RTCPeerConnection({iceServers:[]});stream.getTracks().forEach(track=>pc.addTrack(track,stream));}
     catch(error){this.failure("rtc_setup",error);throw error;}
+    this.milestone("rtc_created");
     pc.ontrack=event=>{this.shadowRoot.getElementById("remote").srcObject=event.streams[0];this.shadowRoot.getElementById("remote").play().catch(()=>this.status("Tap Play received audio to enable playback."));};
     pc.onicecandidate=event=>{if(event.candidate&&epoch===this.epoch)this.step("signal",()=>this.roomWS("signal",{call_id:this.callId,kind:"candidate",data:event.candidate.toJSON()}),epoch).catch(error=>this.failAndHangup("signal",error,epoch));};
-    pc.onconnectionstatechange=()=>{if(epoch!==this.epoch)return;if(pc.connectionState==="connected"){this.setPhase("connected");clearTimeout(this.connectTimer);clearTimeout(this.disconnectedTimer);this.status("Connected. End returns the Show to its dashboard.");}else if(pc.connectionState==="failed")this.failAndHangup("connection",{code:"connection_failed"},epoch);else if(pc.connectionState==="disconnected"){clearTimeout(this.disconnectedTimer);this.disconnectedTimer=setTimeout(()=>this.failAndHangup("connection",{code:"connection_disconnected"},epoch),8000);}};
-    this.connectTimer=setTimeout(()=>this.failAndHangup("connection",{code:"connection_timeout"},epoch),20000);return pc;
+    pc.onconnectionstatechange=()=>{if(epoch!==this.epoch)return;if(pc.connectionState==="connected"){this.milestone("connected");this.setPhase("connected");clearTimeout(this.connectTimer);clearTimeout(this.disconnectedTimer);this.status("Connected. End returns the Show to its dashboard.");}else if(pc.connectionState==="failed")this.failAndHangup("connection",{code:"connection_failed"},epoch);else if(pc.connectionState==="disconnected"){clearTimeout(this.disconnectedTimer);this.disconnectedTimer=setTimeout(()=>this.failAndHangup("connection",{code:"connection_disconnected"},epoch),8000);}};
+    this.connectTimer=setTimeout(()=>this.failAndHangup("connection",{code:"connection_timeout"},epoch),45000);return pc;
   }
   async event(event){
     const epoch=this.epoch;
     if(event.event==="incoming"){this.lastFailure=null;this.setPhase("incoming");this.status("Incoming private call. Tap Answer to release camera/mic to this call.");return;}
     if(event.event==="ended"){this.localStop();this.endStatus("Call ended. Camera and voice assistant are being restored.");return;}
     if(event.event==="ready"){
-      this.setPhase("connecting");
+      this.setPhase("connecting");this.status("Preparing camera and microphone…");
       this.callId=event.call_id;const pc=await this.media();
-      if(this.config.role==="caller"){const offer=await this.step("offer",()=>pc.createOffer(),epoch);await this.step("local_description",()=>pc.setLocalDescription(offer),epoch);await this.step("signal",()=>this.roomWS("signal",{call_id:this.callId,kind:"offer",data:{type:offer.type,sdp:offer.sdp}}),epoch);}return;
+      if(this.config.role==="caller"){const offer=await this.step("offer",()=>pc.createOffer(),epoch);await this.step("local_description",()=>pc.setLocalDescription(offer),epoch);await this.step("signal",()=>this.roomWS("signal",{call_id:this.callId,kind:"offer",data:{type:offer.type,sdp:offer.sdp}}),epoch);this.milestone("offer_sent");}return;
     }
     if(event.event!=="signal"||!this.pc)return;
     if(event.kind==="candidate"){if(this.pc.remoteDescription)await this.step("ice_candidate",()=>this.pc.addIceCandidate(event.data),epoch);else this.candidates.push(event.data);return;}
     await this.step("remote_description",()=>this.pc.setRemoteDescription(event.data),epoch);for(const candidate of this.candidates)await this.step("ice_candidate",()=>this.pc.addIceCandidate(candidate),epoch);this.candidates=[];
-    if(event.kind==="offer"){const answer=await this.step("answer",()=>this.pc.createAnswer(),epoch);await this.step("local_description",()=>this.pc.setLocalDescription(answer),epoch);await this.step("signal",()=>this.roomWS("signal",{call_id:this.callId,kind:"answer",data:{type:answer.type,sdp:answer.sdp}}),epoch);}
+    if(event.kind==="offer"){const answer=await this.step("answer",()=>this.pc.createAnswer(),epoch);await this.step("local_description",()=>this.pc.setLocalDescription(answer),epoch);await this.step("signal",()=>this.roomWS("signal",{call_id:this.callId,kind:"answer",data:{type:answer.type,sdp:answer.sdp}}),epoch);this.milestone("answer_sent");}
   }
 }
-customElements.define("show5-video-call-card",ShowVideoCallCard);
+if(!customElements.get("show5-video-call-card"))customElements.define("show5-video-call-card",ShowVideoCallCard);
 
 // Opt-in, version-scoped recovery of Companion's native loading overlay.
 // This repeats the official frontend event only after the real dashboard is ready.
@@ -241,6 +260,6 @@ class ShowReadinessCard extends HTMLElement {
     });
   }
 }
-customElements.define("show5-readiness-card",ShowReadinessCard);
+if(!customElements.get("show5-readiness-card"))customElements.define("show5-readiness-card",ShowReadinessCard);
 window.customCards=window.customCards||[];
-window.customCards.push({type:"show5-intercom-card",name:"Private Show intercom",description:"HA-authenticated bounded talkback and optional listening"},{type:"show5-video-call-card",name:"Private Show video call",description:"Private HA-signaled call with explicit answer; no configured STUN/TURN"});
+for(const card of [{type:"show5-intercom-card",name:"Private Show intercom",description:"HA-authenticated bounded talkback and optional listening"},{type:"show5-video-call-card",name:"Private Show video call",description:"Private HA-signaled call with explicit answer; no configured STUN/TURN"}])if(!window.customCards.some(existing=>existing.type===card.type))window.customCards.push(card);

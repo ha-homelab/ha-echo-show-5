@@ -2,7 +2,7 @@
 
 This optional integration adds bounded talkback, an optional audio reply and an experimental WebRTC call room to a converted **Echo Show 5 Gen2 / cronos**. It uses Android IP Camera 0.14.0, VACA 0.13.4, the Home Assistant Companion minimal app and HA-authenticated WebSocket commands. No PBX or additional media server is required for this implementation.
 
-**Validation checkpoint:** 30 Python tests, 16 inert frontend tests and 17 readiness tests pass. Imports and configuration schema were checked in **HA Core 2026.9.1**. Live bounded audio transport, membership guards, service/microphone restoration and synthetic video signaling passed the checks below. **Actual browser WebRTC media and physical audibility remain unverified; Android currently reports no available camera.**
+**Validation checkpoint:** 45 Python tests, 22 inert frontend tests, 17 readiness tests, two duplicate-import checks and five call-panel tests pass. The separate project suite has 83 tests. Imports and configuration schema were checked in **HA Core 2026.9.1**. Live bounded audio transport, membership guards, service/microphone restoration and synthetic video signaling passed the checks below. Camera availability and fresh MJPEG frames recovered after an attended Android reboot and manual app startup; isolated WebView capture also passed. **A complete WebRTC call and physical audibility remain unverified.**
 
 ## Tested results
 
@@ -11,16 +11,19 @@ The following checks were performed on the converted device and installed HA ins
 - **Talkback transport:** the real handler accepted 8,820 zero PCM bytes, equivalent to 100 ms of silence. A second authenticated connection could neither end the active lease nor acquire another one. The upload restored the prior mute state before returning, and a subsequent explicit end was idempotent. No human audio was recorded and no speaker audibility was established.
 - **Bounded Listen:** a one-second request returned 88,200 PCM bytes at 44,100 Hz with nonzero samples, held only in memory. Afterward the camera app's microphone permission was denied again, one VACA recorder was active, software mute was off and the lease was idle. This establishes capture/cleanup, not intelligibility or playback quality.
 - **Synthetic video lifecycle and membership guards:** live WS checks passed for replacing a caller membership on the same connection, rejecting the old member's actions/signals, surviving an obsolete unsubscribe, relaying inactive offer/answer data, rejecting a stale call ID, receiving restoration events and returning to the previous mute state. All ten checks passed. These clients created no real WebRTC media; the results establish protocol behavior and service/microphone cleanup, not fresh camera frames.
-- **Actual browser video:** after an earlier connection timeout, an answered call reported `NotFoundError` during media acquisition. The browser enumerated audio input/output only and Android's camera service reported zero cameras. The cause is unresolved; physical shutter/privacy and camera availability checks remain pending. No successful real video call has been demonstrated.
+- **Camera recovery:** an answered call reported `NotFoundError` while the browser enumerated audio input/output only and Android's camera service reported zero cameras. After an ordinary reboot with hardware privacy off, both the camera service and public camera API reported one camera. Manually starting the camera app and Companion returned two different fresh authenticated MJPEG frames, held only in memory. This demonstrates manual recovery; it does not identify the cause of the earlier camera loss.
+- **Isolated WebView capture:** separate `getUserMedia` checks acquired audio in 977 ms, video in 1,376 ms at 640×480, and both in 1,488 ms. The exact production constraints also acquired both in 1,450 ms at 640×480. These establish local media acquisition after camera recovery, not peer connectivity, received media or sound heard by a person.
+- **Actual browser video:** earlier full-call attempts failed during connection or preparation. A forty-five-second connection deadline, safe diagnostics and the optional lightweight receiver below are implemented; a complete call through that receiver remains pending validation.
 - **Related controls:** an announcement action completed and restored its previous volume, but physical sound was not confirmed. The dedicated home dashboard rendered at 960×480. With the original Android setting backed up and `doze_always_on=0`, key event 223 produced display OFF after five seconds while wakefulness remained `Dozing`; key event 224 restored display ON and `Awake`. This verifies display-state transitions, not deep CPU suspend or long-term voice operation with the screen off. See [the setting change and rollback](../../docs/android-and-home-assistant.md#screen-sleep-and-always-on-display).
 
-Network ADB remains a same-boot setup, camera Start on Boot is off, and neither Show-reboot persistence nor unattended intercom recovery has been established. A successful action or signal exchange does not substitute for the remaining physical checks.
+Network ADB was lost during that ordinary reboot and restored through the already trusted USB host. The Always-on Display override persisted and VACA autostarted, but camera and Companion startup was manual. Camera Start on Boot remains off, so unattended intercom recovery is not established. No new physical wake-word or audibility acceptance was performed. A successful action or signal exchange does not substitute for those checks.
 
 ## Functionality and limits
 
 - **Talkback:** record up to ten seconds in the sending browser, then send the clip to the Show. The card converts it to PCM16 little-endian mono at 44,100 Hz; HA submits the bounded payload to the camera app's protected `/audio/upload`. VACA is muted during the operation and its previous software-mute state is restored afterward. The camera app needs no Show microphone permission for playback. This is record-then-send, rather than a continuous push-to-talk stream.
 - **Optional Listen:** capture five seconds from the Show for playback in the requesting browser; the API allows at most ten seconds. This temporarily restarts the camera app with microphone permission, opens one `/audio` subscriber, then closes it, revokes that permission, restarts the camera service and returns Companion home. An existing video stream is interrupted. `listen_enabled` defaults to `false`.
 - **Optional audio/video call:** one caller and one receiving card exchange WebRTC signaling through HA. An explicit **Answer** acquires an exclusive resource lease, mutes VACA and stops the camera app before browser media acquisition. Calls are limited to two minutes. End, disconnect or expiry stops browser tracks and invokes restoration. The backend force-stops the known Companion call host, restarts the camera service, waits for its authenticated control endpoint, returns Companion home and restores the previous VACA mute state. It does not validate fresh video frames. `video_enabled` defaults to `false`.
+- **Optional lightweight receiver:** `call_panel: true` registers the administrator-only `/show5-call` panel with just a Home link and the existing receiving card. It avoids loading Lovelace dashboard resources for the receiving view. The default remains the `/echo-show/receive` subview; the home dashboard and caller card are independent of this option.
 
 Talkback and Listen are half duplex. The WebRTC path requests browser echo cancellation and bidirectional media, but physical echo behavior and intelligibility need attended testing. Audio is held in memory by this implementation; it does not write audio files. Do not enable WebSocket payload debug logging during use, because transport logging could retain base64 audio.
 
@@ -32,11 +35,16 @@ Every intercom WebSocket command requires a **HA administrator** who can control
 
 A lease belongs to a user **and a specific WebSocket connection**. Each video subscription also receives its own opaque `peer_id`: room actions and signaling must match that membership on the same connection. A removed card's late End or unsubscribe cannot act on a replacement card's membership, even when both share HA's browser socket. Audio leases normally last 45 seconds; video leases last at most 120 seconds. The recovery journal is written before resource changes. Cross-connection operations, oversized PCM and malformed encoding are rejected. Failed restoration keeps the journal, blocks new acquisitions and raises a HA notification. Startup recovery waits for `homeassistant_started`; the administrator can retry through **Recover** after repairing device connectivity.
 
+Two restoration limits remain:
+
+- **Newer software-mute choices are not reconciled.** Cleanup replays the mute state saved before the session, including during delayed recovery. If an operator changes VACA software mute during a call or while recovery is pending, restoration can overwrite that newer choice. Confirm the desired software-mute state again after End or Recover finishes. The hardware privacy control is separate.
+- **Listen's temporary permission depends on reachable ADB for revocation.** If connectivity fails after `RECORD_AUDIO` is granted to the camera app, the permission can remain granted beyond the lease deadline until device access and recovery succeed. Closing this integration's audio subscriber does not revoke Android permission. The journal and blocked sessions expose failed cleanup, but provide no device-local expiry of that permission. This does not establish continued recording; independently verify revocation after restoring access.
+
 The receiving **Answer** button is enabled only after membership and an incoming call. **Call Show** requires an idle membership and stays disabled while ringing, connected or restoring. A `restored` event follows the backend's command/control-endpoint and mute checks; it does not establish usable camera frames. `ended` alone only says that cleanup started. An unjoined card never sends End when removed.
 
 **Protocol update:** `room_join` keeps its empty result and emits `{event: "joined", role, peer_id}` on the subscription. Every `room_action` and `signal` requires that 32-character lowercase hex `peer_id`; `signal` additionally requires the existing `call_id`. Stale membership commands fail with `intercom_failed`; missing/malformed IDs fail schema validation. Occupied roles are not replaced automatically. Deploy the backend and JS together, restart HA, and fully reload both call endpoints when upgrading an earlier pilot.
 
-The receiving card's `role: show` is a configured role, **not device authentication**. Any authorized administrator can occupy it. An Answer proves an authorized receiving endpoint responded, not that the physical Show answered. Keep the receiving card on the intended device's dedicated subview.
+The receiving card's `role: show` is a configured role, **not device authentication**. Any authorized administrator can occupy it. An Answer proves an authorized receiving endpoint responded, not that the physical Show answered. Keep the receiving card on the intended device's dedicated subview or optional receiver panel.
 
 The browser uses no configured STUN/TURN server. This does not enforce private-network destinations in arbitrary authenticated SDP. Start with two browsers that have direct local connectivity; remote-network reachability, NAT traversal and relay operation are not established.
 
@@ -54,13 +62,15 @@ Use the [Android setup guide](../../docs/android-and-home-assistant.md), [VACA g
 
 The fixed Android packages are `com.github.digitallyrefined.androidipcamera` and `io.homeassistant.companion.android.minimal`. The camera activity is `.activities.MainActivity`. A full Companion installation uses a different package and is not a drop-in match for these fixed actions.
 
-**Reboot limitation:** the tested network ADB setup is a runtime, authenticated connection. Persistence through a Show reboot has not been established; a trusted USB connection may be needed to enable it again. Listen/video check the adapter before taking the mute lease, but a connection lost after handoff can still leave restoration blocked until access returns. Talkback does not use ADB. **Camera Start on Boot remains off.** Neither the integration nor its recovery journal establishes unattended device-reboot recovery; test and deliberately configure both dependencies before relying on that behavior.
+**Reboot limitation:** the tested network ADB setup is a runtime, authenticated connection. It **did not return after an ordinary Show reboot**; the trusted USB host had to enable TCP5555 again before HA reconnected. Follow the [manual recovery procedure](../../docs/camera-and-intercom.md#manual-recovery-after-an-android-reboot). Listen/video check the adapter before taking the mute lease, but a connection lost after handoff can still leave restoration blocked until access returns. Talkback does not use ADB. **Camera Start on Boot remains off.** Neither the integration nor its recovery journal establishes unattended device-reboot recovery; deliberately configure and test both dependencies before relying on that behavior.
 
 ### When Android has no camera
 
-Treat `NotFoundError` together with an empty Android camera inventory as a camera-availability diagnostic, not proof of a denied browser permission. Inspect the physical camera shutter/privacy controls and the [ROM's camera/privacy behavior](../../docs/android-and-home-assistant.md#rom-capabilities-and-limitations). Through the already identity-verified Android adapter, check Android's camera-service inventory, then compare browser media-device enumeration before retrying a call. The current zero-camera observation does not identify the cause or establish a permanent hardware fault.
+Treat `NotFoundError` together with an empty Android camera inventory as a camera-availability diagnostic, not proof of a denied browser permission. Inspect the physical camera shutter/privacy controls and the [ROM's camera/privacy behavior](../../docs/android-and-home-assistant.md#rom-capabilities-and-limitations). Through the already identity-verified Android adapter, check Android's camera-service inventory, then compare browser media-device enumeration before retrying a call. The observed zero-camera condition recovered after a reboot with hardware privacy off; this does not identify its cause or establish a permanent hardware fault.
 
 An authenticated `/control/status` response can report `streaming: true` even when no camera is available. That flag and a running app prove neither capture nor fresh frames. After the camera reappears, require newly received JPEG frames from the authenticated stream and a working camera preview; do not count a cached HA still. Only then repeat browser media acquisition and an attended video call. Avoid changing unrelated permissions or repeatedly restarting services as a substitute for checking physical availability.
+
+The later isolated WebView checks successfully acquired 640×480 camera input with the production constraints. A historical Camera1/API label alone therefore does not establish Camera2 or WebRTC incompatibility on this device. Separate current camera availability, `getUserMedia` completion, signaling and received media when diagnosing a call.
 
 ## Install
 
@@ -72,10 +82,12 @@ An authenticated `/control/status` response can report `streaming: true` even wh
    cp integrations/show5-intercom/custom_components/show5_intercom/*.py \
      integrations/show5-intercom/custom_components/show5_intercom/manifest.json \
      "$HA_CONFIG_DIR/custom_components/show5_intercom/"
-   cp integrations/show5-intercom/www/show5-intercom-card.js "$HA_CONFIG_DIR/www/"
+   cp integrations/show5-intercom/www/show5-intercom-card.js \
+     integrations/show5-intercom/www/show5-call-panel.js \
+     "$HA_CONFIG_DIR/www/"
    ```
 
-2. Merge [configuration.example.yaml](configuration.example.yaml) into the existing HA configuration. Do not replace the whole configuration. Replace its mute/ADB entity placeholders with verified entity IDs and initially keep both optional modes `false`. Talkback can omit `adb_entity` if Listen/Video are disabled.
+2. Merge [configuration.example.yaml](configuration.example.yaml) into the existing HA configuration. Do not replace the whole configuration. Replace its mute/ADB entity placeholders with verified entity IDs and initially keep both optional modes `false`. Talkback can omit `adb_entity` if Listen/Video are disabled. The optional `call_panel` flag also defaults to `false` when omitted. Copy the current manifest with the component: it declares the required `frontend` dependency.
 
 3. Define the four referenced entries in HA's private `secrets.yaml`: `show5_camera_origin`, `show5_camera_username`, `show5_camera_password` and `show5_camera_certificate_sha256`. The origin is the camera's HTTPS scheme/host/port only, with no credentials or extra path. The pin is 64 hexadecimal characters representing the camera certificate's SHA-256 digest. Obtain and verify that certificate through a trusted device connection; do not trust an unexpected replacement certificate automatically. Never place these values in a dashboard, the JS resource or this repository.
 
@@ -89,14 +101,14 @@ An authenticated `/control/status` response can report `streaming: true` even wh
 
    Use **Status** before recording. A successful upload means accepted bytes; check physical sound separately. Cancelling before submission sends no clip. Already accepted playback cannot be recalled and is bounded to ten seconds.
 
-6. Before enabling Video, create a dashboard at the exact URL path `echo-show` with `home`, `calls` and `receive` views. The integration currently has fixed Companion routes `/echo-show/home` and `/echo-show/receive`; using different paths requires a reviewed source adjustment. On the caller's `calls` view, add:
+6. Before enabling Video, ensure the return-home dashboard exists at the exact route `/echo-show/home`. On the caller's `calls` view, add:
 
    ```yaml
    type: custom:show5-video-call-card
    role: caller
    ```
 
-   Make `receive` a **subview**, and put this card on it:
+   By default the receiver uses `/echo-show/receive`. Make `receive` a **subview** of that `echo-show` dashboard, and put this card on it. Alternatively, use the lightweight panel described below instead of the receiving subview.
 
    ```yaml
    type: custom:show5-video-call-card
@@ -108,6 +120,23 @@ An authenticated `/control/status` response can report `streaming: true` even wh
 7. Enable optional modes individually only after checking the respective device permissions and restoration sequence; validate/restart HA after changing this YAML configuration. Complete the attended checks below before describing either mode as operational.
 
 The [portable HA package](../../examples/home-assistant/README.md) provides separate announcements, media, display and navigation wrappers. The [native dashboard template](../../docs/show-dashboard.md) remains a conservative starting point; its inactive Calls placeholders are not automatically replaced by installing this custom integration.
+
+## Optional lightweight call receiver
+
+This option provides a small HA custom panel at **`/show5-call`** without the receiving dashboard's Lovelace resources. It imports `/local/show5-intercom-card.js` relative to `/local/show5-call-panel.js`, so copy **both files into the same HA `www/` directory** as shown above. Keep the normal card resource for the caller and talkback cards; the panel module is registered by the backend, not as an additional Lovelace card resource. Duplicate module evaluation is guarded against redefining custom elements.
+
+Inside the existing `show5_intercom` configuration, with its verified `adb_entity` and other private settings retained, enable:
+
+```yaml
+video_enabled: true
+call_panel: true
+```
+
+Validate the configuration and restart HA. Panel registration requires both enabled Video and a configured Android Debug Bridge adapter; an existing `show5-call` route is rejected rather than replaced. The route uses HA's **`require_admin: true`**, has **no sidebar entry**, and contains no credentials. Open it by URL on the intended Show using its authorized administrator session. The existing WebSocket authorization and explicit Answer requirement still apply.
+
+When a call needs to open an absent receiving endpoint, this mode **force-stops and starts Companion** at `/show5-call`. It starts a fresh WebView instead of navigating the current dashboard in place. With the flag omitted or `false`, the existing `/echo-show/receive` navigation remains unchanged. Both modes restore Companion to `/echo-show/home` after cleanup; the panel's Home link uses that same fixed route. The existing home dashboard does not need to be replaced.
+
+The panel reuses `show5-video-call-card` for membership, media ownership and cleanup. Leaving the panel removes that card and invokes its normal cancellation; there is no second media owner or separate hangup implementation. It does not grant microphone/camera permission, start a call automatically or establish successful peer media. Validate a complete attended call separately. To return to the default receiver, set `call_panel: false`, restart HA and use the configured `/echo-show/receive` subview.
 
 ## Optional Companion readiness workaround
 
@@ -132,7 +161,13 @@ For an attended talkback test, confirm speaker output, temporary VACA mute and r
 
 For Video, verify both pictures and intelligible audio, explicit Answer, denied/missing browser permission, End, caller-tab closure, receiver-WebView loss, the two-minute limit and network interruption. Check fresh camera video, Companion home and the original VACA mute state afterward. A signaling-only test without media cannot replace these checks.
 
-The call card keeps its first failure as `lastFailure: {stage, code}` and preserves it in the status through hangup. It logs only `SHOW5_CALL_FAILURE <stage> <code>` using fixed stage labels and allowlisted DOM/HA error codes; unknown errors become `UnknownError`. Exception messages, addresses, SDP, candidates and media are never included in this diagnostic. Inspect that fixed marker in the Android log after an unsuccessful call, including after Companion is force-stopped for cleanup. For example, `media NotAllowedError` identifies denied browser camera/microphone access, while `connection connection_timeout` identifies the existing twenty-second connection deadline. New calls reset the prior failure. These diagnostics do not extend deadlines or suppress restoration; a failed restoration request remains explicitly unconfirmed in the UI.
+The call card keeps its first failure as `lastFailure: {stage, code}` and preserves it in the status through hangup. It logs `SHOW5_CALL_FAILURE <stage> <code>` using fixed stage labels and allowlisted DOM/HA error codes; unknown errors become `UnknownError`. Fixed `SHOW5_CALL_STAGE` milestones distinguish ready-event receipt, camera/microphone request, completed capture setup, peer creation, offer/answer submission and connection. Exception messages, addresses, SDP, candidates and media are never included. Inspect fresh timestamped markers in the Android log; debugger attachment can replay older console entries. `media_requested` without `media_acquired` means media acquisition has not completed, rather than proving a network failure.
+
+Answer immediately displays Preparing, and successful local media acquisition displays Connecting. The connection deadline is **45 seconds after local media acquisition**, increased from twenty seconds for the slow Show hardware. The separate **120-second backend video lease** and eight-second disconnected deadline remain unchanged; new calls reset the prior failure. `connection connection_timeout` identifies the connection deadline. Cancellation, backend expiry and failure still stop local tracks and request restoration; a failed restoration request remains explicitly unconfirmed in the UI. More startup time does not establish successful WebRTC media.
+
+The video card stops local media and discards its room membership when HA disconnects. It makes one fresh join attempt when the connection returns, with automatic subscription replay disabled. A rejected join stays paused until **Retry room** or a later reconnect; ordinary HA state updates do not flood the room with retries. A new server-issued membership is required before calling or answering.
+
+Backend logs use fixed `SHOW5_BACKEND_STEP` phase, outcome and error-category labels. Each Android action is bounded to twelve seconds; software-mute service execution and state confirmation each have an eight-second limit. Failed steps are warnings. Set the `custom_components.show5_intercom` logger to `info` temporarily to include begin/success markers; no command text, exception messages, addresses or credentials are logged.
 
 Also test a HA restart with a saved lease. If Status reports recovery required, repair the adapter/device first, then use **Recover**. New sessions should remain blocked until restoration succeeds. Keep the recovery journal; deleting it does not restore a microphone, permission or camera owner.
 
@@ -140,12 +175,14 @@ To remove the integration, end any session and confirm the baseline first. Remov
 
 ## Offline validation
 
-The **30 Python tests and 16 inert frontend tests** cover payload limits, exclusive/owner-bound leases, cancellation and expiry, failed preparation/restoration, persisted recovery, administrator checks, caller context, room cleanup and late browser permission/subscription completion, including an incoming call delivered before subscription setup finishes. Frontend checks also cover failure preservation after cleanup, negotiation errors, diagnostic redaction and the unchanged connection timeout. They do not contact HA or devices. Run from the repository root with Python 3.11 or newer and Node.js:
+The **45 Python tests and 22 inert frontend tests** cover payload limits, exclusive/owner-bound leases, cancellation and expiry, failed preparation/restoration, persisted recovery, administrator checks, caller context, room cleanup and late browser permission/subscription completion, including an incoming call delivered before subscription setup finishes. Backend diagnostics have bounded service calls/readbacks and redact private values. Frontend checks also cover failure preservation after cleanup, negotiation errors, diagnostic redaction, the bounded connection timeout, queued signaling during media acquisition and controlled retries after HA reconnection. They do not contact HA or devices. Run from the repository root with Python 3.11 or newer and Node.js:
 
 ```bash
 python3 -m unittest discover -s integrations/show5-intercom/tests -v
 node integrations/show5-intercom/tests/test_frontend.cjs
 node integrations/show5-intercom/tests/test_readiness.cjs
+node integrations/show5-intercom/tests/test_duplicate_import.cjs
+node integrations/show5-intercom/tests/test_call_panel.cjs
 node --check integrations/show5-intercom/www/show5-intercom-card.js
 python3 -m py_compile integrations/show5-intercom/custom_components/show5_intercom/*.py
 ```
@@ -153,6 +190,8 @@ python3 -m py_compile integrations/show5-intercom/custom_components/show5_interc
 Actual HA Core 2026.9.1 import/schema validation supplements these tests. Live media and recovery evidence must be recorded separately.
 
 An additional **17 inert readiness tests** cover opt-in, offline/missing-auth data, missing native helper, wrong dashboard/frame, incomplete rendering, two-frame rechecks, removal, bounded retries and one signal per document. They do not establish live Companion recovery.
+
+Two duplicate-import checks and five inert panel tests cover repeated module loading, receiver composition, forwarding HA state and card lifecycle ownership. The Python suite includes optional panel registration, required settings, administrator restriction and route collision handling. These checks do not establish a working real call. The separate root-level tooling suite contains **83 tests**.
 
 ## Upstream references
 

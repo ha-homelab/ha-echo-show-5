@@ -9,7 +9,7 @@ function fixture(){
   const sandbox={window,document,console,HTMLElement:class{
     attachShadow(){this.shadowRoot={innerHTML:""};}
     getRootNode(){return {host:null};}
-  },customElements:{define:(name,type)=>classes.set(name,type)},
+  },customElements:{get:name=>classes.get(name),define:(name,type)=>classes.set(name,type)},
   setTimeout:(fn,delay)=>{timers.set(++id,{fn,at:now+delay});return id;},clearTimeout:key=>timers.delete(key),
   requestAnimationFrame:fn=>{frames.set(++id,fn);return id;},cancelAnimationFrame:key=>frames.delete(key)};
   vm.createContext(sandbox);vm.runInContext(source,sandbox);

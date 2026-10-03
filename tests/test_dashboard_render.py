@@ -71,8 +71,10 @@ class DashboardRenderTests(unittest.TestCase):
             self.assertEqual(output.stat().st_mode & 0o777, 0o600)
             with self.assertRaises(FileExistsError):
                 dashboard.write_private(output, {'changed': True}, root)
+            self.assertEqual(json.loads(output.read_text()), {'views': []})
             with self.assertRaisesRegex(ValueError, 'private directory'):
                 dashboard.write_private(root / 'README.md', {}, root)
+            self.assertFalse((root / 'README.md').exists())
 
     def test_rejects_symlink_escape(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -82,11 +84,15 @@ class DashboardRenderTests(unittest.TestCase):
             (root / 'private' / 'linked').symlink_to(root / 'outside', target_is_directory=True)
             with self.assertRaisesRegex(ValueError, 'private directory'):
                 dashboard.write_private(root / 'private' / 'linked' / 'dashboard.json', {}, root)
+            self.assertFalse((root / 'outside' / 'dashboard.json').exists())
+            self.assertEqual(list((root / 'outside').iterdir()), [])
             (root / 'private' / 'linked').unlink()
             (root / 'private').rmdir()
             (root / 'private').symlink_to(root / 'outside', target_is_directory=True)
             with self.assertRaisesRegex(ValueError, 'outside the project'):
                 dashboard.write_private(root / 'private' / 'dashboard.json', {}, root)
+            self.assertFalse((root / 'outside' / 'dashboard.json').exists())
+            self.assertEqual(list((root / 'outside').iterdir()), [])
 
 
 if __name__ == '__main__':

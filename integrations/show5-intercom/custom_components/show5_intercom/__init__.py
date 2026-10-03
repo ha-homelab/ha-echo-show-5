@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import logging
 import secrets
 import shlex
 import struct
@@ -12,7 +13,7 @@ import aiohttp
 import voluptuous as vol
 
 from homeassistant.auth.permissions.const import POLICY_CONTROL
-from homeassistant.components import persistent_notification, websocket_api
+from homeassistant.components import frontend, panel_custom, persistent_notification, websocket_api
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import Context, HomeAssistant
 from homeassistant.helpers import config_validation as cv
@@ -23,6 +24,13 @@ from .lease import LeaseGuard, RATE, decode_pcm
 DOMAIN = "show5_intercom"
 CAMERA = "com.github.digitallyrefined.androidipcamera"
 COMPANION = "io.homeassistant.companion.android.minimal"
+_LOGGER = logging.getLogger(__name__)
+_DIAGNOSTIC_PHASES = frozenset({
+    "mute_on_call", "mute_on_readback", "mute_off_call", "mute_off_readback",
+    "adb_probe", "adb_grant_camera_mic", "adb_revoke_camera_mic",
+    "adb_stop_camera", "adb_start_camera", "adb_stop_companion",
+    "adb_start_companion", "adb_open_calls", "adb_wake",
+})
 CONFIG_SCHEMA = vol.Schema({
     DOMAIN: vol.Schema({
         vol.Required("camera_url"): cv.string,
@@ -33,8 +41,35 @@ CONFIG_SCHEMA = vol.Schema({
         vol.Optional("adb_entity"): cv.entity_id,
         vol.Optional("listen_enabled", default=False): cv.boolean,
         vol.Optional("video_enabled", default=False): cv.boolean,
+        vol.Optional("call_panel", default=False): cv.boolean,
     })
 }, extra=vol.ALLOW_EXTRA)
+
+
+async def diagnostic_step(phase, operation):
+    """Log fixed labels only; never command/output, exception text or URLs."""
+    if phase not in _DIAGNOSTIC_PHASES:
+        raise ValueError("Unsupported diagnostic phase")
+    _LOGGER.info("SHOW5_BACKEND_STEP %s begin None", phase)
+    try:
+        result = await operation()
+    except BaseException as error:
+        category = "OtherError"
+        for error_type, label in (
+            (asyncio.CancelledError, "CancelledError"),
+            (TimeoutError, "TimeoutError"),
+            (PermissionError, "PermissionError"),
+            (ConnectionError, "ConnectionError"),
+            (OSError, "OSError"),
+            (ValueError, "ValueError"),
+        ):
+            if isinstance(error, error_type):
+                category = label
+                break
+        _LOGGER.warning("SHOW5_BACKEND_STEP %s failed %s", phase, category)
+        raise
+    _LOGGER.info("SHOW5_BACKEND_STEP %s success None", phase)
+    return result
 
 
 class Backend:
@@ -66,10 +101,17 @@ class Backend:
         return Context()
 
     async def set_mute(self, muted):
-        await self.hass.services.async_call("switch", "turn_on" if muted else "turn_off", {"entity_id": self.config["mute_entity"]}, blocking=True, context=self.actor_context())
-        async with asyncio.timeout(8):
-            while await self.snapshot() != muted:
-                await asyncio.sleep(.2)
+        phase = "mute_on" if muted else "mute_off"
+        async def call_switch():
+            # Bound the service call as well as its separate confirmation window.
+            async with asyncio.timeout(8):
+                await self.hass.services.async_call("switch", "turn_on" if muted else "turn_off", {"entity_id": self.config["mute_entity"]}, blocking=True, context=self.actor_context())
+        async def readback():
+            async with asyncio.timeout(8):
+                while await self.snapshot() != muted:
+                    await asyncio.sleep(.2)
+        await diagnostic_step(phase + "_call", call_switch)
+        await diagnostic_step(phase + "_readback", readback)
 
     async def request(self, method, path, data=None):
         # Only fixed paths selected in code. No redirect or client-provided URL.
@@ -83,8 +125,6 @@ class Backend:
 
     async def adb(self, action, context=None):
         entity = self.config.get("adb_entity")
-        if not entity or not self.hass.services.has_service("androidtv", "adb_command"):
-            raise ValueError("Verified Android Debug Bridge adapter unavailable")
         # Fixed action allowlist. A client cannot supply an Android command.
         actions = {
             "probe": 'test "$(getprop ro.product.device)" = cronos && test "$(id -u)" = 2000',
@@ -94,19 +134,23 @@ class Backend:
             "start_camera": f"am start -n {CAMERA}/.activities.MainActivity",
             "stop_companion": f"am force-stop {COMPANION} && if pidof {COMPANION} >/dev/null; then exit 1; fi",
             "start_companion": "am start -a android.intent.action.VIEW -d 'homeassistant://navigate/echo-show/home?server=default' -p " + COMPANION,
-            "open_calls": "am start -a android.intent.action.VIEW -d 'homeassistant://navigate/echo-show/receive?server=default' -p " + COMPANION,
+            "open_calls": (f"am force-stop {COMPANION} && " if self.config.get("call_panel") else "") + "am start -a android.intent.action.VIEW -d 'homeassistant://navigate/" + ("show5-call" if self.config.get("call_panel") else "echo-show/receive") + "?server=default' -p " + COMPANION,
             "wake": "input keyevent 224",
         }
         if action not in actions:
             raise ValueError("Unsupported device action")
         marker = "SHOW5_" + secrets.token_hex(12)
         command = actions[action] + " && echo " + shlex.quote(marker)
-        async with asyncio.timeout(12):
-            await self.hass.services.async_call("androidtv", "adb_command", {"entity_id": entity, "command": command}, blocking=True, context=context or self.actor_context())
-        state = self.hass.states.get(entity)
-        output = state.attributes.get("adb_response", "") if state else ""
-        if not str(output).rstrip().endswith(marker):
-            raise ValueError("Device action was not confirmed")
+        async def run():
+            if not entity or not self.hass.services.has_service("androidtv", "adb_command"):
+                raise ValueError("Verified Android Debug Bridge adapter unavailable")
+            async with asyncio.timeout(12):
+                await self.hass.services.async_call("androidtv", "adb_command", {"entity_id": entity, "command": command}, blocking=True, context=context or self.actor_context())
+            state = self.hass.states.get(entity)
+            output = state.attributes.get("adb_response", "") if state else ""
+            if not str(output).rstrip().endswith(marker):
+                raise ValueError("Device action was not confirmed")
+        await diagnostic_step("adb_" + action, run)
 
     async def prepare(self, mode):
         if mode != "talk" and (not self.config.get(mode + "_enabled") or not self.config.get("adb_entity")):
@@ -302,10 +346,30 @@ async def recover(hass, connection, msg):
     await reply(connection, msg, run)
 
 
+async def register_call_panel(hass, config):
+    """Register the optional receiver without loading Lovelace resources."""
+    if not config.get("call_panel"):
+        return
+    if not config.get("video_enabled") or not config.get("adb_entity"):
+        raise ValueError("The call panel requires enabled video and a verified adapter")
+    # Never replace another integration's route.
+    if "show5-call" in hass.data.get(frontend.DATA_PANELS, {}):
+        raise ValueError("The Show call panel route is already registered")
+    await panel_custom.async_register_panel(
+        hass, frontend_url_path="show5-call", webcomponent_name="show5-call-panel",
+        module_url="/local/show5-call-panel.js", require_admin=True,
+    )
+
+
 async def async_setup(hass: HomeAssistant, config):
     if DOMAIN not in config:
         return True
     backend = Backend(hass, config[DOMAIN])
+    try:
+        await register_call_panel(hass, config[DOMAIN])
+    except Exception:
+        await backend.http.close()
+        raise
     hass.data[DOMAIN] = backend
     record = await backend.store.async_load()
     if record:
