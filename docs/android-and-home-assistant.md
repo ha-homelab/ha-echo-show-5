@@ -22,6 +22,35 @@ For independent screen wake, enable **Settings → Display → Tap to wake**, th
 
 Start with a small dashboard and one microphone-owning app. Far-field speech, interruption during music, reliable camera playback, DRM streaming and unattended operation require tests on the actual device. An Android boot alone establishes none of those capabilities.
 
+## Screen sleep and Always-on Display
+
+On the tested v0.4 device, both Android `KEYCODE_SLEEP` and VACA's Screen switch initially produced `mWakefulness=Dozing` while **Display Power remained ON**. The ROM resource defaults enabled Always-on Display, and the unset `doze_always_on` setting inherited that default. VACA's **Screen always on** setting is separate: it controls an Activity window's keep-screen-on flag. Replacing the sleep script with VACA's Screen switch did not bypass the Android ambient-display policy. [Android 11 ambient-display settings](https://android.googlesource.com/platform/frameworks/base/+/android-11.0.0_r48/core/java/android/hardware/display/AmbientDisplayConfiguration.java), [pinned VACA screen implementation](https://github.com/msp1974/ViewAssistCompanionApp/blob/65906aebffd2f39772773b44729b22fd022a1f3c/app/src/main/java/com/msp1974/vacompanion/device/ScreenUtils.kt).
+
+If the same behavior occurs, first read and privately record the existing value. Run these commands only inside an authorized Android shell whose device identity has been verified, with no active call or microphone-handoff session:
+
+```sh
+settings get secure doze_always_on
+```
+
+The minimal change is:
+
+```sh
+settings put secure doze_always_on 0
+settings get secure doze_always_on
+```
+
+Then send `input keyevent 223`, wait about five seconds, and inspect `dumpsys power` and `dumpsys display`. Require **`Display Power: state=OFF` / `mScreenState=OFF`**. `Dozing` alone and an HA switch reporting off are insufficient: VACA reports interactive state, which is distinct from display power. Send `input keyevent 224` to wake, then verify display ON and `mWakefulness=Awake`. [Android interactive-state distinction](https://developer.android.com/reference/android/os/PowerManager#isInteractive()).
+
+This sequence passed on the test device: after disabling Always-on Display, sleep reported **Dozing with Display Power OFF**, and wake restored **Awake with Display Power ON**. The fixed ADB scripts needed no change. This verifies Android's display-state transition, not deep CPU suspend, long-term screen-off voice reliability or a physical backlight measurement. Notification-triggered ambient pulses are controlled separately by `doze_enabled`; this fix did not change that setting.
+
+For rollback, restore the exact recorded value. If the original readback was **`null`**, restore the absence of the override, rather than writing `1`:
+
+```sh
+settings delete secure doze_always_on
+```
+
+If the original was an explicit `0` or `1`, restore that value with `settings put secure doze_always_on ORIGINAL_VALUE`. VACA's Screen control remains an optional supported route when its force-lock device-admin permission is active; the Screensaver control only darkens/overlays the screen. Keep the independent wake command available and verify actual display state with either route.
+
 ## Complete initial Android setup and enable USB debugging
 
 Finish the Lineage welcome/setup flow. If it offers **Update Lineage Recovery alongside the OS**, leave that option unchecked for this TWRP-based workflow. This is the project's recommendation to retain the existing TWRP recovery, not a stated requirement from the ROM maintainer.

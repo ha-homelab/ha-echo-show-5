@@ -1,0 +1,25 @@
+# Proposal only. Merge into HA's existing configuration; do not replace it.
+# All private values belong in HA secrets.yaml. No credentials in URLs or JS.
+show5_intercom:
+  camera_url: !secret show5_camera_origin
+  camera_username: !secret show5_camera_username
+  camera_password: !secret show5_camera_password
+  camera_certificate_sha256: !secret show5_camera_certificate_sha256
+  mute_entity: switch.REPLACE_WITH_VERIFIED_VACA_MUTE
+  adb_entity: media_player.REPLACE_WITH_VERIFIED_SHOW_ADB
+  listen_enabled: false
+  video_enabled: false
+
+# Register /local/show5-intercom-card.js as a JavaScript module resource in
+# the existing Lovelace resource registry. The JS contains no secrets.
+# Add the following cards through the existing dashboard editor:
+#
+# type: custom:show5-intercom-card
+#
+# On /echo-show/calls (remote caller):
+# type: custom:show5-video-call-card
+# role: caller
+#
+# On /echo-show/receive (receiver subview, hosted by Companion on the Show):
+# type: custom:show5-video-call-card
+# role: show
