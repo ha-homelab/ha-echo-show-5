@@ -22,6 +22,35 @@ For independent screen wake, enable **Settings → Display → Tap to wake**, th
 
 Start with a small dashboard and one microphone-owning app. Far-field speech, interruption during music, reliable camera playback, DRM streaming and unattended operation require tests on the actual device. An Android boot alone establishes none of those capabilities.
 
+## Screen sleep and Always-on Display
+
+On the tested v0.4 device, both Android `KEYCODE_SLEEP` and VACA's Screen switch initially produced `mWakefulness=Dozing` while **Display Power remained ON**. The ROM resource defaults enabled Always-on Display, and the unset `doze_always_on` setting inherited that default. VACA's **Screen always on** setting is separate: it controls an Activity window's keep-screen-on flag. Replacing the sleep script with VACA's Screen switch did not bypass the Android ambient-display policy. [Android 11 ambient-display settings](https://android.googlesource.com/platform/frameworks/base/+/android-11.0.0_r48/core/java/android/hardware/display/AmbientDisplayConfiguration.java), [pinned VACA screen implementation](https://github.com/msp1974/ViewAssistCompanionApp/blob/65906aebffd2f39772773b44729b22fd022a1f3c/app/src/main/java/com/msp1974/vacompanion/device/ScreenUtils.kt).
+
+If the same behavior occurs, first read and privately record the existing value. Run these commands only inside an authorized Android shell whose device identity has been verified, with no active call or microphone-handoff session:
+
+```sh
+settings get secure doze_always_on
+```
+
+The minimal change is:
+
+```sh
+settings put secure doze_always_on 0
+settings get secure doze_always_on
+```
+
+Then send `input keyevent 223`, wait about five seconds, and inspect `dumpsys power` and `dumpsys display`. Require **`Display Power: state=OFF` / `mScreenState=OFF`**. `Dozing` alone and an HA switch reporting off are insufficient: VACA reports interactive state, which is distinct from display power. Send `input keyevent 224` to wake, then verify display ON and `mWakefulness=Awake`. [Android interactive-state distinction](https://developer.android.com/reference/android/os/PowerManager#isInteractive()).
+
+This sequence passed on the test device: after disabling Always-on Display, sleep reported **Dozing with Display Power OFF**, and wake restored **Awake with Display Power ON**. The fixed ADB scripts needed no change. This verifies Android's display-state transition, not deep CPU suspend, long-term screen-off voice reliability or a physical backlight measurement. Notification-triggered ambient pulses are controlled separately by `doze_enabled`; this fix did not change that setting.
+
+For rollback, restore the exact recorded value. If the original readback was **`null`**, restore the absence of the override, rather than writing `1`:
+
+```sh
+settings delete secure doze_always_on
+```
+
+If the original was an explicit `0` or `1`, restore that value with `settings put secure doze_always_on ORIGINAL_VALUE`. VACA's Screen control remains an optional supported route when its force-lock device-admin permission is active; the Screensaver control only darkens/overlays the screen. Keep the independent wake command available and verify actual display state with either route.
+
 ## Complete initial Android setup and enable USB debugging
 
 Finish the Lineage welcome/setup flow. If it offers **Update Lineage Recovery alongside the OS**, leave that option unchecked for this TWRP-based workflow. This is the project's recommendation to retain the existing TWRP recovery, not a stated requirement from the ROM maintainer.
@@ -64,6 +93,19 @@ The USB host is only needed for conversion and app installation. Normal Companio
 Companion needs **Show → HA HTTP(S), WebSocket and returned media/TTS URL access**. Depending on the endpoint, that is commonly TCP8123 on a private route or TCP443 for HTTPS. Verify that HA-generated audio URLs are reachable from the Show, including their hostnames. A working NAS-side request does not establish the Show's own Wi-Fi route.
 
 The plain Companion path does not require MQTT, ESPHome TCP6053 or VACA TCP10800. Keep any later device-control port within trusted networks. If HA or speech services are remote, local wake-word detection does not make the entire assistant work offline.
+
+### Repair an obsolete Companion server address
+
+During this pilot, the existing server's external hostname returned **NXDOMAIN**: that name no longer resolved. An alternate HTTPS address was verified to reach the **same HA instance**, with authenticated HTTPS and secure WebSocket access working. Updating only **External URL** in the existing Companion server entry preserved its authentication. **Internal URL remained unset.** This is a confirmed address repair; it does not establish a working video call or explain every earlier slow frontend load.
+
+Use the following order when Companion cannot connect:
+
+1. Inspect the selected server's current External URL and any Internal URL in Companion's app settings. Check the hostname from the Show's network. NXDOMAIN is a DNS failure; a cached dashboard, a reachable ADB port or another host's successful request does not prove that this URL resolves on the Show.
+2. Verify any replacement address belongs to the intended HA instance before using the existing authentication with it. Check DNS resolution, the HTTPS certificate and the served instance. Then verify authenticated HTTPS and **WSS** access; an unauthenticated landing page or HTTP 200 alone is insufficient. Keep credentials and diagnostic payloads private.
+3. In **Companion app settings**, select the **existing server** and edit its **External URL** to the verified same-instance HTTPS address. Use the supported settings UI, retain that server entry and save the change. This repair does not require clearing app data, deleting/re-adding the server or changing HA's global URL settings. The tested configuration had no Internal URL; preserve the existing routing policy unless a different local route is deliberately being configured.
+4. Reopen the dashboard and confirm fresh state updates and authenticated WebSocket operation through the selected address. Retest media/TTS URLs and the intended call separately. A repaired server connection does not prove camera access, peer connectivity or audible output.
+
+Keep endpoint reachability separate from frontend readiness. The [optional readiness workaround](../integrations/show5-intercom/README.md#optional-companion-readiness-workaround) addresses a measured native handshake delay after the frontend connects. It cannot repair DNS, TLS or authentication failures. Verify those prerequisites before attributing a loading overlay to dashboard performance.
 
 ## Test Assist with a button first
 

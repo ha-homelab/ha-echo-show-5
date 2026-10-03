@@ -4,7 +4,9 @@ Tools and an attended runbook for reusing an **Amazon Echo Show 5, second genera
 
 **Validation status, 2026-10-02:** a physical cronos device has completed the guarded TWRP conversion and first **Android 11 / LineageOS 18.1** boot. The raw backups passed validation on both NAS and workstation, and the pinned **Home Assistant Companion minimal APK installed successfully**. Companion is authenticated to HA and renders the existing dashboard. Optional **VACA 0.13.4** is installed with a local custom model, a running wake-word engine and an idle HA satellite connection. After settling onboarding permissions, VACA restarted unattended through one normal Android reboot, reconnected to HA and kept capture active with Companion back in the foreground. Controlled physical voice, power-cycle and multi-day reliability tests remain pending. See [validation status](docs/preparation-status.md) for the evidence and remaining checks.
 
-The optional [camera pilot](docs/camera-and-intercom.md) delivered authenticated **640×480 MJPEG at 5.19 fps over a 20-second sample**, while Companion stayed in the foreground and VACA capture remained active. HA retrieved a valid camera image and has a dedicated camera dashboard. Manual camera stop/restart passed; camera boot start is off. Intercom, video calls and longer camera reliability checks remain pending.
+The [camera pilot](docs/camera-and-intercom.md) delivered authenticated **640×480 MJPEG at 5.19 fps over a 20-second sample**, while Companion stayed in the foreground and VACA capture remained active. A later zero-camera condition cleared after an ordinary Android reboot with hardware privacy off. Android then reported one camera, and manual camera/Companion startup returned two different fresh authenticated JPEG frames. The cause of the earlier loss remains unresolved. Network ADB did not survive that reboot and required [trusted USB recovery](docs/camera-and-intercom.md#manual-recovery-after-an-android-reboot). Camera boot start is off.
+
+The optional [HA intercom integration](integrations/show5-intercom/README.md) passed live checks for 100 ms of silent talkback data, a one-second microphone reply, membership guards and service/microphone restoration. Synthetic signaling and isolated WebView camera/microphone capture passed. A real attempt through the lightweight receiver reached Answer and caller offer submission, but **a complete WebRTC call and physical audibility remain unverified**. Cleanup restored fresh camera frames and the microphone baseline. Keep experimental video outside the [daily-use configuration](integrations/show5-intercom/README.md#daily-use-configuration-without-experimental-video). The home panel rendered at 960×480. After disabling Always-on Display, remote sleep reported display OFF and wake restored ON; this does not establish deep CPU sleep. [Portable HA examples](examples/home-assistant/README.md) provide announcement, media, screen and navigation scripts. See the integration's [tested results](integrations/show5-intercom/README.md#tested-results) for exact scope and the network-ADB reboot limitation.
 
 ## Conversion route
 
@@ -47,12 +49,16 @@ For a unit already unlocked and in TWRP, use `probe-recovery` instead. Do not re
 - [Android and Home Assistant](docs/android-and-home-assistant.md): dashboard, Assist, optional wake word and acceptance tests.
 - [Private custom wake word with VACA](docs/vaca-private-wakeword.md): optional pinned APK, private model handling and deployment/acceptance boundaries.
 - [Camera and intercom pilot](docs/camera-and-intercom.md): optional authenticated HTTPS camera, HA MJPEG setup and microphone ownership for experimental half-duplex audio.
+- [Compact Show dashboard](docs/show-dashboard.md): portable native-card template for home, camera, screen, voice, music and planned calls, with private local rendering.
+- [HA intercom integration](integrations/show5-intercom/README.md): administrator-only talkback, optional listening/video, deployment steps and recovery boundaries.
+- [Portable HA examples](examples/home-assistant/README.md): announcement helper and fixed media, screen and dashboard-navigation scripts.
 - [Release audit](docs/release-audit.md): the actual amonet archive and bundled host tools.
 - [Source audit](docs/upstream-audit.md): why the GitHub source checkout alone does not replace the release.
 - [Script review](docs/script-review.md) and [validation status](docs/preparation-status.md): verification and remaining limitations.
 - [Amonet metadata](amonet-artifact.json), [reviewed file inventory](amonet-review.json), [ROM metadata](lineage-artifact.json), [Companion metadata](companion-artifact.json), [optional VACA metadata](vaca-artifact.json) and [optional camera metadata](androidipcamera-artifact.json): pinned provenance and integrity checks.
 - `host/synology/`: separate Docker host definition.
 - `scripts/` and `tests/`: explicit stages and regression checks.
+- `templates/home-assistant/`: public dashboard placeholders; keep the filled entity mapping and rendered configuration in `private/`.
 
 ## Local data and maintenance
 

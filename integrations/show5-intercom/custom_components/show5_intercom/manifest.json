@@ -1,0 +1,13 @@
+{
+  "domain": "show5_intercom",
+  "name": "Show 5 private intercom pilot",
+  "version": "0.1.0",
+  "documentation": "https://github.com/ha-homelab/ha-echo-show-5",
+  "dependencies": [
+    "websocket_api",
+    "frontend"
+  ],
+  "codeowners": [],
+  "iot_class": "local_push",
+  "requirements": []
+}

@@ -1,0 +1,570 @@
+{
+  "title": "Show panel",
+  "views": [
+    {
+      "title": "Home",
+      "path": "home",
+      "icon": "mdi:home",
+      "type": "panel",
+      "cards": [
+        {
+          "type": "grid",
+          "columns": 2,
+          "square": false,
+          "cards": [
+            {
+              "type": "entities",
+              "show_header_toggle": false,
+              "entities": [
+                {
+                  "entity": "${VOICE_SATELLITE}",
+                  "name": "Voice"
+                },
+                {
+                  "entity": "${SCREEN_AWAKE}",
+                  "name": "Screen awake"
+                },
+                {
+                  "entity": "${MUSIC_PLAYER}",
+                  "name": "Music target"
+                }
+              ]
+            },
+            {
+              "type": "vertical-stack",
+              "cards": [
+                {
+                  "type": "entities",
+                  "show_header_toggle": false,
+                  "entities": [
+                    {
+                      "entity": "${ANNOUNCEMENT_TEXT}",
+                      "name": "Announcement"
+                    }
+                  ]
+                },
+                {
+                  "type": "grid",
+                  "columns": 3,
+                  "square": false,
+                  "cards": [
+                    {
+                      "type": "button",
+                      "name": "Announce",
+                      "icon": "mdi:bullhorn",
+                      "icon_height": "28px",
+                      "show_state": false,
+                      "tap_action": {
+                        "action": "perform-action",
+                        "perform_action": "script.turn_on",
+                        "target": {
+                          "entity_id": "${ANNOUNCEMENT_SCRIPT}"
+                        }
+                      },
+                      "hold_action": {
+                        "action": "none"
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "name": "Assist",
+                      "icon": "mdi:microphone-message",
+                      "icon_height": "28px",
+                      "show_state": false,
+                      "tap_action": {
+                        "action": "assist",
+                        "pipeline_id": "last_used",
+                        "start_listening": false
+                      },
+                      "hold_action": {
+                        "action": "none"
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "name": "Main home",
+                      "icon": "mdi:home",
+                      "icon_height": "28px",
+                      "show_state": false,
+                      "tap_action": {
+                        "action": "navigate",
+                        "navigation_path": "${MAIN_HOME_PATH}"
+                      },
+                      "hold_action": {
+                        "action": "none"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Camera",
+      "path": "camera",
+      "icon": "mdi:camera",
+      "type": "panel",
+      "cards": [
+        {
+          "type": "grid",
+          "columns": 2,
+          "square": false,
+          "cards": [
+            {
+              "type": "picture-entity",
+              "entity": "${CAMERA}",
+              "name": "Room camera",
+              "camera_view": "live",
+              "aspect_ratio": "16:9",
+              "fit_mode": "contain",
+              "show_name": false,
+              "show_state": false,
+              "tap_action": {
+                "action": "more-info"
+              },
+              "hold_action": {
+                "action": "none"
+              }
+            },
+            {
+              "type": "vertical-stack",
+              "cards": [
+                {
+                  "type": "grid",
+                  "columns": 2,
+                  "square": false,
+                  "cards": [
+                    {
+                      "type": "button",
+                      "name": "Start camera",
+                      "icon": "mdi:camera",
+                      "icon_height": "28px",
+                      "show_state": false,
+                      "tap_action": {
+                        "action": "perform-action",
+                        "perform_action": "script.turn_on",
+                        "target": {
+                          "entity_id": "${CAMERA_START_SCRIPT}"
+                        }
+                      },
+                      "hold_action": {
+                        "action": "none"
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "name": "Release camera",
+                      "icon": "mdi:camera-off",
+                      "icon_height": "28px",
+                      "show_state": false,
+                      "tap_action": {
+                        "action": "perform-action",
+                        "perform_action": "script.turn_on",
+                        "target": {
+                          "entity_id": "${CAMERA_RELEASE_SCRIPT}"
+                        }
+                      },
+                      "hold_action": {
+                        "action": "none"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "entities",
+                  "show_header_toggle": false,
+                  "entities": [
+                    {
+                      "entity": "${CAMERA}",
+                      "name": "Camera"
+                    },
+                    {
+                      "entity": "${VOICE_SATELLITE}",
+                      "name": "Voice connection"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Screen",
+      "path": "screen",
+      "icon": "mdi:monitor",
+      "type": "panel",
+      "cards": [
+        {
+          "type": "grid",
+          "columns": 2,
+          "square": false,
+          "cards": [
+            {
+              "type": "entities",
+              "title": "Display",
+              "show_header_toggle": false,
+              "entities": [
+                {
+                  "entity": "${SCREEN_BRIGHTNESS}",
+                  "name": "Brightness"
+                },
+                {
+                  "entity": "${SCREEN_AWAKE}",
+                  "name": "Screen awake"
+                }
+              ]
+            },
+            {
+              "type": "vertical-stack",
+              "cards": [
+                {
+                  "type": "grid",
+                  "columns": 2,
+                  "square": false,
+                  "cards": [
+                    {
+                      "type": "button",
+                      "name": "Wake screen",
+                      "icon": "mdi:monitor",
+                      "icon_height": "28px",
+                      "show_state": false,
+                      "tap_action": {
+                        "action": "perform-action",
+                        "perform_action": "script.turn_on",
+                        "target": {
+                          "entity_id": "${SCREEN_WAKE_SCRIPT}"
+                        }
+                      },
+                      "hold_action": {
+                        "action": "none"
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "name": "Sleep screen",
+                      "icon": "mdi:monitor-off",
+                      "icon_height": "28px",
+                      "show_state": false,
+                      "tap_action": {
+                        "action": "perform-action",
+                        "perform_action": "script.turn_on",
+                        "target": {
+                          "entity_id": "${SCREEN_SLEEP_SCRIPT}"
+                        }
+                      },
+                      "hold_action": {
+                        "action": "none"
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "name": "Show dashboard",
+                      "icon": "mdi:home-assistant",
+                      "icon_height": "28px",
+                      "show_state": false,
+                      "tap_action": {
+                        "action": "perform-action",
+                        "perform_action": "script.turn_on",
+                        "target": {
+                          "entity_id": "${RETURN_HOME_SCRIPT}"
+                        }
+                      },
+                      "hold_action": {
+                        "action": "none"
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "name": "Home",
+                      "icon": "mdi:home",
+                      "icon_height": "28px",
+                      "show_state": false,
+                      "tap_action": {
+                        "action": "navigate",
+                        "navigation_path": "${DASHBOARD_PATH}/home"
+                      },
+                      "hold_action": {
+                        "action": "none"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "markdown",
+                  "content": "Double tap to wake. Screen sleep and microphone privacy are separate."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Voice",
+      "path": "voice",
+      "icon": "mdi:microphone",
+      "type": "panel",
+      "cards": [
+        {
+          "type": "grid",
+          "columns": 2,
+          "square": false,
+          "cards": [
+            {
+              "type": "entities",
+              "title": "Voice",
+              "show_header_toggle": false,
+              "entities": [
+                {
+                  "entity": "${VOICE_SATELLITE}",
+                  "name": "Connection / turn state"
+                },
+                {
+                  "entity": "${VOICE_MUTE}",
+                  "name": "Software microphone mute"
+                }
+              ]
+            },
+            {
+              "type": "vertical-stack",
+              "cards": [
+                {
+                  "type": "grid",
+                  "columns": 2,
+                  "square": false,
+                  "cards": [
+                    {
+                      "type": "button",
+                      "name": "Assist",
+                      "icon": "mdi:microphone-message",
+                      "icon_height": "28px",
+                      "show_state": false,
+                      "tap_action": {
+                        "action": "assist",
+                        "pipeline_id": "last_used",
+                        "start_listening": false
+                      },
+                      "hold_action": {
+                        "action": "none"
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "name": "Home",
+                      "icon": "mdi:home",
+                      "icon_height": "28px",
+                      "show_state": false,
+                      "tap_action": {
+                        "action": "navigate",
+                        "navigation_path": "${DASHBOARD_PATH}/home"
+                      },
+                      "hold_action": {
+                        "action": "none"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "markdown",
+                  "content": "Assist opens without recording. Check the physical privacy button as well as software mute."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Music",
+      "path": "music",
+      "icon": "mdi:music",
+      "type": "panel",
+      "cards": [
+        {
+          "type": "grid",
+          "columns": 2,
+          "square": false,
+          "cards": [
+            {
+              "type": "media-control",
+              "entity": "${MUSIC_PLAYER}",
+              "name": "Music target"
+            },
+            {
+              "type": "vertical-stack",
+              "cards": [
+                {
+                  "type": "grid",
+                  "columns": 2,
+                  "square": false,
+                  "cards": [
+                    {
+                      "type": "button",
+                      "name": "Pause / play",
+                      "icon": "mdi:play-pause",
+                      "icon_height": "28px",
+                      "show_state": false,
+                      "tap_action": {
+                        "action": "perform-action",
+                        "perform_action": "media_player.media_play_pause",
+                        "target": {
+                          "entity_id": "${MUSIC_PLAYER}"
+                        }
+                      },
+                      "hold_action": {
+                        "action": "none"
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "name": "Stop",
+                      "icon": "mdi:stop",
+                      "icon_height": "28px",
+                      "show_state": false,
+                      "tap_action": {
+                        "action": "perform-action",
+                        "perform_action": "media_player.media_stop",
+                        "target": {
+                          "entity_id": "${MUSIC_PLAYER}"
+                        }
+                      },
+                      "hold_action": {
+                        "action": "none"
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "name": "Home",
+                      "icon": "mdi:home",
+                      "icon_height": "28px",
+                      "show_state": false,
+                      "tap_action": {
+                        "action": "navigate",
+                        "navigation_path": "${DASHBOARD_PATH}/home"
+                      },
+                      "hold_action": {
+                        "action": "none"
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "name": "Voice",
+                      "icon": "mdi:microphone",
+                      "icon_height": "28px",
+                      "show_state": false,
+                      "tap_action": {
+                        "action": "navigate",
+                        "navigation_path": "${DASHBOARD_PATH}/voice"
+                      },
+                      "hold_action": {
+                        "action": "none"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "markdown",
+                  "content": "Controls act on the selected music target."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Calls",
+      "path": "calls",
+      "icon": "mdi:phone",
+      "type": "panel",
+      "cards": [
+        {
+          "type": "grid",
+          "columns": 2,
+          "square": false,
+          "cards": [
+            {
+              "type": "markdown",
+              "content": "## Calls are not configured\nVoice and video call buttons are inactive."
+            },
+            {
+              "type": "vertical-stack",
+              "cards": [
+                {
+                  "type": "grid",
+                  "columns": 2,
+                  "square": false,
+                  "cards": [
+                    {
+                      "type": "button",
+                      "name": "Voice call",
+                      "icon": "mdi:phone",
+                      "icon_height": "28px",
+                      "show_state": false,
+                      "tap_action": {
+                        "action": "none"
+                      },
+                      "hold_action": {
+                        "action": "none"
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "name": "Video call",
+                      "icon": "mdi:video",
+                      "icon_height": "28px",
+                      "show_state": false,
+                      "tap_action": {
+                        "action": "none"
+                      },
+                      "hold_action": {
+                        "action": "none"
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "name": "Camera",
+                      "icon": "mdi:camera",
+                      "icon_height": "28px",
+                      "show_state": false,
+                      "tap_action": {
+                        "action": "navigate",
+                        "navigation_path": "${DASHBOARD_PATH}/camera"
+                      },
+                      "hold_action": {
+                        "action": "none"
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "name": "Home",
+                      "icon": "mdi:home",
+                      "icon_height": "28px",
+                      "show_state": false,
+                      "tap_action": {
+                        "action": "navigate",
+                        "navigation_path": "${DASHBOARD_PATH}/home"
+                      },
+                      "hold_action": {
+                        "action": "none"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "markdown",
+                  "content": "A camera preview does not establish a call."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

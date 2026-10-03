@@ -1,0 +1,196 @@
+# Portable example: replace the generic device entity IDs before installing.
+# Validated against HA Core 2026.9.1 and VACA 0.13.4; installation does not play audio.
+input_text:
+  echo_show_message:
+    name: Echo Show message
+    min: 0
+    max: 255
+    mode: text
+    initial: ''
+    icon: mdi:message-text
+script:
+  echo_show_announce:
+    alias: 'Echo Show: announce'
+    description: Speak a nonempty message using the satellite selected Assist pipeline.
+      Skips while another conversation is active.
+    icon: mdi:bullhorn
+    mode: queued
+    max: 5
+    fields:
+      message:
+        name: Message
+        required: true
+        selector:
+          text:
+            multiline: true
+    sequence:
+    - condition: template
+      value_template: '{{ message | default('''') | trim | length > 0 }}'
+    - condition: state
+      entity_id: assist_satellite.echo_show
+      state: idle
+    - action: assist_satellite.announce
+      target:
+        entity_id: assist_satellite.echo_show
+      data:
+        message: '{{ message | trim }}'
+        preannounce: false
+  echo_show_listen:
+    alias: 'Echo Show: listen'
+    description: Start Assist with the VACA wake button. Leaves microphone mute and
+      wake word settings unchanged.
+    icon: mdi:microphone
+    mode: single
+    sequence:
+    - condition: state
+      entity_id: assist_satellite.echo_show
+      state: idle
+    - condition: state
+      entity_id: switch.echo_show_mute
+      state: 'off'
+    - action: button.press
+      target:
+        entity_id: button.echo_show_wake
+  echo_show_play_media:
+    alias: 'Echo Show: play media'
+    description: Play an approved audio URL or a HA media-source ID. Playback volume
+      is unchanged.
+    icon: mdi:music
+    mode: single
+    fields:
+      media_id:
+        name: Audio media ID or URL
+        required: true
+        selector:
+          text: {}
+      media_type:
+        name: Media type
+        default: music
+        selector:
+          text: {}
+    sequence:
+    - condition: template
+      value_template: '{{ media_id | default('''') | trim | length > 0 }}'
+    - action: media_player.play_media
+      target:
+        entity_id: media_player.echo_show_media_player
+      data:
+        media_content_id: '{{ media_id | trim }}'
+        media_content_type: '{{ media_type | default(''music'') }}'
+  echo_show_stop_media:
+    alias: 'Echo Show: stop media'
+    description: Stop the VACA music player. Does not change the microphone or voice
+      pipeline.
+    icon: mdi:stop
+    mode: single
+    sequence:
+    - action: media_player.media_stop
+      target:
+        entity_id: media_player.echo_show_media_player
+  echo_show_say_message:
+    alias: 'Echo Show: say message'
+    description: Read the message helper aloud only when it contains nonempty text.
+    icon: mdi:message-text-voice
+    mode: queued
+    max: 5
+    sequence:
+    - condition: template
+      value_template: '{{ states(''input_text.echo_show_message'') not in [''unknown'',
+        ''unavailable''] and states(''input_text.echo_show_message'') | trim | length
+        > 0 }}'
+    - action: script.echo_show_announce
+      data:
+        message: '{{ states(''input_text.echo_show_message'') | trim }}'
+  # Use only the identity-verified Show's Android Debug Bridge entity.
+  echo_show_screen_wake:
+    alias: 'Echo Show: wake screen'
+    description: Fixed command for the verified Echo Show Android device. No arbitrary
+      command input.
+    icon: mdi:monitor
+    mode: restart
+    sequence:
+    - action: androidtv.adb_command
+      target:
+        entity_id: media_player.echo_show_android
+      data:
+        command: input keyevent 224
+  # ROM Always-on Display can leave the panel ON in Dozing after KEY223.
+  # See README for the tested doze_always_on override and null-aware rollback.
+  # Acceptance requires actual Display Power OFF; HA switch state is insufficient.
+  echo_show_screen_sleep:
+    alias: 'Echo Show: sleep screen'
+    description: Fixed command for the verified Echo Show Android device. No arbitrary
+      command input.
+    icon: mdi:monitor-off
+    mode: restart
+    sequence:
+    - action: androidtv.adb_command
+      target:
+        entity_id: media_player.echo_show_android
+      data:
+        command: input keyevent 223
+  echo_show_show_home:
+    alias: 'Echo Show: show home'
+    description: Fixed command for the verified Echo Show Android device. No arbitrary
+      command input.
+    icon: mdi:home
+    mode: restart
+    sequence:
+    - action: androidtv.adb_command
+      target:
+        entity_id: media_player.echo_show_android
+      data:
+        command: input keyevent 224; am start -a android.intent.action.VIEW -d 'homeassistant://navigate/echo-show/home?server=default'
+          -p io.homeassistant.companion.android.minimal
+  echo_show_show_camera:
+    alias: 'Echo Show: show camera'
+    description: Fixed command for the verified Echo Show Android device. No arbitrary
+      command input.
+    icon: mdi:camera
+    mode: restart
+    sequence:
+    - action: androidtv.adb_command
+      target:
+        entity_id: media_player.echo_show_android
+      data:
+        command: input keyevent 224; am start -a android.intent.action.VIEW -d 'homeassistant://navigate/echo-show/camera?server=default'
+          -p io.homeassistant.companion.android.minimal
+  echo_show_show_voice:
+    alias: 'Echo Show: show voice'
+    description: Fixed command for the verified Echo Show Android device. No arbitrary
+      command input.
+    icon: mdi:microphone
+    mode: restart
+    sequence:
+    - action: androidtv.adb_command
+      target:
+        entity_id: media_player.echo_show_android
+      data:
+        command: input keyevent 224; am start -a android.intent.action.VIEW -d 'homeassistant://navigate/echo-show/voice?server=default'
+          -p io.homeassistant.companion.android.minimal
+  echo_show_show_music:
+    alias: 'Echo Show: show music'
+    description: Fixed command for the verified Echo Show Android device. No arbitrary
+      command input.
+    icon: mdi:music
+    mode: restart
+    sequence:
+    - action: androidtv.adb_command
+      target:
+        entity_id: media_player.echo_show_android
+      data:
+        command: input keyevent 224; am start -a android.intent.action.VIEW -d 'homeassistant://navigate/echo-show/music?server=default'
+          -p io.homeassistant.companion.android.minimal
+  echo_show_show_calls:
+    alias: 'Echo Show: show calls'
+    description: Fixed command for the verified Echo Show Android device. No arbitrary
+      command input.
+    icon: mdi:phone
+    mode: restart
+    sequence:
+    - action: androidtv.adb_command
+      target:
+        entity_id: media_player.echo_show_android
+      data:
+        command: input keyevent 224; am start -a android.intent.action.VIEW -d 'homeassistant://navigate/echo-show/receive?server=default'
+          -p io.homeassistant.companion.android.minimal

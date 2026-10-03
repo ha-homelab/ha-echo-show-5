@@ -1,0 +1,17 @@
+{
+  "DASHBOARD_PATH": "/show-panel",
+  "MAIN_HOME_PATH": "/lovelace/0",
+  "ANNOUNCEMENT_TEXT": "input_text.replace_me_announcement",
+  "ANNOUNCEMENT_SCRIPT": "script.replace_me_announce",
+  "CAMERA": "camera.replace_me_show_camera",
+  "VOICE_SATELLITE": "assist_satellite.replace_me_show_voice",
+  "VOICE_MUTE": "switch.replace_me_show_voice_mute",
+  "SCREEN_BRIGHTNESS": "number.replace_me_show_brightness",
+  "SCREEN_AWAKE": "binary_sensor.replace_me_show_screen",
+  "SCREEN_WAKE_SCRIPT": "script.replace_me_show_screen_wake",
+  "SCREEN_SLEEP_SCRIPT": "script.replace_me_show_screen_sleep",
+  "RETURN_HOME_SCRIPT": "script.replace_me_show_dashboard",
+  "CAMERA_START_SCRIPT": "script.replace_me_camera_start",
+  "CAMERA_RELEASE_SCRIPT": "script.replace_me_camera_release",
+  "MUSIC_PLAYER": "media_player.replace_me_music_target"
+}
