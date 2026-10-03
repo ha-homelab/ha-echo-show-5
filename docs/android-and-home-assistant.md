@@ -63,6 +63,33 @@ Developer options are initially hidden. Open **Settings → About tablet** (or *
 
 The scripts cannot approve this on-screen prompt for you. Once authorized, rerun USB inventory if its mode or node changed, then use the complete observed serial for `probe-android` and installation. USB enumeration without an ADB interface before debugging is enabled does not by itself indicate a failed Android boot.
 
+## Persistent Wi-Fi ADB on the tested ROM
+
+The installed **LineageOS 18.1 cronos v0.4** already starts network ADB at boot. Its `/vendor/etc/init/hw/init.mt8163.rc` matches the [upstream boot configuration](https://github.com/amazon-oss/android_device_amazon_mt8163-common/commit/03f23e85e39f49f80df50e6fb1cb52d606256f04): it sets `service.adb.tcp.port` to `5555` and starts `adbd`. The earlier USB recovery demonstrated a working fallback; it did not establish that USB is required after every reboot.
+
+For an explicit persistent fallback, the tested device accepted the following inside an **already authorized, identity-verified Android shell running as UID 2000**. First record the original values privately:
+
+```sh
+getprop service.adb.listen_addrs
+getprop service.adb.tcp.port
+getprop persist.adb.tcp.port
+```
+
+Then set and read back the persistent port:
+
+```sh
+setprop persist.adb.tcp.port 5555
+getprop persist.adb.tcp.port
+```
+
+This step required no root, authentication change, ROM edit or SELinux change. It is evidence for this build, not a guarantee that other Android builds allow shell users to write the property. Android 11's daemon uses `service.adb.listen_addrs` when set; otherwise `service.adb.tcp.port` takes precedence, with `persist.adb.tcp.port` used only if that service property is empty. The ROM's own boot action already supplies the service property, so the persistent value is not the sole explanation for network ADB returning. [Android 11 ADB property selection](https://github.com/aosp-mirror/platform_system_core/blob/android-11.0.0_r48/adb/daemon/main.cpp).
+
+**Reboot acceptance passed, 2026-10-03:** after one ordinary Android reboot, TCP5555 and `sys.boot_completed=1` returned in about 46 seconds. A changed boot ID and the complete device serial/`cronos` checks confirmed the same device had rebooted. Both port properties read `5555`; the authorized shell remained UID 2000 with `ro.adb.secure=1` and `ro.secure=1`. A fresh unauthenticated connection received an ADB AUTH challenge. The USB cable was physically present, but no USB commands were used during the test. HA ADB commands also worked after boot without USB intervention. VACA autostarted with one unsilenced recorder. Camera Start on Boot remains off: its process existed, but HTTPS stayed unavailable until its activity was opened manually; Companion home was then launched. Subsequent checks confirmed different fresh camera frames, denied camera microphone permission and idle intercom status without recovery pending. This validates ADB auto-return and the restored baseline, not unattended camera/dashboard startup or recovery after power loss.
+
+Keep the authorized ADB host key and TCP5555 on trusted private networks. Reconnect the existing HA Android Debug Bridge integration and verify device identity before sending commands. If network access fails, retain the [guarded USB fallback](camera-and-intercom.md#manual-recovery-after-an-android-reboot).
+
+For rollback of the added property, restore its exact recorded value; if it was empty, use `setprop persist.adb.tcp.port ''` and read it back. **Clearing this property does not disable the ROM's boot listener**, because the boot action still sets the higher-priority service property. Do not treat that rollback as a permanent network-ADB off switch.
+
 ## Pinned Companion APK
 
 The selected artifact is **Home Assistant Companion 2026.8.4-minimal** from the [official release](https://github.com/home-assistant/android/releases/tag/2026.8.4):
@@ -84,7 +111,7 @@ python3 scripts/remote.py probe-android --port PORT --serial FULL_SERIAL
 python3 scripts/remote.py install-companion --port PORT --serial FULL_SERIAL
 ```
 
-The USB host is only needed for conversion and app installation. Normal Companion operation uses Wi-Fi.
+Normal Companion operation and the verified network ADB connection use Wi-Fi. Keep the trusted USB host available for conversion, initial authorization and recovery; app installation can use an already authorized, identity-verified ADB connection.
 
 ## Connect to your Home Assistant server
 
