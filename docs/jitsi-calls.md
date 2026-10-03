@@ -8,6 +8,8 @@ Explicit **HA End passed after the successful media test**: the integration repo
 
 A later navigation check found that repeated Companion deep links retained three activities and WebViews. The remote navigation examples now clear the prior Android task; one activity and one WebView were observed after that launch. The home view eventually rendered, but cold loading and reconnecting were slow. A separate transient HA response stall also recovered without a restart; its cause remains unproven. The successful call and restoration checks do not establish sustained dashboard responsiveness.
 
+A later check found VACA still running while microphone capture had stopped. Muting/unmuting and an app restart did not establish sustained recovery; a subsequent vendor audio-service restart restored an active recorder. The stop followed a no-text STT error, but source inspection did not establish that error as the cause. This remains an unresolved voice-reliability limitation. See the [audio diagnostic limitation](android-and-home-assistant.md#audio-diagnostic-limitation-on-the-tested-rom): one diagnostic triggered a separate HAL crash and must not be repeated.
+
 ## Reproduce the artifact
 
 The [pinned manifest](../jitsi-artifact.json) selects **Jitsi Meet 26.0.0**, package `org.jitsi.meet`, version code `26000001`, **armeabi-v7a**, minimum SDK26 and target SDK35. This is the F-Droid signing lineage, distinct from the Play Store app. Do not replace an existing installation from another signing lineage without considering its retained data and settings.

@@ -22,6 +22,10 @@ For independent screen wake, enable **Settings → Display → Tap to wake**, th
 
 Start with a small dashboard and one microphone-owning app. Far-field speech, interruption during music, reliable camera playback, DRM streaming and unattended operation require tests on the actual device. An Android boot alone establishes none of those capabilities.
 
+## Audio diagnostic limitation on the tested ROM
+
+Do not run `dumpsys media.audio_flinger` on the tested v0.4 build. During this pilot, that diagnostic itself triggered a null-pointer crash in the vendor audio HAL’s `Device::debug()` path. Android restarted the HAL and audio server automatically. This was caused by the inspection command, not evidence explaining the earlier loss of microphone capture; never use the crash as a recovery method. Use ordinary `dumpsys audio` for recorder and mute-state checks. An HA entity showing available, or a running VACA foreground service, does not prove that a microphone recorder is active.
+
 ## Screen sleep and Always-on Display
 
 On the tested v0.4 device, both Android `KEYCODE_SLEEP` and VACA's Screen switch initially produced `mWakefulness=Dozing` while **Display Power remained ON**. The ROM resource defaults enabled Always-on Display, and the unset `doze_always_on` setting inherited that default. VACA's **Screen always on** setting is separate: it controls an Activity window's keep-screen-on flag. Replacing the sleep script with VACA's Screen switch did not bypass the Android ambient-display policy. [Android 11 ambient-display settings](https://android.googlesource.com/platform/frameworks/base/+/android-11.0.0_r48/core/java/android/hardware/display/AmbientDisplayConfiguration.java), [pinned VACA screen implementation](https://github.com/msp1974/ViewAssistCompanionApp/blob/65906aebffd2f39772773b44729b22fd022a1f3c/app/src/main/java/com/msp1974/vacompanion/device/ScreenUtils.kt).
