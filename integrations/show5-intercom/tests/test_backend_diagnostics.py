@@ -28,6 +28,7 @@ class BackendDiagnosticTests(unittest.IsolatedAsyncioTestCase):
             "_LOGGER": self.logger, "secrets": secrets, "shlex": shlex,
             "Context": lambda **kwargs: kwargs,
             "CAMERA": "test.camera", "COMPANION": "test.companion",
+            "JITSI": "org.jitsi.meet",
         }
         tree = ast.parse(SOURCE.read_text())
         nodes = [node for node in tree.body

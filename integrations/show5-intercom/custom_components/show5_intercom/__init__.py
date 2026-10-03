@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import logging
+import re
 import secrets
 import shlex
 import struct
@@ -16,7 +17,9 @@ from homeassistant.auth.permissions.const import POLICY_CONTROL
 from homeassistant.components import frontend, panel_custom, persistent_notification, websocket_api
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import Context, HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.service import async_register_admin_service
 from homeassistant.helpers.storage import Store
 
 from .lease import LeaseGuard, RATE, decode_pcm
@@ -24,13 +27,43 @@ from .lease import LeaseGuard, RATE, decode_pcm
 DOMAIN = "show5_intercom"
 CAMERA = "com.github.digitallyrefined.androidipcamera"
 COMPANION = "io.homeassistant.companion.android.minimal"
+JITSI = "org.jitsi.meet"
+JITSI_SECONDS = 120
 _LOGGER = logging.getLogger(__name__)
 _DIAGNOSTIC_PHASES = frozenset({
     "mute_on_call", "mute_on_readback", "mute_off_call", "mute_off_readback",
     "adb_probe", "adb_grant_camera_mic", "adb_revoke_camera_mic",
     "adb_stop_camera", "adb_start_camera", "adb_stop_companion",
     "adb_start_companion", "adb_open_calls", "adb_wake",
+    "adb_probe_jitsi", "adb_start_jitsi", "adb_stop_jitsi",
 })
+
+
+def validate_jitsi_room(value):
+    """Accept one fixed HTTPS room; never credentials or launch parameters."""
+    if not isinstance(value, str) or not re.fullmatch(
+        r"https://[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?(?::[0-9]{1,5})?/[A-Za-z0-9_-]{1,128}", value
+    ):
+        raise vol.Invalid("Jitsi requires a fixed HTTPS host and one plain room path")
+    url = urlsplit(value)
+    try:
+        port = url.port
+    except ValueError:
+        raise vol.Invalid("Invalid Jitsi port") from None
+    if port is not None and not 1 <= port <= 65535:
+        raise vol.Invalid("Invalid Jitsi port")
+    if any(not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", label) for label in url.hostname.split(".")):
+        raise vol.Invalid("Invalid Jitsi host")
+    return value
+
+
+def jitsi_launch_uri(value):
+    """Fixed opt-in prejoin/muted defaults; no caller-controlled overrides."""
+    url = urlsplit(validate_jitsi_room(value))
+    return ("org.jitsi.meet://" + url.netloc + url.path
+            + "#config.prejoinConfig.enabled=true&config.startWithAudioMuted=true&config.startWithVideoMuted=true")
+
+
 CONFIG_SCHEMA = vol.Schema({
     DOMAIN: vol.Schema({
         vol.Required("camera_url"): cv.string,
@@ -42,6 +75,8 @@ CONFIG_SCHEMA = vol.Schema({
         vol.Optional("listen_enabled", default=False): cv.boolean,
         vol.Optional("video_enabled", default=False): cv.boolean,
         vol.Optional("call_panel", default=False): cv.boolean,
+        vol.Optional("jitsi_enabled", default=False): cv.boolean,
+        vol.Optional("jitsi_room_url"): validate_jitsi_room,
     })
 }, extra=vol.ALLOW_EXTRA)
 
@@ -75,6 +110,9 @@ async def diagnostic_step(phase, operation):
 class Backend:
     def __init__(self, hass, config):
         self.hass, self.config = hass, config
+        if config.get("jitsi_enabled") and (not config.get("adb_entity") or not config.get("jitsi_room_url")):
+            raise ValueError("Jitsi requires a verified adapter and configured room")
+        self.jitsi_uri = jitsi_launch_uri(config["jitsi_room_url"]) if config.get("jitsi_room_url") else None
         url = urlsplit(config["camera_url"])
         if url.scheme != "https" or not url.hostname or url.username or url.password or url.query or url.fragment or url.path not in ("", "/"):
             raise ValueError("camera_url must be a plain HTTPS origin without credentials")
@@ -136,7 +174,13 @@ class Backend:
             "start_companion": "am start -a android.intent.action.VIEW -d 'homeassistant://navigate/echo-show/home?server=default' -p " + COMPANION,
             "open_calls": (f"am force-stop {COMPANION} && " if self.config.get("call_panel") else "") + "am start -a android.intent.action.VIEW -d 'homeassistant://navigate/" + ("show5-call" if self.config.get("call_panel") else "echo-show/receive") + "?server=default' -p " + COMPANION,
             "wake": "input keyevent 224",
+            "probe_jitsi": f"pm path {JITSI} | grep -q '^package:'",
+            "stop_jitsi": f"am force-stop {JITSI} && if pidof {JITSI} >/dev/null; then exit 1; fi",
         }
+        if action == "start_jitsi" and self.jitsi_uri:
+            actions[action] = ("am start -a android.intent.action.VIEW -d "
+                               + shlex.quote(self.jitsi_uri) + " -p " + JITSI
+                               + " >/dev/null 2>&1")
         if action not in actions:
             raise ValueError("Unsupported device action")
         marker = "SHOW5_" + secrets.token_hex(12)
@@ -169,6 +213,34 @@ class Backend:
         elif mode == "video":
             await self.adb("stop_camera")
             await self.adb("wake")
+        elif mode == "jitsi":
+            await self.adb("stop_camera")
+            # Release the heavy Companion WebView on this 1 GB device.
+            await self.adb("stop_companion")
+            await self.adb("wake")
+            await self.adb("start_jitsi")
+
+    async def start_jitsi(self, context):
+        if self.recovery_pending or not self.config.get("jitsi_enabled") or not self.jitsi_uri or not self.room:
+            raise ValueError("Jitsi is unavailable")
+        # Share the video room lock so a pending WebRTC invitation cannot race
+        # the independent native-app lease. The normal lease excludes audio.
+        async with self.room.lock:
+            if self.room.call or self.guard.active:
+                raise ValueError("The Show already has a session")
+            await self.adb("probe", context)
+            await self.adb("probe_jitsi", context)
+            await self.guard.acquire(context.user_id + ":jitsi", "jitsi", seconds=JITSI_SECONDS)
+
+    async def end_jitsi(self):
+        # An authorized administrator may restore a native call from another
+        # HA connection. This action must never end a talk/listen/WebRTC lease.
+        lease = self.guard.active
+        if lease is None:
+            return
+        if lease.mode != "jitsi":
+            raise ValueError("The active session is not Jitsi")
+        await self.guard.end(lease.token, lease.owner)
 
     async def restore(self, mode, prior_muted):
         try:
@@ -198,6 +270,14 @@ class Backend:
             # A crashed/disconnected browser cannot acknowledge track.stop().
             # Stop the known call host so it cannot retain camera/mic ownership.
             await self.adb("stop_companion")
+            await self.adb("start_camera")
+            await self.wait_camera()
+            await self.adb("start_companion")
+        elif mode == "jitsi":
+            # Stock-app end callbacks are process-local, not HA notifications.
+            # Explicit End, expiry and recovery stop the fixed call host even
+            # if it is in PiP, then restore the normal device resources.
+            await self.adb("stop_jitsi")
             await self.adb("start_camera")
             await self.wait_camera()
             await self.adb("start_companion")
@@ -271,7 +351,9 @@ async def status(hass, connection, msg):
         backend = backend_for(hass, connection)
         return {"active": backend.guard.active is not None, "needs_recovery": backend.guard.cleanup_error,
                 "recovery_pending": backend.recovery_pending,
-                "listen_enabled": backend.config["listen_enabled"], "video_enabled": backend.config["video_enabled"]}
+                "listen_enabled": backend.config["listen_enabled"], "video_enabled": backend.config["video_enabled"],
+                "jitsi_enabled": backend.config.get("jitsi_enabled", False),
+                "jitsi_active": backend.guard.active is not None and backend.guard.active.mode == "jitsi"}
     await reply(connection, msg, run)
 
 
@@ -361,6 +443,35 @@ async def register_call_panel(hass, config):
     )
 
 
+async def handle_jitsi_service(hass, call):
+    """Explicit authenticated admin actions; system/anonymous starts denied."""
+    user_id = call.context.user_id
+    user = await hass.auth.async_get_user(user_id) if user_id else None
+    backend = hass.data[DOMAIN]
+    if user is None or not user.is_admin or not user.is_active or not all(
+        user.permissions.check_entity(entity, POLICY_CONTROL)
+        for entity in (backend.config["mute_entity"], backend.config.get("adb_entity")) if entity
+    ):
+        raise HomeAssistantError("Jitsi requires an authenticated administrator with Show control")
+    try:
+        if call.service == "jitsi_start":
+            await backend.start_jitsi(call.context)
+        elif call.service == "jitsi_end":
+            await backend.end_jitsi()
+        else:
+            raise ValueError("Unsupported Jitsi service")
+    except Exception:
+        # No room URLs, Android commands or upstream exception text in HA UI.
+        raise HomeAssistantError("Jitsi handoff failed; check the Show intercom status") from None
+
+
+def register_jitsi_services(hass):
+    async def handle(call):
+        await handle_jitsi_service(hass, call)
+    for service in ("jitsi_start", "jitsi_end"):
+        async_register_admin_service(hass, DOMAIN, service, handle, schema=vol.Schema({}, extra=vol.PREVENT_EXTRA))
+
+
 async def async_setup(hass: HomeAssistant, config):
     if DOMAIN not in config:
         return True
@@ -391,6 +502,7 @@ async def async_setup(hass: HomeAssistant, config):
     from .room import Room, register
     backend.room = Room(hass, backend)
     register(hass)
+    register_jitsi_services(hass)
     async def stop(_event):
         await backend.close()
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop)

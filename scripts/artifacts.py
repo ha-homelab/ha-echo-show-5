@@ -32,10 +32,10 @@ def verify(kind):
     p = ROOT / 'downloads' / item['name']
     if p.stat().st_size != item['size'] or digest(p) != item['sha256']:
         raise ValueError('Artifact size/SHA256 mismatch: ' + str(p))
-    expected_suffix = '.apk' if kind in ('companion', 'vaca', 'androidipcamera') else '.zip'
+    expected_suffix = '.apk' if kind in ('companion', 'vaca', 'androidipcamera', 'jitsi') else '.zip'
     if p.suffix != expected_suffix:
         raise ValueError('Unexpected file type for ' + kind)
-    if kind in ('lineage', 'companion', 'amonet', 'vaca', 'androidipcamera'):
+    if kind in ('lineage', 'companion', 'amonet', 'vaca', 'androidipcamera', 'jitsi'):
         with zipfile.ZipFile(p) as z:
             if z.testzip():
                 raise ValueError('Archive CRC failed: ' + str(p))
@@ -72,7 +72,7 @@ def fetch(kind):
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('action', choices=['fetch', 'verify'])
-    ap.add_argument('kinds', nargs='+', choices=['lineage', 'companion', 'amonet', 'vaca', 'androidipcamera'])
+    ap.add_argument('kinds', nargs='+', choices=['lineage', 'companion', 'amonet', 'vaca', 'androidipcamera', 'jitsi'])
     args = ap.parse_args()
     for kind in args.kinds:
         p = fetch(kind) if args.action == 'fetch' else verify(kind)

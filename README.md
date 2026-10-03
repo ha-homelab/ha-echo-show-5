@@ -8,6 +8,8 @@ The [camera pilot](docs/camera-and-intercom.md) delivered authenticated **640×4
 
 The optional [HA intercom integration](integrations/show5-intercom/README.md) passed live checks for 100 ms of silent talkback data, a one-second microphone reply, membership guards and service/microphone restoration. Synthetic signaling and isolated WebView camera/microphone capture passed. A real attempt through the lightweight receiver reached Answer and caller offer submission, but **a complete WebRTC call and physical audibility remain unverified**. Cleanup restored fresh camera frames and the microphone baseline. Keep experimental video outside the [daily-use configuration](integrations/show5-intercom/README.md#daily-use-configuration-without-experimental-video). The home panel rendered at 960×480. After disabling Always-on Display, remote sleep reported display OFF and wake restored ON; this does not establish deep CPU sleep. [Portable HA examples](examples/home-assistant/README.md) provide announcement, media, screen and navigation scripts. See the integration's [tested results](integrations/show5-intercom/README.md#tested-results) for exact scope and the network-ADB reboot limitation.
 
+The separate [native Jitsi pilot](docs/jitsi-calls.md) uses a verified F-Droid APK and an operator-controlled conference server. The app is installed, and its prejoin screen and local camera preview were observed. A call between two participants remains unverified; the HA controls use a two-minute lease and explicit End/restoration.
+
 ## Conversion route
 
 Stock Show 5 Gen2 → **amonet-cronos 2.0.1** → TWRP → verified off-device backup → **unofficial LineageOS 18.1 v0.4 / Android 11** → **Home Assistant Companion 2026.8.4 minimal** → your Home Assistant server.
@@ -51,11 +53,12 @@ For a unit already unlocked and in TWRP, use `probe-recovery` instead. Do not re
 - [Camera and intercom pilot](docs/camera-and-intercom.md): optional authenticated HTTPS camera, HA MJPEG setup and microphone ownership for experimental half-duplex audio.
 - [Compact Show dashboard](docs/show-dashboard.md): portable native-card template for home, camera, screen, voice, music and planned calls, with private local rendering.
 - [HA intercom integration](integrations/show5-intercom/README.md): administrator-only talkback, optional listening/video, deployment steps and recovery boundaries.
+- [Native Jitsi calls](docs/jitsi-calls.md): pinned Android app, own-server configuration, administrator Start/End controls and attended acceptance.
 - [Portable HA examples](examples/home-assistant/README.md): announcement helper and fixed media, screen and dashboard-navigation scripts.
 - [Release audit](docs/release-audit.md): the actual amonet archive and bundled host tools.
 - [Source audit](docs/upstream-audit.md): why the GitHub source checkout alone does not replace the release.
 - [Script review](docs/script-review.md) and [validation status](docs/preparation-status.md): verification and remaining limitations.
-- [Amonet metadata](amonet-artifact.json), [reviewed file inventory](amonet-review.json), [ROM metadata](lineage-artifact.json), [Companion metadata](companion-artifact.json), [optional VACA metadata](vaca-artifact.json) and [optional camera metadata](androidipcamera-artifact.json): pinned provenance and integrity checks.
+- [Amonet metadata](amonet-artifact.json), [reviewed file inventory](amonet-review.json), [ROM metadata](lineage-artifact.json), [Companion metadata](companion-artifact.json), [optional VACA metadata](vaca-artifact.json), [optional camera metadata](androidipcamera-artifact.json) and [optional Jitsi metadata](jitsi-artifact.json): pinned provenance and integrity checks.
 - `host/synology/`: separate Docker host definition.
 - `scripts/` and `tests/`: explicit stages and regression checks.
 - `templates/home-assistant/`: public dashboard placeholders; keep the filled entity mapping and rendered configuration in `private/`.

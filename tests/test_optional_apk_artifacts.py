@@ -99,5 +99,9 @@ class AndroidIpCameraArtifactTests(OptionalApkChecks, unittest.TestCase):
     kind = 'androidipcamera'
 
 
+class JitsiArtifactTests(OptionalApkChecks, unittest.TestCase):
+    kind = 'jitsi'
+
+
 if __name__ == '__main__':
     unittest.main()
