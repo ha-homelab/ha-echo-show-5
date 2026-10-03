@@ -53,7 +53,7 @@ For a unit already unlocked and in TWRP, use `probe-recovery` instead. Do not re
 - [Camera and intercom pilot](docs/camera-and-intercom.md): optional authenticated HTTPS camera, HA MJPEG setup and microphone ownership for experimental half-duplex audio.
 - [Compact Show dashboard](docs/show-dashboard.md): portable native-card template for home, camera, screen, voice, music and planned calls, with private local rendering.
 - [HA intercom integration](integrations/show5-intercom/README.md): administrator-only talkback, optional listening/video, deployment steps and recovery boundaries.
-- [FCC voice backup](docs/fcc-voice-backup.md): our FCC conversation backend, cloud audio integration status and guarded Homeway/FCC switching.
+- [FCC voice backup](docs/fcc-voice-backup.md): parallel Homeway/FCC pipelines, independent cloud audio and guarded device switching.
 - [Native Jitsi calls](docs/jitsi-calls.md): pinned Android app, own-server configuration, administrator Start/End controls and attended acceptance.
 - [Portable HA examples](examples/home-assistant/README.md): announcement helper and fixed media, screen and dashboard-navigation scripts.
 - [Release audit](docs/release-audit.md): the actual amonet archive and bundled host tools.

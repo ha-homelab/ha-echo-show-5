@@ -1,0 +1,62 @@
+# Build/load fcc-cloud-speech:0.1.0 on the selected node before applying.
+# Set nodeSelector in a private overlay; no local speech models are needed.
+# One Wyoming endpoint advertises cloud Parakeet ASR and Chatterbox Russian TTS.
+# Create fcc-cloud-speech-credentials separately; never commit its key.
+# The unauthenticated Wyoming listener is for trusted cluster clients only.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fcc-cloud-speech
+  namespace: homeassistant
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: fcc-cloud-speech}
+  template:
+    metadata:
+      labels: {app: fcc-cloud-speech}
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: cloud-speech
+          image: fcc-cloud-speech:0.1.0
+          imagePullPolicy: Never
+          env:
+            - {name: NVIDIA_API_KEY_FILE, value: /run/secrets/nvidia-api-key}
+            - {name: NVIDIA_RPC_TIMEOUT_SECONDS, value: "30"}
+          ports: [{name: wyoming-asr, containerPort: 10500}]
+          readinessProbe:
+            tcpSocket: {port: wyoming-asr}
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {cpu: 500m, memory: 256Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: credentials, mountPath: /run/secrets, readOnly: true}
+      volumes:
+        - name: credentials
+          secret:
+            secretName: fcc-cloud-speech-credentials
+            defaultMode: 0444
+            items: [{key: nvidia-api-key, path: nvidia-api-key}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fcc-cloud-speech
+  namespace: homeassistant
+spec:
+  type: ClusterIP
+  selector: {app: fcc-cloud-speech}
+  ports: [{name: wyoming-asr, port: 10500, targetPort: wyoming-asr}]

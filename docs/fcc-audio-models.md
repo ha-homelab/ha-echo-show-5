@@ -4,13 +4,13 @@ Checked on **2026-10-03** against the supplied `~/fcc-models.txt` and current up
 
 ## Selected scope
 
-**Our `fcc-claude` service is the Homeway backup. Local Whisper/Piper are deferred and stopped.** The verified route currently accepts text through the FCC conversation bridge. An independent cloud audio route and its HA adapter still need verification; choosing an audio-capable model in this catalog does not add audio transport to the FCC HTTP schema. See [deployment and switching](fcc-voice-backup.md).
+**Our `fcc-claude` service is the Homeway backup. Local Whisper/Piper are deferred and stopped.** Conversation uses our FCC text bridge; a separate bounded HA adapter supplies cloud Parakeet recognition and Russian Chatterbox synthesis. Choosing an audio-capable model name still does not add audio transport to the FCC HTTP schema. See [deployment and switching](fcc-voice-backup.md).
 
 ## Existing FCC cloud audio backend
 
-FCC already contains `NvidiaNimTranscriber` in `providers/nvidia_nim/voice.py`, using TLS Riva gRPC. Its built-in `nvidia/parakeet-1.1b-rnnt-multilingual-asr` route includes Russian `ru-RU` according to the [NVIDIA model card](https://build.nvidia.com/nvidia/parakeet-1_1b-rnnt-multilingual-asr/modelcard). The function ID in the inspected FCC source matches the [NVIDIA API example](https://build.nvidia.com/nvidia/parakeet-1_1b-rnnt-multilingual-asr/api). This is the first integration candidate for our FCC backup; it does not require local Whisper or a new provider account.
+FCC already contains `NvidiaNimTranscriber` in `providers/nvidia_nim/voice.py`, using TLS Riva gRPC. Its built-in `nvidia/parakeet-1.1b-rnnt-multilingual-asr` route includes Russian `ru-RU` according to the [NVIDIA model card](https://build.nvidia.com/nvidia/parakeet-1_1b-rnnt-multilingual-asr/modelcard). The function ID in the inspected FCC source matches the [NVIDIA API example](https://build.nvidia.com/nvidia/parakeet-1_1b-rnnt-multilingual-asr/api). The HA cloud adapter uses this same route with an explicit Russian language and real RPC deadlines; it does not require local Whisper or a new provider account.
 
-The existing operator configuration already has an NVIDIA credential. Its presence is not proof of ASR entitlement, remaining quota or acceptable latency. NVIDIA describes the hosted API as [prototyping access](https://docs.api.nvidia.com/nim/docs/product), not an unlimited production allowance.
+The existing NVIDIA credential succeeded in synthetic ASR and Russian TTS requests. These observations do not establish remaining quota, future availability or latency guarantees. NVIDIA describes the hosted API as [prototyping access](https://docs.api.nvidia.com/nim/docs/product), not an unlimited production allowance.
 
 FCC's messaging voice-note configuration for this cloud route is:
 
@@ -20,9 +20,11 @@ WHISPER_DEVICE=nvidia_nim
 WHISPER_MODEL=nvidia/parakeet-1.1b-rnnt-multilingual-asr
 ```
 
-These historical `WHISPER_*` setting names also select cloud Parakeet; they do not imply running Whisper locally. The FCC `voice` extra supplies Riva/gRPC dependencies. These settings have **not** been applied to the shared FCC service: they enable its Telegram/Discord voice-note path and do not create an HA audio endpoint by themselves. The inspected local installed environment lacks `riva.client`.
+These historical `WHISPER_*` setting names also select cloud Parakeet; they do not imply running Whisper locally. The FCC `voice` extra supplies Riva/gRPC dependencies. These settings have **not** been applied to the shared FCC service: they enable its Telegram/Discord voice-note path and do not create an HA audio endpoint by themselves. The separate cloud-adapter image supplies its own pinned Riva/gRPC dependencies.
 
-For HA, expose a bounded adapter to this provider-owned backend: enforce a real RPC deadline, an audio-size/duration limit and one in-flight request, preserve Russian recognition and combine all response segments. The inspected helper lacks an RPC deadline and waits for its worker during cancellation, so simply wrapping it in an asyncio timeout is insufficient. Verify a synthetic Russian request and the existing account allowance first. FCC does not currently provide the answer-synthesis implementation either. These are integration gaps, not a reason to deploy local speech models again.
+The HA adapter is implemented in `integrations/fcc-voice-backup/cloud_speech.py`. It exposes Wyoming ASR/TTS on TCP 10500, uses native async gRPC with actual RPC deadlines, collects all recognition segments and bounds input, concurrency and output. It avoids the inspected messaging helper's unbounded worker-cancellation behavior without modifying the shared FCC service.
+
+Russian synthesis uses [NVIDIA-hosted Chatterbox multilingual](https://build.nvidia.com/resembleai/chatterbox-multilingual-tts/api), voice `Chatterbox-Multilingual.ru-RU.Male`. This is supplied by our HA adapter, not the FCC text API. The adapter splits bounded plain text into short requests within one total deadline and emits audio only after all chunks succeed. See [deployment, privacy boundaries and limits](fcc-cloud-audio.md). No local Piper is required.
 
 ## Free text candidates for FCC conversation
 
