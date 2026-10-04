@@ -150,6 +150,29 @@ class VoiceRuntimeTest(unittest.IsolatedAsyncioTestCase):
         await self.request("play")
         self.assertEqual([c[1] for c in self.calls], ["show_remote"])
 
+    async def test_restored_library_queue_uses_exact_available_plex_mapping(self):
+        self.queue = {"items": 16472, "current_item": {"media_item": {
+            "uri": "library://track/1", "provider_mappings": [
+                {"provider_instance": "plex--fixture", "provider_domain": "plex", "available": True}]},
+            "stream_details": None}}
+        await self.request("play", device="2" * 32)
+        self.assertEqual([c[1] for c in self.calls], ["media_play"])
+        self.assertEqual(self.calls[0][2]["entity_id"], ["media_player.dot_music"])
+
+    async def test_mapping_does_not_claim_other_or_unavailable_sources(self):
+        cases = [
+            ({"provider_instance": "plex--other", "provider_domain": "plex", "available": True}, None),
+            ({"provider_instance": "plex--fixture", "provider_domain": "plex", "available": False}, None),
+            ({"provider_instance": "plex--fixture", "provider_domain": "plex", "available": True}, {"provider": "other-provider"}),
+        ]
+        for mapping, stream in cases:
+            self.calls.clear()
+            self.queue = {"items": 12, "current_item": {"media_item": {
+                "uri": "library://track/1", "provider_mappings": [mapping]}, "stream_details": stream}}
+            await self.request("play", device="2" * 32)
+            self.assertEqual([c[1] for c in self.calls], ["play_media"])
+            self.assertEqual(self.calls[0][2]["media_id"], fixture()["default_tracks"])
+
     async def test_unavailable_music_and_screenless_dot_start_nothing(self):
         self.hass.states.async_set("media_player.show_music", "unavailable")
         self.assertIn("недоступен", (await self.request("play")).conversation_response)

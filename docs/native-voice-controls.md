@@ -23,12 +23,17 @@ players. Use the resulting **Music Assistant** media entity in this package,
 not the original VACA entity: the MA entity owns search, queue and playlist
 playback. The source is a private list of 1–25 approved Plex track URIs, sampled from the
 existing local Music Assistant library. A bounded list avoids expanding an
-entire large smart playlist before the first track starts.
+entire large smart playlist for a new request. It does not cancel an already
+running playlist load, guarantee startup latency or establish audible playback.
 Confirm each mapping on its own device before enabling voice commands.
 
 Play resumes an existing Plex queue, preserves an already playing track, and
 loads the bounded default track list only for an empty or different queue. Pause retains
-the queue. The package does not assume an undocumented Plex `media-source://`
+the queue. After a server restart, a current item may have a `library://track/`
+URI and no stream details. An available mapping to the exact configured Plex
+provider preserves that queue; a mapping to another provider or an unavailable
+mapping does not. A known different stream provider takes precedence over a
+library item's fallback mappings. The package does not assume a Plex `media-source://`
 URL exists. Arbitrary artists or songs are outside this small command set.
 
 The operator can refresh the private seed from the existing MA client with
@@ -79,8 +84,8 @@ Commands without a name operate only on their registered origin. A Dot responds
 that it has no screen for screen commands. A Show returns from its previous
 owned app session before music starts/resumes. Switching to the clock, OTT or a
 camera stops only that Show's MA music first. Screen operations retain the remote
-endpoint's existing camera and application leases. MA music runs until paused,
-stopped or replaced; it does not create the direct-URL remote endpoint's lease.
+endpoint's existing camera and application leases. MA music runs until its queue
+finishes, is paused, stopped or replaced; it does not create the direct-URL remote endpoint's lease.
 The dashboard Home action alone does not own this MA queue; the voice clock
 command explicitly stops it before invoking Home.
 
@@ -89,6 +94,32 @@ propagates as an error; the package never replaces a failed action with a succes
 claim. Service acceptance still does not prove audible playback or camera video.
 Traces are disabled for the generated scripts and automation. HA service logs,
 state and recordings may still contain private media metadata.
+
+## Recovering a stalled Music Assistant request
+
+Check the target queue's `extra_attributes.play_action_in_progress` together
+with its item count and state. In the inspected MA version, playlist expansion
+and Stop share the player's playback lock: Stop may wait behind a pending
+load. Clearing a queue or closing the requesting WebSocket does not cancel that
+server task. A missing player after an HA reconnect does not establish that an
+old request was cancelled. Do not accumulate repeated Play requests.
+
+A Music Assistant restart affects its other active players. Before an approved
+restart, refresh a private snapshot with `players/all`, `player_queues/all`, and
+`player_queues/items` for each active queue; paginate when needed. Record the
+current queue item ID, progress timestamp, volume and group membership. Normal
+MA shutdown stops playback and flushes queue state to its persistent cache.
+This is recovery behavior, not a guarantee after a forced shutdown.
+
+After startup, verify each previously playing queue's identity, items and player
+availability before using `player_queues/resume`. If exact position restoration
+is required, the supported `player_queues/play_index` API accepts the saved
+queue item ID as `index` and integer seconds as `seek_position`. Use a fresh
+snapshot and account for its progress timestamp; do not treat an old raw
+`elapsed_time` value as the current position. Restore only queues that were
+playing, preserve previously paused/idle devices and existing group coordinators,
+and verify playback and volume independently. Do not replace a lost household
+queue with this package's default track seed as an automatic recovery shortcut.
 
 ## Verification
 

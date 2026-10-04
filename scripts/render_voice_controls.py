@@ -126,9 +126,15 @@ def endpoint_script(c, key, e):
     play += [get_queue, {"variables": {"plex_queue":
         "{% set queue = queue_response.get(" + repr(player) + ", {}) or {} %}"
         "{% set item = queue.get('current_item') or {} %}"
+        "{% set media = item.get('media_item') or {} %}"
+        "{% set provider = (item.get('stream_details') or {}).get('provider') %}"
+        "{% set mappings = (media.get('provider_mappings') or [])"
+        " | selectattr('provider_instance', 'equalto', " + repr(c["plex_provider"]) + ")"
+        " | selectattr('available', 'equalto', true) | list %}"
         "{{ queue.get('items', 0) | int(0) > 0 and "
-        "((item.get('stream_details') or {}).get('provider') == " + repr(c["plex_provider"]) +
-        " or ((item.get('media_item') or {}).get('uri') or '').startswith(" + repr(c["plex_provider"] + "://") + ")) }}"}},
+        "(provider == " + repr(c["plex_provider"]) +
+        " or (media.get('uri') or '').startswith(" + repr(c["plex_provider"] + "://") + ")"
+        " or (not provider and (media.get('uri') or '').startswith('library://track/') and mappings | length > 0)) }}"}},
         _if("{{ plex_queue }}", [_if("{{ " + state + " != 'playing' }}", [_service("media_player.media_play", player)])],
             [_service("music_assistant.play_media", player, media_id=c["default_tracks"], media_type="track", enqueue="replace")])]
     branches = [{"conditions": "{{ command == 'play' }}", "sequence": play + _result("Включаю музыку из Плекса.", True)}]
