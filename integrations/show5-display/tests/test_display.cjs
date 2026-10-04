@@ -39,7 +39,7 @@ class Timers {
   }
 }
 
-function harness(config = CONFIG, prepareSnapshot) {
+function harness(config = CONFIG, prepareSnapshot, startVideo) {
   const timers = new Timers();
   const calls = [];
   const created = [];
@@ -47,6 +47,10 @@ function harness(config = CONFIG, prepareSnapshot) {
   const clears = [];
   const state = { mode: "clock", image: null, status: null, label: null };
   const view = {
+    video: {},
+    clearVideo() { state.video = false; },
+    showVideoLoading() { state.status = "video-loading"; },
+    showVideo() { state.video = true; state.status = null; },
     showClock() { state.mode = "clock"; },
     showCamera(label) { state.mode = "camera"; state.label = label; state.status = "loading"; },
     clearSnapshot() { clears.push(timers.time); state.image = null; },
@@ -56,7 +60,7 @@ function harness(config = CONFIG, prepareSnapshot) {
   };
   if (prepareSnapshot) { view.prepareSnapshot = prepareSnapshot; }
   const controller = createController({
-    config, view, now: () => timers.time, setTimeout: timers.set, clearTimeout: timers.clear,
+    config, view, startVideo, now: () => timers.time, setTimeout: timers.set, clearTimeout: timers.clear,
     createObjectURL(blob) { const url = "blob:test-" + (created.length + 1); created.push({ url, blob }); return url; },
     revokeObjectURL(url) { revoked.push(url); },
     fetchSnapshot(entityId, { signal }) {
@@ -86,6 +90,7 @@ test("URLs, foreign entities, roles, time zones and unsafe durations fail closed
   assert.throws(() => validateConfig({ ...CONFIG, cameras: { backyard: { entityId: "camera.other" } } }));
   assert.throws(() => validateConfig({ ...CONFIG, timeZone: "not/a-zone" }));
   assert.throws(() => validateConfig(undefined));
+  assert.throws(() => validateConfig({ ...CONFIG, cameraMode: "arbitrary-url" }));
   for (const cameraSeconds of [0, 4.9, 120.1, Infinity, NaN, "30", null]) {
     assert.throws(() => validateConfig({ ...CONFIG, cameraSeconds }));
   }
@@ -338,8 +343,9 @@ test("decode failure clears a frame and destroy prevents any future activation",
 
 function fakeDocument() {
   const elements = {};
-  for (const id of ["clock-view", "camera-view", "camera-image", "camera-status", "camera-label", "clock-time", "clock-date", "camera-time"]) {
+  for (const id of ["clock-view", "camera-view", "camera-image", "camera-video", "camera-status", "camera-label", "clock-time", "clock-date", "camera-time"]) {
     elements[id] = { hidden: false, textContent: "", listeners: {},
+      pause() {},
       classList: { add() {}, remove() {} },
       removeAttribute(name) { delete this[name]; },
       addEventListener(name, fn) { this.listeners[name] = fn; } };
@@ -406,14 +412,60 @@ test("browser bootstrap exposes only the display controls and delegates authenti
 
 test("page assets are local, CSP disallows external scripts and camera CSS preserves aspect", () => {
   const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
-  assert.deepEqual([...html.matchAll(/<script src="([^"]+)" defer>/g)].map(x => x[1]), ["config.js?v=20261004-r3", "auth.js?v=20261004-r3", "display.js?v=20261004-r3"]);
-  assert.match(html, /href="display.css\?v=20261004-r3"/);
+  assert.deepEqual([...html.matchAll(/<script src="([^"]+)" defer>/g)].map(x => x[1]), ["config.js?v=20261004-r4", "stream.js?v=20261004-r4", "auth.js?v=20261004-r4", "display.js?v=20261004-r4"]);
+  assert.match(html, /href="display.css\?v=20261004-r4"/);
   assert.match(html, /default-src 'none'/);
   assert.match(html, /script-src 'self'/);
   assert.match(html, /connect-src 'self'/);
   assert.match(html, /img-src 'self' blob:/);
-  assert.doesNotMatch(html, /https?:\/\/|unsafe-inline|unsafe-eval|<iframe|<audio|<video/);
+  assert.doesNotMatch(html, /https?:\/\/|unsafe-inline|unsafe-eval|<iframe|<audio/);
+  assert.match(html, /media-src 'self' blob:/);
+  assert.match(html, /<video id="camera-video" autoplay muted playsinline hidden>/);
   const css = fs.readFileSync(path.join(__dirname, "../display.css"), "utf8");
   assert.match(css, /object-fit:\s*contain/);
   assert.doesNotMatch(css, /@import|https?:\/\//);
+});
+
+test("WebRTC mode starts video instead of snapshots, renews without restarting and stops on expiry", async () => {
+  const streams = []; let closed = 0;
+  const h = harness({...CONFIG, cameraMode: "webrtc", cameraSeconds: 5}, null,
+    (entity, video, opts) => { streams.push({entity, video, opts}); return Promise.resolve({close(){closed++;}}); });
+  h.controller.showCamera("front"); await flush();
+  assert.equal(streams.length, 1); assert.equal(streams[0].entity, "camera.front");
+  assert.equal(h.calls.length, 0); assert.equal(h.state.video, true);
+  await h.timers.tick(4000); h.controller.showCamera("front"); await flush();
+  assert.equal(streams.length, 1);
+  await h.timers.tick(5000);
+  assert.equal(streams[0].opts.signal.aborted, true); assert.equal(closed, 1);
+  assert.equal(h.state.video, false); assert.equal(h.state.mode, "clock");
+});
+
+test("switching or hiding during WebRTC startup rejects stale handles without displaying old camera", async () => {
+  const streams = []; let closed = 0;
+  const h = harness({...CONFIG, cameraMode: "webrtc"}, null,
+    (entity, video, opts) => new Promise(resolve => streams.push({entity, opts, resolve})));
+  h.controller.showCamera("front"); await flush();
+  h.controller.showCamera("porch"); await flush();
+  assert.equal(streams[0].opts.signal.aborted, true);
+  streams[0].resolve({close(){closed++;}}); await flush();
+  assert.equal(closed, 1); assert.equal(h.state.video, false);
+  h.controller.setHidden(true);
+  streams[1].resolve({close(){closed++;}}); await flush();
+  assert.equal(closed, 2); assert.equal(h.state.mode, "clock");
+  assert.equal(h.calls.length, 0);
+});
+
+test("WebRTC failure retries only within the active lease and startup cannot hang indefinitely", async () => {
+  const streams = []; let closed = 0;
+  const h = harness({...CONFIG, cameraMode: "webrtc"}, null,
+    (entity, video, opts) => new Promise(resolve => streams.push({opts, resolve})));
+  h.controller.showCamera("front"); await flush();
+  await h.timers.tick(15000);
+  assert.equal(streams[0].opts.signal.aborted, true); assert.equal(h.state.status, "unavailable");
+  await h.timers.tick(5000); assert.equal(streams.length, 2);
+  streams[1].resolve({close(){closed++;}}); await flush();
+  streams[1].opts.onError();
+  assert.equal(closed, 1); assert.equal(h.state.video, false);
+  h.controller.showClock(); await h.timers.tick(120000);
+  assert.equal(streams.length, 2); assert.equal(h.timers.tasks.size, 0);
 });

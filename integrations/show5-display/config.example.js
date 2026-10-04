@@ -3,6 +3,7 @@
 window.SHOW5_DISPLAY_CONFIG = {
   timeZone: "America/Los_Angeles",
   cameraSeconds: 30,
+  cameraMode: "webrtc",
   cameras: {
     front: {
       entityId: "camera.replace_me_front",

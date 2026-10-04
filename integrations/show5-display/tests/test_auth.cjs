@@ -381,7 +381,7 @@ test("hidden closes socket and clock, visible reconnects without replay; destroy
   assert.equal(h.sockets.length, 2);
 });
 
-test("browser entrypoint installs the exact native callback and exposes only fetch/status", async () => {
+test("browser entrypoint installs the exact native callback and exposes media/status without tokens", async () => {
   const events = new Map(), docEvents = new Map(), native = [];
   const timers = new Timers();
   const context = { SHOW5_DISPLAY_CONFIG: { cameras: { front: { entityId: "camera.front" } } },
@@ -391,7 +391,7 @@ test("browser entrypoint installs the exact native callback and exposes only fet
     fetch() { return Promise.resolve(image()); }, WebSocket: class {}, URL, Set, Map, Blob, AbortController,
     performance: { now: () => timers.time }, setTimeout: timers.set, clearTimeout: timers.clear };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, "../auth.js"), "utf8"), context);
-  assert.deepEqual(Object.keys(context.Show5Auth).sort(), ["fetchSnapshot", "status"]);
+  assert.deepEqual(Object.keys(context.Show5Auth).sort(), ["fetchSnapshot", "startVideo", "status"]);
   assert.equal(typeof context.externalAuthSetToken, "function");
   const result = context.Show5Auth.fetchSnapshot("camera.front");
   assert.deepEqual(native, [{ force: false }]);
@@ -400,4 +400,121 @@ test("browser entrypoint installs the exact native callback and exposes only fet
   events.get("pagehide")(); assert.equal(context.Show5Auth.status().hidden, true);
   events.get("pageshow")(); assert.equal(context.Show5Auth.status().hidden, false);
   context.document.hidden = true; docEvents.get("visibilitychange")(); assert.equal(context.Show5Auth.status().hidden, true);
+});
+
+test("video access is restricted to configured cameras and passes private token callback only to the stream adapter", async () => {
+  const h = harness(); const seen = []; const original = globalThis.Show5Stream;
+  globalThis.Show5Stream = { start(options) { seen.push(options); return Promise.resolve({close(){}}); } };
+  try {
+    const video = {}, signal = new AbortController().signal, onError = () => {};
+    await assert.rejects(h.adapter.startVideo("camera.unknown", video, {signal}), /camera_not_allowed/);
+    assert.equal(seen.length, 0);
+    await h.adapter.startVideo("camera.front", video, {signal, onError});
+    assert.equal(seen[0].entityId, "camera.front"); assert.equal(seen[0].video, video);
+    assert.equal(seen[0].signal, signal); assert.equal(seen[0].onError, onError);
+    assert.equal(seen[0].origin, "https://ha.example.invalid");
+    assert.equal(typeof seen[0].getToken, "function");
+    assert.equal(h.native.length, 0, "no token requested until the bounded adapter needs it");
+    h.adapter.setHidden(true);
+    await assert.rejects(h.adapter.startVideo("camera.front", video, {signal}), /inactive/);
+    assert.equal(seen.length, 1);
+  } finally { globalThis.Show5Stream = original; }
+});
+
+function streamFailure(code) { return Object.assign(new Error(code), { code }); }
+
+test("rejected WebRTC authentication forces one native refresh and uses the new token", async () => {
+  const h = harness(); await h.ready();
+  const used = [], handle = {close(){}}, original = globalThis.Show5Stream;
+  globalThis.Show5Stream = { async start(options) {
+    const token = await options.getToken(false); used.push(token);
+    if (token === "synthetic-token") { throw streamFailure("stream_unauthorized"); }
+    return handle;
+  } };
+  try {
+    const result = h.adapter.startVideo("camera.front", {}, {signal: new AbortController().signal});
+    await flush();
+    assert.deepEqual(h.native, [{force: false}, {force: true}]);
+    h.token("refreshed-video-token");
+    assert.equal(await result, handle);
+    assert.deepEqual(used, ["synthetic-token", "refreshed-video-token"]);
+    assert.ok(!JSON.stringify(h.adapter.status()).includes("refreshed-video-token"));
+  } finally { h.adapter.destroy(); globalThis.Show5Stream = original; }
+});
+
+test("a second WebRTC auth rejection fails without another native refresh", async () => {
+  const h = harness(); await h.ready();
+  let attempts = 0; const original = globalThis.Show5Stream;
+  globalThis.Show5Stream = { async start(options) {
+    await options.getToken(false); attempts++; throw streamFailure("stream_unauthorized");
+  } };
+  try {
+    const rejected = assert.rejects(h.adapter.startVideo("camera.front", {}, {}), /stream_unauthorized/);
+    await flush(); h.token("refreshed"); await rejected;
+    assert.equal(attempts, 2);
+    assert.deepEqual(h.native, [{force: false}, {force: true}]);
+  } finally { h.adapter.destroy(); globalThis.Show5Stream = original; }
+});
+
+test("WebRTC permission, configuration and transport failures never refresh credentials", async () => {
+  const h = harness(); await h.ready();
+  const original = globalThis.Show5Stream;
+  try {
+    for (const code of ["stream_forbidden", "stream_configuration", "stream_signaling"]) {
+      let attempts = 0;
+      globalThis.Show5Stream = { async start() { attempts++; throw streamFailure(code); } };
+      await assert.rejects(h.adapter.startVideo("camera.front", {}, {}), error => error.code === code);
+      assert.equal(attempts, 1);
+    }
+    assert.deepEqual(h.native, [{force: false}]);
+  } finally { h.adapter.destroy(); globalThis.Show5Stream = original; }
+});
+
+test("caller abort while WebRTC waits for native refresh rejects promptly and prevents a late retry", async () => {
+  const h = harness(); await h.ready();
+  const controller = new AbortController(); let attempts = 0;
+  const original = globalThis.Show5Stream;
+  globalThis.Show5Stream = { async start() { attempts++; throw streamFailure("stream_unauthorized"); } };
+  try {
+    const result = h.adapter.startVideo("camera.front", {}, {signal: controller.signal});
+    const rejected = assert.rejects(result, /stream_aborted/);
+    await flush(); assert.equal(h.native.length, 2);
+    controller.abort(); await rejected;
+    h.token("late-refresh"); await flush();
+    assert.equal(attempts, 1);
+    const preAborted = h.adapter.startVideo("camera.front", {}, {signal: controller.signal});
+    await assert.rejects(preAborted, /stream_aborted/);
+    assert.equal(attempts, 1);
+  } finally { h.adapter.destroy(); globalThis.Show5Stream = original; }
+});
+
+test("hiding or destroying during WebRTC token refresh prevents retry even after becoming visible", async () => {
+  const original = globalThis.Show5Stream;
+  try {
+    for (const action of ["hide", "destroy"]) {
+      const h = harness(); await h.ready(); let attempts = 0;
+      globalThis.Show5Stream = { async start() { attempts++; throw streamFailure("stream_unauthorized"); } };
+      const rejected = assert.rejects(h.adapter.startVideo("camera.front", {}, {}), /stream_aborted/);
+      await flush(); assert.equal(h.native.length, 2);
+      if (action === "hide") { h.adapter.setHidden(true); }
+      else { h.adapter.destroy(); }
+      await rejected;
+      h.adapter.setHidden(false); h.token("late-refresh"); await flush();
+      assert.equal(attempts, 1);
+      h.adapter.destroy();
+    }
+  } finally { globalThis.Show5Stream = original; }
+});
+
+test("missing native WebRTC refresh callback times out without a second stream attempt", async () => {
+  const h = harness(); await h.ready(); let attempts = 0;
+  const original = globalThis.Show5Stream;
+  globalThis.Show5Stream = { async start() { attempts++; throw streamFailure("stream_unauthorized"); } };
+  try {
+    const rejected = assert.rejects(h.adapter.startVideo("camera.front", {}, {}), /native_auth_timeout/);
+    await flush(); await h.timers.tick(10000); await rejected;
+    h.token("too-late"); await flush();
+    assert.equal(attempts, 1);
+    assert.deepEqual(h.native, [{force: false}, {force: true}]);
+  } finally { h.adapter.destroy(); globalThis.Show5Stream = original; }
 });

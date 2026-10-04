@@ -52,7 +52,7 @@ For a unit already unlocked and in TWRP, use `probe-recovery` instead. Do not re
 - [Private custom wake word with VACA](docs/vaca-private-wakeword.md): optional pinned APK, private model handling and deployment/acceptance boundaries.
 - [Camera and intercom pilot](docs/camera-and-intercom.md): optional authenticated HTTPS camera, HA MJPEG setup and microphone ownership for experimental half-duplex audio.
 - [Compact Show dashboard](docs/show-dashboard.md): portable native-card template for home, camera, screen, voice, music and planned calls, with private local rendering.
-- [Clock and motion cameras](integrations/show5-display/README.md): lightweight clock-first display with bounded Front/Porch camera snapshots and per-device VACA home configuration.
+- [Clock and motion cameras](integrations/show5-display/README.md): lightweight clock-first display with bounded Front/Porch live WebRTC video, an explicit snapshot fallback and per-device VACA home configuration.
 - [HA intercom integration](integrations/show5-intercom/README.md): administrator-only talkback, optional listening/video, deployment steps and recovery boundaries.
 - [FCC voice backup](docs/fcc-voice-backup.md): parallel Homeway/FCC pipelines, independent cloud audio and guarded device switching.
 - [Native Jitsi calls](docs/jitsi-calls.md): pinned Android app, own-server configuration, administrator Start/End controls and attended acceptance.

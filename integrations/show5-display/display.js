@@ -25,6 +25,8 @@
     }
     try { new Intl.DateTimeFormat("ru-RU", { timeZone: input.timeZone }); }
     catch (_) { throw new Error("Display time zone is invalid"); }
+    var mode = input.cameraMode === undefined ? "snapshots" : input.cameraMode;
+    if (["snapshots", "webrtc"].indexOf(mode) < 0) { throw new Error("Camera mode is invalid"); }
     var cameras = {};
     Object.keys(input.cameras).forEach(function (role) {
       if (ROLES.indexOf(role) < 0) { throw new Error("Camera role is not allowed"); }
@@ -39,7 +41,7 @@
       // Auth owns motionEntityId and event subscription. Never interpret it here.
       cameras[role] = Object.freeze({ entityId: camera.entityId, label: label.trim() });
     });
-    return Object.freeze({ timeZone: input.timeZone, cameraSeconds: duration(input.cameraSeconds), cameras: Object.freeze(cameras) });
+    return Object.freeze({ timeZone: input.timeZone, cameraMode: mode, cameraSeconds: duration(input.cameraSeconds), cameras: Object.freeze(cameras) });
   }
 
   function roleFromSearch(search) {
@@ -69,6 +71,19 @@
     var delayedTimer = null;
     var imageURL = null;
     var failures = 0;
+    var videoRequest = null;
+    var videoRetry = null;
+
+    function stopVideo() {
+      clearTimer(videoRetry); videoRetry = null;
+      var item = videoRequest; videoRequest = null;
+      if (item) {
+        clearTimer(item.timeout);
+        item.controller.abort();
+        if (item.handle) { item.handle.close(); }
+      }
+      if (view.clearVideo) { view.clearVideo(); }
+    }
 
     function clearImage() {
       if (staleTimer !== null) { clearTimer(staleTimer); staleTimer = null; }
@@ -83,6 +98,7 @@
 
     function reset() {
       sequence += 1;
+      stopVideo();
       active = null;
       expiresAt = 0;
       failures = 0;
@@ -164,6 +180,30 @@
       }
     }
 
+    function startVideo(token) {
+      videoRetry = null;
+      if (!live(token) || videoRequest !== null) { return; }
+      var item = { controller: new Abort(), handle: null, timeout: null };
+      videoRequest = item;
+      function failed() {
+        if (videoRequest !== item || !live(token)) { return; }
+        stopVideo();
+        view.showUnavailable();
+        videoRetry = setTimer(function () { startVideo(token); }, Math.min(5000, expiresAt - now()));
+      }
+      item.timeout = setTimer(failed, Math.min(15000, expiresAt - now()));
+      Promise.resolve().then(function () {
+        if (!live(token) || item.controller.signal.aborted) { throw new Error("Inactive stream"); }
+        view.showVideoLoading();
+        return options.startVideo(active.entityId, view.video, { signal: item.controller.signal, onError: failed });
+      }).then(function (handle) {
+        if (videoRequest !== item || !live(token)) { handle.close(); return; }
+        item.handle = handle;
+        clearTimer(item.timeout);
+        view.showVideo();
+      }, failed);
+    }
+
     function showCamera(role, seconds) {
       var camera = ROLES.indexOf(role) >= 0 ? config.cameras[role] : null;
       var lease;
@@ -181,7 +221,8 @@
       expiresAt = now() + lease * 1000;
       view.showCamera(camera.label);
       leaseTimer = setTimer(showClock, lease * 1000);
-      pump();
+      if (config.cameraMode === "webrtc") { startVideo(sequence); }
+      else { pump(); }
       return true;
     }
 
@@ -209,7 +250,9 @@
     var camera = document.getElementById("camera-view");
     var image = document.getElementById("camera-image");
     var status = document.getElementById("camera-status");
+    var video = document.getElementById("camera-video");
     return {
+      video: video,
       showClock: function () { camera.hidden = true; clock.hidden = false; },
       showCamera: function (label) {
         document.getElementById("camera-label").textContent = label;
@@ -220,6 +263,9 @@
         camera.hidden = false;
       },
       clearSnapshot: function () { image.hidden = true; image.removeAttribute("src"); },
+      clearVideo: function () { if (video) { video.pause(); video.srcObject = null; video.hidden = true; } },
+      showVideoLoading: function () { video.hidden = false; status.textContent = "Подключение камеры…"; status.classList.remove("frame-delayed"); status.hidden = false; },
+      showVideo: function () { video.hidden = false; status.hidden = true; },
       prepareSnapshot: function (url, signal) {
         return new Promise(function (resolve, reject) {
           var next = document.createElement("img");
@@ -269,7 +315,10 @@
     tick();
     var clockTimer = root.setInterval(tick, 1000);
     if (!config) { view.showClock(); return; }
-    var controller = createController({ config: config, view: view, fetchSnapshot: function (entityId, options) {
+    var controller = createController({ config: config, view: view, startVideo: function (entityId, video, options) {
+      if (!root.Show5Auth || typeof root.Show5Auth.startVideo !== "function") { return Promise.reject(new Error("Video is unavailable")); }
+      return root.Show5Auth.startVideo(entityId, video, options);
+    }, fetchSnapshot: function (entityId, options) {
       if (!root.Show5Auth || typeof root.Show5Auth.fetchSnapshot !== "function") {
         return Promise.reject(new Error("Camera authentication is unavailable"));
       }

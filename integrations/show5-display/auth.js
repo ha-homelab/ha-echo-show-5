@@ -71,6 +71,7 @@
     var retryMs = 1000;
     var subscriptions = new Map();
     var operations = new Set();
+    var videoRefreshWaiters = new Set();
     var forceNextAuth = false;
 
     function clock() {
@@ -249,6 +250,43 @@
       });
     }
 
+    function startVideo(entityId, video, requestOptions) {
+      if (!config.entities.has(entityId)) { return Promise.reject(failure("camera_not_allowed")); }
+      if (hidden || destroyed) { return Promise.reject(failure("inactive")); }
+      if (!root.Show5Stream || typeof root.Show5Stream.start !== "function") { return Promise.reject(failure("video_unavailable")); }
+      requestOptions = requestOptions || {};
+      var signal = requestOptions.signal;
+      function inactive() { return hidden || destroyed || signal && signal.aborted; }
+      function attempt() {
+        if (inactive()) { return Promise.reject(failure("stream_aborted")); }
+        return root.Show5Stream.start({ entityId: entityId, video: video,
+          signal: signal, onError: requestOptions.onError,
+          origin: origin.origin, getToken: getToken });
+      }
+      return Promise.resolve().then(attempt).catch(function (error) {
+        // Only a rejected authentication challenge refreshes native credentials.
+        // Permission/configuration failures must not produce a retry loop.
+        if (!error || error.code !== "stream_unauthorized" || inactive()) { throw error; }
+        return new Promise(function (resolve, reject) {
+          var settled = false;
+          function finish(error) {
+            if (settled) { return; }
+            settled = true;
+            videoRefreshWaiters.delete(cancel);
+            if (signal) { signal.removeEventListener("abort", cancel); }
+            error ? reject(error) : resolve();
+          }
+          function cancel() { finish(failure("stream_aborted")); }
+          videoRefreshWaiters.add(cancel);
+          if (signal) { signal.addEventListener("abort", cancel, { once: true }); }
+          if (inactive()) { cancel(); return; }
+          // Native auth is shared with MQTT/snapshots: cancel this wait, not the
+          // underlying native request needed by other consumers.
+          getToken(true).then(function () { finish(); }, finish);
+        }).then(attempt);
+      });
+    }
+
     function motionEvent(topic, message) {
       if (!message || message.retain !== false || message.topic !== topic || typeof message.payload !== "string" || message.payload.length > 16384) { return; }
       config.rules.forEach(function (rule) {
@@ -351,6 +389,7 @@
         clearTimer(reconnectTimer); reconnectTimer = null;
         clearTimer(refreshTimer); refreshTimer = null;
         closeSocket(); operations.forEach(function (operation) { operation.abort(); });
+        videoRefreshWaiters.forEach(function (cancel) { cancel(); });
         state = "hidden"; clock();
       } else if (!destroyed) {
         scheduleRefresh();
@@ -374,7 +413,7 @@
     }
 
     return Object.freeze({ start: start, setHidden: setHidden, destroy: destroy, receiveToken: receiveToken,
-      fetchSnapshot: fetchSnapshot, status: status });
+      fetchSnapshot: fetchSnapshot, startVideo: startVideo, status: status });
   }
 
   function bootstrap() {
@@ -391,7 +430,7 @@
       return;
     }
     root.externalAuthSetToken = adapter.receiveToken;
-    root.Show5Auth = Object.freeze({ fetchSnapshot: adapter.fetchSnapshot, status: adapter.status });
+    root.Show5Auth = Object.freeze({ fetchSnapshot: adapter.fetchSnapshot, startVideo: adapter.startVideo, status: adapter.status });
     root.document.addEventListener("visibilitychange", function () { adapter.setHidden(root.document.hidden); });
     root.addEventListener("pagehide", function () { adapter.setHidden(true); });
     root.addEventListener("pageshow", function () { adapter.setHidden(root.document.hidden); });

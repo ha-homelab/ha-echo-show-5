@@ -59,7 +59,7 @@ body { -webkit-user-select: none; user-select: none; }
 }
 #camera-time { font-size: 26px; font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .camera-frame { position: relative; flex: 1 1 auto; min-height: 0; min-width: 0; }
-#camera-image { width: 100%; height: 100%; object-fit: contain; display: block; }
+#camera-image, #camera-video { width: 100%; height: 100%; object-fit: contain; display: block; }
 #camera-status {
   position: absolute;
   inset: 0;
