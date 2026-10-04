@@ -304,6 +304,37 @@ class VoicePipelineTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(voice.SafeError, '^invalid_ha_url$'):
             voice.credentials(env)
 
+    def test_remote_http_is_rejected_before_reading_a_bearer_token(self):
+        for origin in ('http://ha.example.invalid', 'http://192.168.1.2:8123',
+                       'http://localhost.example.invalid', 'http://127.1',
+                       'http://[2001:db8::1]:8123'):
+            for opt_in in (None, '', '0', 'true', 'yes'):
+                with self.subTest(origin=origin, opt_in=opt_in), \
+                        mock.patch.object(Path, 'read_text') as read_token:
+                    env = {'HA_URL': origin, 'HA_TOKEN_FILE': '/private/SECRET'}
+                    if opt_in is not None:
+                        env['HA_ALLOW_INSECURE_HTTP'] = opt_in
+                    with self.assertRaisesRegex(voice.SafeError, '^ha_url_requires_https$'):
+                        voice.credentials(env)
+                    read_token.assert_not_called()
+
+    def test_https_loopback_and_explicit_insecure_opt_in_are_supported(self):
+        for origin in ('https://ha.example.invalid', 'http://localhost:8123',
+                       'http://127.0.0.1:8123', 'http://[::1]:8123'):
+            with self.subTest(origin=origin):
+                self.assertEqual(voice.credentials({'HA_URL': origin, 'HA_TOKEN': 'SECRET'}),
+                                 (origin, 'SECRET'))
+        env = {'HA_URL': 'http://ha.example.invalid:8123', 'HA_TOKEN': 'SECRET',
+               'HA_ALLOW_INSECURE_HTTP': '1'}
+        self.assertEqual(voice.credentials(env), (env['HA_URL'], 'SECRET'))
+        for origin in ('ftp://ha.example.invalid', 'http://user:SECRET@ha.example.invalid',
+                       'http://ha.example.invalid?token=SECRET', 'http://ha.example.invalid#SECRET',
+                       'http://ha.example.invalid:invalid'):
+            with self.subTest(origin=origin):
+                env['HA_URL'] = origin
+                with self.assertRaisesRegex(voice.SafeError, '^invalid_ha_url$'):
+                    voice.credentials(env)
+
     def test_main_does_not_print_raw_transport_errors(self):
         error = io.StringIO()
         with mock.patch.object(sys, 'argv', ['voice_pipeline.py', 'status']), \

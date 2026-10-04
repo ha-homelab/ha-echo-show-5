@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Guarded HA voice-backend switching (Python 3.8+, install dependency: aiohttp).
 
-Set HA_URL and exactly one of HA_TOKEN or HA_TOKEN_FILE. Mapping and snapshots
+Set an HTTPS HA_URL and exactly one of HA_TOKEN or HA_TOKEN_FILE. HTTP is allowed
+for loopback or with the explicit HA_ALLOW_INSECURE_HTTP=1 operator opt-in.
+Mapping and snapshots
 belong under this project's ignored private/ directory. status is read-only;
 switch/restore are dry runs unless --apply is supplied. --include-default is a
 separate opt-in for HA's global preferred pipeline, including during restore.
@@ -132,6 +134,9 @@ def credentials(environ):
         parsed.port
     except (ValueError, SafeError):
         raise SafeError('invalid_ha_url') from None
+    require(parsed.scheme == 'https' or
+            parsed.hostname in ('localhost', '127.0.0.1', '::1') or
+            environ.get('HA_ALLOW_INSECURE_HTTP') == '1', 'ha_url_requires_https')
     url = urlunsplit((parsed.scheme, parsed.netloc.lower(), parsed.path.rstrip('/'), '', ''))
     token, token_file = environ.get('HA_TOKEN'), environ.get('HA_TOKEN_FILE')
     require(bool(token) != bool(token_file), 'set_exactly_one_token_source')

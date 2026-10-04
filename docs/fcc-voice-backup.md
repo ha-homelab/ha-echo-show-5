@@ -96,6 +96,16 @@ Fill the private mapping with the two exact existing pipeline IDs **or** unique 
 
 Set `HA_URL` to your reachable HA origin and exactly one credential source: `HA_TOKEN_FILE` pointing to a private token file, or `HA_TOKEN` supplied by your secret manager. Avoid putting credentials in shell history. The script requires all mapping/snapshot files beneath this repository's ignored `private/` directory. Use the same HA origin for switching and restoring; snapshots are bound to its fingerprint.
 
+Use an `https://` origin so the HA bearer token travels over TLS. Plain HTTP is
+accepted automatically only for `localhost`, `127.0.0.1` and `[::1]`, for example
+through a local SSH port-forward. A deliberately trusted, isolated LAN setup that
+still requires HTTP must explicitly set `HA_ALLOW_INSECURE_HTTP=1` for the command.
+That exception sends the token unencrypted; it does not make the connection
+secure. Other values do not enable it. Prefer HTTPS or a loopback tunnel, and do
+not use the exception to work around an unexpected TLS failure. The CLI rejects
+non-loopback HTTP before reading a token file or opening a connection unless this
+opt-in is present; redirects remain rejected.
+
 ```bash
 # Inspect health and the number of mapped satellites. No writes.
 private/voice-tools/bin/python scripts/voice_pipeline.py \
