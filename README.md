@@ -76,3 +76,12 @@ python3 -m unittest discover -s tests -v
 ```
 
 The pinned Companion minimal app includes ARMv7 support and does not need GApps. Third-party code and firmware retain their upstream terms; this repository provides metadata and preparation tooling rather than redistributing their binaries.
+
+## Remote endpoint controls
+
+The [remote endpoint guide](docs/remote-endpoint.md) covers a target-specific HA
+control panel for clocks, full-screen cameras, music, TV streams, Jitsi and both
+OTTPlay/OttPlayer launchers. Generate the private HA package with
+`scripts/render_remote_endpoint.py` and its matching phone/desktop dashboard with
+`scripts/render_remote_dashboard.py`. Local URLs, device bindings and downloaded
+APKs stay outside Git.

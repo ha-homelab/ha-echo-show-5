@@ -32,8 +32,8 @@ class Timers {
 
 function harness(config = CONFIG) {
   const timers = new Timers();
-  const native = [], requests = [], sockets = [], displayed = [];
-  let clocks = 0, displayAvailable = true;
+  const native = [], requests = [], sockets = [], displayed = [], cameraSeconds = [];
+  let clocks = 0, displayAvailable = true, displayResult = true;
   class Socket {
     constructor(url) { this.url = url; this.sent = []; this.closed = false; sockets.push(this); }
     send(raw) { this.sent.push(JSON.parse(raw)); }
@@ -43,9 +43,11 @@ function harness(config = CONFIG) {
   }
   const adapter = createAdapter({
     config, origin: "https://ha.example.invalid", WebSocket: Socket,
-    now: () => timers.time, setTimeout: timers.set, clearTimeout: timers.clear,
+    now: () => timers.time, wallNow: () => 1800000000 + timers.time / 1000, setTimeout: timers.set, clearTimeout: timers.clear,
     requestNative(raw) { native.push(JSON.parse(raw)); },
-    display() { return displayAvailable ? { showCamera(role) { displayed.push(role); }, showClock() { clocks += 1; } } : undefined; },
+    display() { return displayAvailable ? { showCamera(role, seconds) {
+      displayed.push(role); cameraSeconds.push(seconds); return displayResult;
+    }, showClock() { clocks += 1; } } : undefined; },
     fetch(url, options) {
       const request = { url, options };
       requests.push(request);
@@ -57,15 +59,15 @@ function harness(config = CONFIG) {
     adapter.start(); token(); await flush();
     const socket = sockets.at(-1);
     socket.message({ type: "auth_required" }); socket.message({ type: "auth_ok" });
-    socket.sent.filter(item => item.type === "mqtt/subscribe").forEach(item => socket.message({ type: "result", id: item.id, success: true }));
+    socket.sent.filter(item => ["mqtt/subscribe", "subscribe_events"].includes(item.type)).forEach(item => socket.message({ type: "result", id: item.id, success: true }));
     return socket;
   }
   function event(socket, topic, payload, retain = false) {
     const sub = socket.sent.find(item => item.type === "mqtt/subscribe" && item.topic === topic);
     socket.message({ type: "event", id: sub.id, event: { topic, payload, retain } });
   }
-  return { adapter, timers, native, requests, sockets, displayed, token, ready, event,
-    clocks: () => clocks, setDisplay: value => { displayAvailable = value; } };
+  return { adapter, timers, native, requests, sockets, displayed, cameraSeconds, token, ready, event,
+    clocks: () => clocks, setDisplay: value => { displayAvailable = value; }, setDisplayResult: value => { displayResult = value; } };
 }
 
 function image(bytes = Uint8Array.from([255, 216, 255, 224, 0, 1])) {
@@ -546,4 +548,130 @@ test("missing native WebRTC refresh callback times out without a second stream a
     assert.equal(attempts, 1);
     assert.deepEqual(h.native, [{force: false}, {force: true}]);
   } finally { h.adapter.destroy(); globalThis.Show5Stream = original; }
+});
+
+const REMOTE_CONFIG = { ...CONFIG, remoteTarget: "second_show" };
+function command(h, changes = {}) {
+  return { target: "second_show", command_id: "cmd_1", command: "camera", role: "front", seconds: 10,
+    expires_at: 1800000000 + h.timers.time / 1000 + 20, ...changes };
+}
+function remote(socket, data, eventType = "show5_remote_display") {
+  const sub = socket.sent.find(item => item.type === "subscribe_events");
+  socket.message({ type: "event", id: sub.id, event: { event_type: eventType, data } });
+}
+function acknowledgements(socket) { return socket.sent.filter(item => item.type === "fire_event"); }
+
+test("remote target is opt-in and restricted; remote-only display connects without MQTT", async () => {
+  assert.equal(configuration(CONFIG).remoteTarget, undefined);
+  for (const remoteTarget of [null, false, "", "Upper", "a-b", "a/../b", "a".repeat(49), "a\n"]) {
+    assert.throws(() => configuration({ ...CONFIG, remoteTarget }));
+  }
+  const h = harness({ cameras: { front: { entityId: "camera.front" } }, remoteTarget: "second_show" });
+  const socket = await h.ready();
+  assert.equal(h.adapter.status().connection, "ready");
+  assert.equal(h.adapter.status().subscriptions, 1);
+  assert.deepEqual(socket.sent.filter(item => item.type !== "auth"), [
+    { id: 1, type: "subscribe_events", event_type: "show5_remote_display" }
+  ]);
+  remote(socket, command(h));
+  assert.deepEqual(h.displayed, ["front"]);
+  assert.deepEqual(h.cameraSeconds, [10]);
+  assert.deepEqual(acknowledgements(socket)[0].event_data, { target: "second_show", command_id: "cmd_1", status: "ok" });
+  assert.equal(acknowledgements(socket)[0].event_type, "show5_remote_ack");
+});
+
+test("remote and motion wait for every subscription acknowledgement in any order", async () => {
+  for (const reverse of [false, true]) {
+    const h = harness(REMOTE_CONFIG); h.adapter.start(); h.token(); await flush();
+    const socket = h.sockets[0]; socket.message({ type: "auth_ok" });
+    const subs = socket.sent.filter(item => ["mqtt/subscribe", "subscribe_events"].includes(item.type));
+    if (reverse) { subs.reverse(); }
+    for (const sub of subs.slice(0, -1)) { socket.message({ type: "result", id: sub.id, success: true }); }
+    remote(socket, command(h)); h.event(socket, "test/front", "motion");
+    assert.deepEqual(h.displayed, []); assert.equal(acknowledgements(socket).length, 0);
+    assert.equal(h.adapter.status().subscriptions, 2);
+    socket.message({ type: "result", id: subs.at(-1).id, success: true });
+    assert.equal(h.adapter.status().subscriptions, 3);
+    remote(socket, command(h)); assert.deepEqual(h.displayed, ["front"]);
+  }
+});
+
+test("remote rejects wrong target, stale/far-future data, unconfigured roles and malformed commands", async () => {
+  const h = harness(REMOTE_CONFIG), socket = await h.ready();
+  const invalid = [
+    { target: "first_show" }, { expires_at: 1800000000 }, { expires_at: 1799999999 }, { expires_at: 1800000031 },
+    { expires_at: "1800000020" }, { command_id: "" }, { command_id: "a".repeat(81) }, { command_id: "x\n" },
+    { command: "navigate" }, { role: "https://example.invalid" }, { seconds: 4 }, { seconds: 121 }, { seconds: "10" },
+    { command: "home" }, { url: "https://example.invalid" }
+  ];
+  for (const changes of invalid) { remote(socket, command(h, changes)); }
+  for (const data of [null, [], "camera"]) { remote(socket, data); }
+  remote(socket, command(h), "some_other_event");
+  assert.deepEqual(h.displayed, []); assert.equal(acknowledgements(socket).length, 0);
+  const one = harness({ cameras: { front: { entityId: "camera.front" } }, remoteTarget: "second_show" });
+  const singleSocket = await one.ready(); remote(singleSocket, command(one, { role: "porch" }));
+  assert.equal(acknowledgements(singleSocket).length, 0);
+});
+
+test("duplicate camera is re-acknowledged without renewing lease or repeating renderer action", async () => {
+  const h = harness(REMOTE_CONFIG), socket = await h.ready(), data = command(h);
+  remote(socket, data); await h.timers.tick(9000); remote(socket, data);
+  assert.deepEqual(h.displayed, ["front"]); assert.equal(acknowledgements(socket).length, 2);
+  h.event(socket, "test/porch", '{"name":"Porch"}'); assert.deepEqual(h.displayed, ["front"]);
+  await h.timers.tick(1000); h.event(socket, "test/porch", '{"name":"Porch"}');
+  assert.deepEqual(h.displayed, ["front", "porch"], "motion resumes at original manual deadline");
+  remote(socket, { ...data, seconds: 20 });
+  assert.equal(acknowledgements(socket).length, 2, "ID collision with changed payload is ignored");
+});
+
+test("manual home clears motion suppression and duplicate home does not interrupt later motion", async () => {
+  const h = harness(REMOTE_CONFIG), socket = await h.ready();
+  remote(socket, command(h)); h.event(socket, "test/front", "motion");
+  assert.equal(h.displayed.length, 1);
+  const home = { target: "second_show", command_id: "home_1", command: "home", expires_at: 1800000020 };
+  remote(socket, home); const clocks = h.clocks();
+  h.event(socket, "test/porch", '{"name":"Porch"}'); assert.deepEqual(h.displayed, ["front", "porch"]);
+  remote(socket, home); assert.equal(h.clocks(), clocks);
+  assert.deepEqual(acknowledgements(socket).map(item => item.event_data.status), ["ok", "ok", "ok"]);
+});
+
+test("hidden page resets manual suppression and stale socket events never execute or acknowledge", async () => {
+  const h = harness(REMOTE_CONFIG), first = await h.ready();
+  remote(first, command(h)); const callback = first.onmessage;
+  const sub = first.sent.find(item => item.type === "subscribe_events");
+  h.adapter.setHidden(true);
+  callback({ data: JSON.stringify({ type: "event", id: sub.id,
+    event: { event_type: "show5_remote_display", data: command(h, { command_id: "hidden" }) } }) });
+  assert.equal(h.displayed.length, 1); assert.equal(acknowledgements(first).length, 1);
+  h.adapter.setHidden(false); await flush(); const second = h.sockets.at(-1);
+  second.message({ type: "auth_ok" });
+  second.sent.filter(item => ["mqtt/subscribe", "subscribe_events"].includes(item.type)).forEach(item => second.message({ type: "result", id: item.id, success: true }));
+  h.event(second, "test/porch", '{"name":"Porch"}'); assert.deepEqual(h.displayed, ["front", "porch"]);
+  remote(second, command(h)); assert.equal(h.displayed.length, 2, "dedupe survives reconnect/hide");
+});
+
+test("renderer rejection is acknowledged as error and does not suppress motion; ACK denial is sanitized", async () => {
+  const h = harness(REMOTE_CONFIG), socket = await h.ready();
+  h.setDisplayResult(false); remote(socket, command(h));
+  const ack = acknowledgements(socket)[0]; assert.equal(ack.event_data.status, "error");
+  remote(socket, command(h)); assert.equal(h.displayed.length, 1, "failed command is not executed twice");
+  h.setDisplayResult(true); h.event(socket, "test/porch", '{"name":"Porch"}'); assert.equal(h.displayed.length, 2);
+  socket.message({ type: "result", id: ack.id, success: false, error: { message: "private diagnostic" } });
+  assert.equal(h.adapter.status().lastError, "remote_ack_failed");
+  assert.ok(!JSON.stringify(h.adapter.status()).includes("private"));
+  h.setDisplay(false); remote(socket, command(h, { command_id: "absent" }));
+  assert.equal(acknowledgements(socket).at(-1).event_data.status, "error");
+});
+
+test("remote permission denial fails closed and dedupe retains only the newest 32 IDs", async () => {
+  const denied = harness(REMOTE_CONFIG); denied.adapter.start(); denied.token(); await flush();
+  const socket = denied.sockets[0]; socket.message({ type: "auth_ok" });
+  const sub = socket.sent.find(item => item.type === "subscribe_events");
+  socket.message({ type: "result", id: sub.id, success: false });
+  assert.equal(denied.adapter.status().connection, "forbidden"); assert.equal(socket.closed, true);
+  const h = harness(REMOTE_CONFIG), active = await h.ready();
+  for (let i = 0; i < 33; i += 1) { remote(active, command(h, { command_id: `cmd_${i}` })); }
+  assert.equal(h.displayed.length, 33);
+  remote(active, command(h, { command_id: "cmd_1" })); assert.equal(h.displayed.length, 33);
+  remote(active, command(h, { command_id: "cmd_0" })); assert.equal(h.displayed.length, 34);
 });

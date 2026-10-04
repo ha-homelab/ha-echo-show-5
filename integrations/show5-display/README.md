@@ -8,7 +8,9 @@ the entire screen without a title or clock header. `object-fit: cover` preserves
 proportions and crops the excess at the edges instead of stretching or adding
 borders; timestamps embedded by a camera remain part of its video.
 
-Revision **`20261004-r6`** adds the English, full-screen presentation and includes
+Revision **`20261004-r8`** adds optional authenticated remote camera commands (`remoteTarget`),
+with manual priority over motion and bounded command expiry. It retains the English,
+full-screen presentation and includes
 the transient-connection recovery prepared in r5. The static display assets are
 deployed to the second Show. The separate Python integration backup hardening
 from r5 remains a source change; this UI rollout does not reload that patch.
@@ -87,9 +89,9 @@ do not add external scripts, frames or navigation to this authenticated page.
 1. Back up any existing `/config/www/show5-display` directory outside `/config/www`.
 2. Copy the five assets `display.css`, `display.js`, `stream.js`, `auth.js` and the filled `config.js` to
    `/config/www/show5-display/`. Copy the source `index.html` as
-   **`index-20261004-r6.html`**, with all five asset URL versions set to
-   **`?v=20261004-r6`**. Do not copy tests or backup files.
-3. Open `/local/show5-display/index-20261004-r6.html?external_auth=1` in the selected VACA
+   **`index-20261004-r8.html`**, with all five asset URL versions set to
+   **`?v=20261004-r8`**. Do not copy tests or backup files.
+3. Open `/local/show5-display/index-20261004-r8.html?external_auth=1` in the selected VACA
    WebView. Verify the clock and the sanitized `Show5Auth.status()` result.
 4. Configure the selected device's persistent home path as described below.
    A one-time browser navigation alone does not survive VACA Refresh/restart.
@@ -121,7 +123,7 @@ Deploy the patch to the HA configuration volume, validate configuration and
 perform one normal HA Core restart to load changed Python modules. An integration
 reload alone does not reliably import edited Python code. Then edit only the
 intended VACA config entry's options, retaining its existing `ha_url`, and set
-`ha_dashboard` to `/local/show5-display/index-20261004-r6.html`. VACA adds `external_auth=1`.
+`ha_dashboard` to `/local/show5-display/index-20261004-r8.html`. VACA adds `external_auth=1`.
 The entry's existing update listener reloads that entry after saving options.
 
 Check the selected device after VACA Refresh and an app restart. Recheck this
@@ -265,3 +267,12 @@ After deployment, a 15.5-second device trace showed four image loads, a single
 initial loading state and no unavailable/blank intervals between frames. Camera
 responses still took 2.66–2.85 seconds: the improvement came from frame retention
 and replacement, not from assuming that the camera had become faster.
+
+## Remote endpoint control
+
+Set `remoteTarget` to the prefix in the generated Home Assistant remote endpoint
+package. The page accepts only target-matched, short-lived `show5_remote_display`
+events over its authenticated HA connection. Manual Front/Porch selection takes
+priority over motion for up to 120 seconds; Home cancels it. Hidden pages reject
+commands. An acknowledgement means the renderer accepted the command, not that
+the camera has decoded a frame. See [the remote endpoint runbook](../../docs/remote-endpoint.md).

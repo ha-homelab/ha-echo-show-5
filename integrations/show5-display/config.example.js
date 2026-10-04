@@ -3,6 +3,8 @@
 window.SHOW5_DISPLAY_CONFIG = {
   timeZone: "America/Los_Angeles",
   cameraSeconds: 30,
+  // Optional: match the generated HA remote endpoint prefix. No credentials.
+  // remoteTarget: "show5_two",
   cameraMode: "webrtc",
   cameras: {
     front: {

@@ -1,0 +1,24 @@
+{
+  "prefix": "show5_two",
+  "serial": "REPLACEFULLSERIAL",
+  "adb_entity": "media_player.replace_me_show5_two_android",
+  "vaca_mute_entity": "switch.replace_me_show5_two_microphone_mute",
+  "vaca_media_entity": "media_player.replace_me_show5_two_media",
+  "vaca_refresh_entity": "button.replace_me_show5_two_refresh",
+  "clock_path": "/local/show5-display/index-YOUR_RELEASE.html",
+  "jitsi_room_url": "https://meet.example.invalid/ShowRoom",
+  "ottplay_url": "http://ottplay.example.invalid:8443/",
+  "app_ids": {
+    "vlc": "org.videolan.vlc",
+    "jitsi": "org.jitsi.meet",
+    "ottplayer": "es.ottplayer.tv",
+    "browser": "com.android.chrome",
+    "ottplay_native": "play.ott.foss.nativeapp.preview"
+  },
+  "tv_presets": {
+    "channel_one": {
+      "label": "Channel one",
+      "url": "https://media.example.invalid/live/channel-one.m3u8"
+    }
+  }
+}

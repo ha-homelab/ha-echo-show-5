@@ -3,6 +3,8 @@
 
   var ROLES = ["front", "porch"];
   var REQUEST_MS = 10000;
+  // Allow the stream adapter's 15-second startup deadline to settle first.
+  var WEBRTC_STARTUP_MS = 16000;
   var SNAPSHOT_MS = 1000;
   var FRAME_DELAYED_MS = 5000;
   var FRAME_MAX_AGE_MS = 15000;
@@ -191,7 +193,7 @@
         view.showUnavailable();
         videoRetry = setTimer(function () { startVideo(token); }, Math.min(5000, expiresAt - now()));
       }
-      item.timeout = setTimer(failed, Math.min(15000, expiresAt - now()));
+      item.timeout = setTimer(failed, Math.min(WEBRTC_STARTUP_MS, expiresAt - now()));
       Promise.resolve().then(function () {
         if (!live(token) || item.controller.signal.aborted) { throw new Error("Inactive stream"); }
         view.showVideoLoading();

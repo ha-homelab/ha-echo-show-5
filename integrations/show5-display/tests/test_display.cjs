@@ -413,8 +413,8 @@ test("browser bootstrap exposes only the display controls and delegates authenti
 
 test("page assets are local, CSP disallows external scripts and camera CSS preserves aspect", () => {
   const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
-  assert.deepEqual([...html.matchAll(/<script src="([^"]+)" defer>/g)].map(x => x[1]), ["config.js?v=20261004-r6", "stream.js?v=20261004-r6", "auth.js?v=20261004-r6", "display.js?v=20261004-r6"]);
-  assert.match(html, /href="display.css\?v=20261004-r6"/);
+  assert.deepEqual([...html.matchAll(/<script src="([^"]+)" defer>/g)].map(x => x[1]), ["config.js?v=20261004-r8", "stream.js?v=20261004-r8", "auth.js?v=20261004-r8", "display.js?v=20261004-r8"]);
+  assert.match(html, /href="display.css\?v=20261004-r8"/);
   assert.match(html, /default-src 'none'/);
   assert.match(html, /script-src 'self'/);
   assert.match(html, /connect-src 'self'/);
@@ -456,12 +456,46 @@ test("switching or hiding during WebRTC startup rejects stale handles without di
   assert.equal(h.calls.length, 0);
 });
 
+test("WebRTC startup can take twelve seconds without the JPEG deadline aborting it", async () => {
+  const streams = []; let closed = 0;
+  const h = harness({...CONFIG, cameraMode: "webrtc"}, null,
+    (entity, video, opts) => new Promise(resolve => streams.push({opts, resolve})));
+  h.controller.showCamera("front"); await flush();
+  await h.timers.tick(12000);
+  assert.equal(streams[0].opts.signal.aborted, false);
+  assert.equal(h.state.status, "video-loading");
+  streams[0].resolve({close(){closed++;}}); await flush();
+  assert.equal(h.state.video, true);
+  await h.timers.tick(4001);
+  assert.equal(streams[0].opts.signal.aborted, false, "success clears the outer startup deadline");
+  assert.equal(streams.length, 1);
+  h.controller.showClock();
+  assert.equal(closed, 1);
+});
+
+test("a short camera lease caps the longer WebRTC startup deadline", async () => {
+  const streams = []; let closed = 0;
+  const h = harness({...CONFIG, cameraMode: "webrtc", cameraSeconds: 5}, null,
+    (entity, video, opts) => new Promise(resolve => streams.push({opts, resolve})));
+  h.controller.showCamera("front"); await flush();
+  await h.timers.tick(5000);
+  assert.equal(streams[0].opts.signal.aborted, true);
+  assert.equal(h.state.mode, "clock");
+  streams[0].resolve({close(){closed++;}}); await flush();
+  assert.equal(closed, 1, "a handle resolved after lease expiry is released");
+  await h.timers.tick(16000);
+  assert.equal(streams.length, 1);
+  assert.equal(h.timers.tasks.size, 0);
+});
+
 test("WebRTC failure retries only within the active lease and startup cannot hang indefinitely", async () => {
   const streams = []; let closed = 0;
   const h = harness({...CONFIG, cameraMode: "webrtc"}, null,
     (entity, video, opts) => new Promise(resolve => streams.push({opts, resolve})));
   h.controller.showCamera("front"); await flush();
-  await h.timers.tick(15000);
+  await h.timers.tick(15999);
+  assert.equal(streams[0].opts.signal.aborted, false);
+  await h.timers.tick(1);
   assert.equal(streams[0].opts.signal.aborted, true); assert.equal(h.state.status, "unavailable");
   await h.timers.tick(5000); assert.equal(streams.length, 2);
   streams[1].resolve({close(){closed++;}}); await flush();
