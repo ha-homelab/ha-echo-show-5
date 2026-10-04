@@ -1,0 +1,14 @@
+jitsi_start:
+  name: Start Jitsi on the Show
+  description: >-
+    Administrator only. Open the configured room with prejoin and muted media
+    defaults, temporarily releasing VACA and the normal camera stream.
+    The session lease lasts two minutes including preparation, then restoration
+    begins. Verify the requested native Join and muted-media behavior on the device.
+jitsi_end:
+  name: End Jitsi and restore the Show
+  description: >-
+    Administrator only. Stop the fixed Jitsi app, restore camera streaming and
+    Companion, and restore the VACA mute state saved before this session.
+    Leaving Jitsi or entering Picture-in-Picture does not notify Home Assistant;
+    use this action rather than waiting for the session timeout.

@@ -140,7 +140,7 @@ script:
       target:
         entity_id: media_player.echo_show_android
       data:
-        command: input keyevent 224; am start -a android.intent.action.VIEW -d 'homeassistant://navigate/echo-show/home?server=default'
+        command: input keyevent 224; am start -f 0x10008000 -a android.intent.action.VIEW -d 'homeassistant://navigate/echo-show/home?server=default'
           -p io.homeassistant.companion.android.minimal
   echo_show_show_camera:
     alias: 'Echo Show: show camera'
@@ -153,7 +153,7 @@ script:
       target:
         entity_id: media_player.echo_show_android
       data:
-        command: input keyevent 224; am start -a android.intent.action.VIEW -d 'homeassistant://navigate/echo-show/camera?server=default'
+        command: input keyevent 224; am start -f 0x10008000 -a android.intent.action.VIEW -d 'homeassistant://navigate/echo-show/camera?server=default'
           -p io.homeassistant.companion.android.minimal
   echo_show_show_voice:
     alias: 'Echo Show: show voice'
@@ -166,7 +166,7 @@ script:
       target:
         entity_id: media_player.echo_show_android
       data:
-        command: input keyevent 224; am start -a android.intent.action.VIEW -d 'homeassistant://navigate/echo-show/voice?server=default'
+        command: input keyevent 224; am start -f 0x10008000 -a android.intent.action.VIEW -d 'homeassistant://navigate/echo-show/voice?server=default'
           -p io.homeassistant.companion.android.minimal
   echo_show_show_music:
     alias: 'Echo Show: show music'
@@ -179,7 +179,7 @@ script:
       target:
         entity_id: media_player.echo_show_android
       data:
-        command: input keyevent 224; am start -a android.intent.action.VIEW -d 'homeassistant://navigate/echo-show/music?server=default'
+        command: input keyevent 224; am start -f 0x10008000 -a android.intent.action.VIEW -d 'homeassistant://navigate/echo-show/music?server=default'
           -p io.homeassistant.companion.android.minimal
   echo_show_show_calls:
     alias: 'Echo Show: show calls'
@@ -192,5 +192,5 @@ script:
       target:
         entity_id: media_player.echo_show_android
       data:
-        command: input keyevent 224; am start -a android.intent.action.VIEW -d 'homeassistant://navigate/echo-show/receive?server=default'
+        command: input keyevent 224; am start -f 0x10008000 -a android.intent.action.VIEW -d 'homeassistant://navigate/echo-show/receive?server=default'
           -p io.homeassistant.companion.android.minimal

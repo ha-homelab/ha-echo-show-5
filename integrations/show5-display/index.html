@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; media-src 'self' blob:; img-src 'self' blob:; base-uri 'none'; form-action 'none'; object-src 'none'; frame-src 'none'">
+  <title>Часы</title>
+  <link rel="stylesheet" href="display.css?v=20261004-r5">
+  <script src="config.js?v=20261004-r5" defer></script>
+  <script src="stream.js?v=20261004-r5" defer></script>
+  <script src="auth.js?v=20261004-r5" defer></script>
+  <script src="display.js?v=20261004-r5" defer></script>
+</head>
+<body>
+  <main id="display" aria-label="Часы и камера">
+    <section id="clock-view" aria-label="Часы">
+      <time id="clock-time">--:--</time>
+      <p id="clock-date"></p>
+    </section>
+    <section id="camera-view" aria-label="Камера" hidden>
+      <header class="camera-header">
+        <h1 id="camera-label"></h1>
+        <time id="camera-time">--:--</time>
+      </header>
+      <div class="camera-frame">
+        <img id="camera-image" alt="Снимок камеры" decoding="async" draggable="false" hidden>
+        <video id="camera-video" autoplay muted playsinline hidden></video>
+        <p id="camera-status" role="status">Загрузка камеры…</p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

@@ -22,6 +22,10 @@ For independent screen wake, enable **Settings → Display → Tap to wake**, th
 
 Start with a small dashboard and one microphone-owning app. Far-field speech, interruption during music, reliable camera playback, DRM streaming and unattended operation require tests on the actual device. An Android boot alone establishes none of those capabilities.
 
+## Audio diagnostic limitation on the tested ROM
+
+Do not run `dumpsys media.audio_flinger` on the tested v0.4 build. During this pilot, that diagnostic itself triggered a null-pointer crash in the vendor audio HAL’s `Device::debug()` path. Android restarted the HAL and audio server automatically. This was caused by the inspection command, not evidence explaining the earlier loss of microphone capture; never use the crash as a recovery method. Use ordinary `dumpsys audio` for recorder and mute-state checks. An HA entity showing available, or a running VACA foreground service, does not prove that a microphone recorder is active.
+
 ## Screen sleep and Always-on Display
 
 On the tested v0.4 device, both Android `KEYCODE_SLEEP` and VACA's Screen switch initially produced `mWakefulness=Dozing` while **Display Power remained ON**. The ROM resource defaults enabled Always-on Display, and the unset `doze_always_on` setting inherited that default. VACA's **Screen always on** setting is separate: it controls an Activity window's keep-screen-on flag. Replacing the sleep script with VACA's Screen switch did not bypass the Android ambient-display policy. [Android 11 ambient-display settings](https://android.googlesource.com/platform/frameworks/base/+/android-11.0.0_r48/core/java/android/hardware/display/AmbientDisplayConfiguration.java), [pinned VACA screen implementation](https://github.com/msp1974/ViewAssistCompanionApp/blob/65906aebffd2f39772773b44729b22fd022a1f3c/app/src/main/java/com/msp1974/vacompanion/device/ScreenUtils.kt).
@@ -59,6 +63,39 @@ Developer options are initially hidden. Open **Settings → About tablet** (or *
 
 The scripts cannot approve this on-screen prompt for you. Once authorized, rerun USB inventory if its mode or node changed, then use the complete observed serial for `probe-android` and installation. USB enumeration without an ADB interface before debugging is enabled does not by itself indicate a failed Android boot.
 
+## Persistent Wi-Fi ADB on the tested ROM
+
+The installed **LineageOS 18.1 cronos v0.4** already starts network ADB at boot. Its `/vendor/etc/init/hw/init.mt8163.rc` matches the [upstream boot configuration](https://github.com/amazon-oss/android_device_amazon_mt8163-common/commit/03f23e85e39f49f80df50e6fb1cb52d606256f04): it sets `service.adb.tcp.port` to `5555` and starts `adbd`. The earlier USB recovery demonstrated a working fallback; it did not establish that USB is required after every reboot.
+
+For an explicit persistent fallback, the tested device accepted the following inside an **already authorized, identity-verified Android shell running as UID 2000**. First record the original values privately:
+
+```sh
+getprop service.adb.listen_addrs
+getprop service.adb.tcp.port
+getprop persist.adb.tcp.port
+```
+
+Then set and read back the persistent port:
+
+```sh
+setprop persist.adb.tcp.port 5555
+getprop persist.adb.tcp.port
+```
+
+This step required no root, authentication change, ROM edit or SELinux change. It is evidence for this build, not a guarantee that other Android builds allow shell users to write the property. Android 11's daemon uses `service.adb.listen_addrs` when set; otherwise `service.adb.tcp.port` takes precedence, with `persist.adb.tcp.port` used only if that service property is empty. The ROM's boot action sets `service.adb.tcp.port` to `5555`, so the persistent property is ignored unless the service property is empty. [Android 11 ADB property selection](https://github.com/aosp-mirror/platform_system_core/blob/android-11.0.0_r48/adb/daemon/main.cpp).
+
+**Reboot acceptance passed, 2026-10-03:** after one ordinary Android reboot, TCP5555 and `sys.boot_completed=1` returned in about 46 seconds. A changed boot ID and the complete device serial/`cronos` checks confirmed the same device had rebooted. Both port properties read `5555`; the authorized shell remained UID 2000 with `ro.adb.secure=1` and `ro.secure=1`. A fresh unauthenticated connection received an ADB AUTH challenge. The USB cable was physically present, but no USB commands were used during the test. HA ADB commands also worked after boot without USB intervention. VACA autostarted with one unsilenced recorder. Camera Start on Boot remains off: its process existed, but HTTPS stayed unavailable until its activity was opened manually; Companion home was then launched. Subsequent checks confirmed different fresh camera frames, denied camera microphone permission and idle intercom status without recovery pending. This validates ADB auto-return and the restored baseline, not unattended camera/dashboard startup or recovery after power loss.
+
+Keep the authorized ADB host key and TCP5555 on trusted private networks. Reconnect the existing HA Android Debug Bridge integration and verify device identity before sending commands. If network access fails, retain the [guarded USB fallback](camera-and-intercom.md#manual-recovery-after-an-android-reboot).
+
+**A second unit exposed a separate Wi-Fi recovery limitation.** On the same ROM, the ADB port properties and trusted host authorization survived reboot, but network access missed a 150-second recovery deadline. Its Wi-Fi log recorded `PnoScanListener onFailure: reason: -3 description: not supported` after the screen turned off while disconnected. Waking the screen restarted normal scanning; association and DHCP completed about five seconds later. A later Wi-Fi restart while the screen was off reproduced the unsupported scan errors, and waking it again restored connectivity. The initial failed association remains unexplained. This evidence concerns reconnection while disconnected, not loss of an established connection whenever the screen sleeps.
+
+Distinguish an unavailable Wi-Fi route from an ADB authorization or listener failure. Inspect the selected device's IP address and `dumpsys wifi` through trusted USB before changing ADB settings. On this second unit, keeping the screen awake while AC-powered, settling VACA's permission flow, selecting it as the default Home app and granting its background-execution exception produced a successful follow-up ordinary reboot: network ADB returned in **45.3 seconds without USB commands**, and VACA subsequently reconnected with one unsilenced 16 kHz mono recorder. The configured engine, model, pipeline and threshold survived. Companion's separate dashboard was opened manually afterward.
+
+The AC stay-awake override is `stay_on_while_plugged_in=1`, applied with `svc power stayon ac` only after observing `mPlugType=1`; its recorded previous value was `0`. This is the tested operating workaround, not an isolated proof that this one setting fixed every startup dependency. Restore the operator's own recorded value when rolling it back. Screen-off reconnection, power-loss recovery and long-term stability remain unverified. Do not apply either unit's successful normal-reboot result to every converted device.
+
+For rollback of the added property, restore its exact recorded value; if it was empty, use `setprop persist.adb.tcp.port ''` and read it back. **Clearing this property does not disable the ROM's boot listener**, because the boot action still sets the higher-priority service property. Do not treat that rollback as a permanent network-ADB off switch.
+
 ## Pinned Companion APK
 
 The selected artifact is **Home Assistant Companion 2026.8.4-minimal** from the [official release](https://github.com/home-assistant/android/releases/tag/2026.8.4):
@@ -80,7 +117,7 @@ python3 scripts/remote.py probe-android --port PORT --serial FULL_SERIAL
 python3 scripts/remote.py install-companion --port PORT --serial FULL_SERIAL
 ```
 
-The USB host is only needed for conversion and app installation. Normal Companion operation uses Wi-Fi.
+Normal Companion operation and the verified network ADB connection use Wi-Fi. Keep the trusted USB host available for conversion, initial authorization and recovery; app installation can use an already authorized, identity-verified ADB connection.
 
 ## Connect to your Home Assistant server
 
@@ -106,6 +143,35 @@ Use the following order when Companion cannot connect:
 4. Reopen the dashboard and confirm fresh state updates and authenticated WebSocket operation through the selected address. Retest media/TTS URLs and the intended call separately. A repaired server connection does not prove camera access, peer connectivity or audible output.
 
 Keep endpoint reachability separate from frontend readiness. The [optional readiness workaround](../integrations/show5-intercom/README.md#optional-companion-readiness-workaround) addresses a measured native handshake delay after the frontend connects. It cannot repair DNS, TLS or authentication failures. Verify those prerequisites before attributing a loading overlay to dashboard performance.
+
+### VACA dashboard says it cannot connect, but the satellite is online
+
+VACA's embedded dashboard uses its own native external-auth session. Its Wyoming
+voice connection can remain healthy while that dashboard displays **Unable to
+connect to Home Assistant**. Check the foreground application first: this error
+can come from VACA even when the official Companion application is not running.
+
+If device-side DNS/TLS/HTTPS work and the VACA satellite is still available in HA,
+use **Settings → Devices & services → the intended VACA device → Refresh**.
+The equivalent HA action is `button.press` for that device's `button.*_refresh`.
+On the Show, a two-finger upward swipe opens VACA Quick Actions; select **Reload**.
+The action reloads VACA's configured HA dashboard and repeats external-auth.
+It does not restart the voice service, clear credentials or change the assistant.
+It may return to the configured dashboard rather than the previously open route.
+See the [integration button](https://github.com/msp1974/ViewAssist_Companion_App/blob/v0.13.4/custom_components/vaca/button.py)
+and [pinned Android refresh implementation](https://github.com/msp1974/ViewAssistCompanionApp/blob/65906aebffd2f39772773b44729b22fd022a1f3c/app/src/main/java/com/msp1974/vacompanion/utils/CustomWebView.kt).
+
+**Observed recovery, October 4, 2026 PDT:** the second converted Show had a loaded
+VACA integration, working Wyoming connection and reachable HTTPS endpoint, while
+its embedded dashboard was stuck during initialization. A page-only reload
+restored authenticated HA WebSocket access and rendered the dashboard. A follow-up
+page inspection still reported the connection active, and the owner confirmed
+that the display worked. The selected FCC
+assistant and wake-word settings were preserved, and VACA retained an unsilenced
+microphone recorder. This supports a dashboard/session initialization failure;
+the original trigger was not established. It is not evidence of a permanent fix
+for every reconnection failure. If refresh does not work, investigate transport
+and authentication before clearing app data or restarting HA.
 
 ## Test Assist with a button first
 

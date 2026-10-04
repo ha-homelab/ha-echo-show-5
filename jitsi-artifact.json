@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "id": "jitsi",
+  "name": "org.jitsi.meet_26000001.apk",
+  "version": "26.0.0",
+  "url": "https://f-droid.org/repo/org.jitsi.meet_26000001.apk",
+  "size": 17356331,
+  "sha256": "1a993246979874704b873088fc535372f5b373b02f08d4827c4d2cac64e0a52d",
+  "source": "https://f-droid.org/en/packages/org.jitsi.meet/",
+  "upstream_download_page": "https://jitsi.github.io/handbook/docs/releases/",
+  "distribution": "F-Droid built and signed release. Its signing certificate is distinct from the Play Store distribution.",
+  "checksum_provenance": "APK SHA-256, size and signing certificate matched the package record in an authenticated F-Droid index-v2 snapshot. The SHA256withRSA signature on entry.jar was verified; its certificate matched the official repository fingerprint, and its signed index digest matched the downloaded index-v2 bytes.",
+  "android_package": "org.jitsi.meet",
+  "version_code": 26000001,
+  "apk_manifest_observed": {
+    "min_sdk": 26,
+    "target_sdk": 35,
+    "native_abis": ["armeabi-v7a"],
+    "launchable_activity": "org.jitsi.meet.MainActivity"
+  },
+  "apk_signature": {
+    "verification": "Android SDK build-tools 36.0.0 apksigner verify --verbose --print-certs passed APK Signature Schemes v2 and v3 with one signer.",
+    "certificate_sha256": "41605393b4a087feb25d13e91f421c7d1a1a9146251fc2be992fc1b30b3181f6",
+    "matches_signed_fdroid_index": true,
+    "scope": "Separate recorded signature audit of this pinned APK. scripts/artifacts.py checks size, SHA-256, APK suffix and ZIP CRC; it does not invoke apksigner or authenticate a fresh repository index."
+  },
+  "repository_audit": {
+    "observed_at_utc": "2026-10-03T04:01:26Z",
+    "fingerprint_source": "https://f-droid.org/repo/",
+    "certificate_sha256": "43238d512c1e5eb2d6569f4a3afbf5523418b82e0a3ed1552770abb9a9c9ccab",
+    "entry_url": "https://f-droid.org/repo/entry.jar",
+    "entry_sha256_observed": "284ae0a47a68e82e3a038ac63f9c6ce3fd47a2a5a0c945009ee80861847e984b",
+    "index_url": "https://f-droid.org/repo/index-v2.json",
+    "index_sha256_observed": "97ae2959629f8ad3f8dfc62a1c8667397cdc89ecdab59f894e236783efd1dc73",
+    "index_size_observed": 62201868,
+    "scope": "Historical provenance for the pinned artifact; live repository indexes rotate. Legacy index-v1 SHA1 signatures were not used as the authentication authority."
+  },
+  "source_archive": {
+    "url": "https://f-droid.org/repo/org.jitsi.meet_26000001_src.tar.gz",
+    "sha256_from_signed_index": "9f69ccfd3f4a1c0f0e28c70dac615ca70ef2747230599659e842f1f44ac16ed6",
+    "scope": "Source reference supplied by F-Droid; this project did not rebuild the APK."
+  },
+  "source_inspection": {
+    "repository": "jitsi/jitsi-meet",
+    "commit": "3db92da369b921d73189dbcb55744f9f5459cac0",
+    "version": "26.0.0",
+    "scope": "Native prejoin/muted-media configuration and process-local call callbacks were reviewed. This is not proof of runtime acceptance or reproducible compilation."
+  },
+  "purpose": "Optional native Jitsi client for an operator-controlled server and fixed private room. Artifact validation does not establish device audio/video or call acceptance."
+}

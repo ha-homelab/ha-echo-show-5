@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "backends": {
+    "homeway": {
+      "pipeline": {"name": "replace_me_homeway_pipeline_name"}
+    },
+    "fcc": {
+      "pipeline": {"id": "replace_me_fcc_pipeline_id"}
+    }
+  },
+  "assistant_selects": [
+    "select.replace_me_show_one_assistant",
+    "select.replace_me_show_two_assistant",
+    "select.replace_me_echo_dot_assistant",
+    "select.replace_me_echo_dot_assistant_2"
+  ]
+}

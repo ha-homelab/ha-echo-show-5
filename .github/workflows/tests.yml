@@ -22,6 +22,8 @@ jobs:
         python: ["3.8", "3.11"]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: ${{ matrix.python }}
@@ -33,6 +35,8 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.11"
@@ -48,3 +52,51 @@ jobs:
           node integrations/show5-intercom/tests/test_readiness.cjs
           node integrations/show5-intercom/tests/test_duplicate_import.cjs
           node integrations/show5-intercom/tests/test_call_panel.cjs
+
+  display-tests:
+    name: Clock, motion and native authentication
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - name: Test synthetic display lifecycle without HA or cameras
+        run: |
+          node --test integrations/show5-display/tests/*.cjs
+          python -m unittest discover -s integrations/show5-display/tests -p 'test_*.py' -v
+
+  fcc-voice-tests:
+    name: FCC voice protocol and failure handling
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.11"
+      - name: Install bridge dependencies
+        run: python -m pip install -r integrations/fcc-voice-backup/requirements.txt
+      - name: Test synthetic protocol exchanges without HA or provider access
+        run: python -m unittest discover -s integrations/fcc-voice-backup/tests -p test_bridge.py -v
+
+  fcc-cloud-speech-tests:
+    name: FCC cloud audio protocol and failure handling
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.11"
+      - name: Install cloud adapter dependencies
+        run: python -m pip install -r integrations/fcc-voice-backup/cloud-requirements.txt
+      - name: Test Wyoming and local fake gRPC without provider access
+        run: python -m unittest discover -s integrations/fcc-voice-backup/tests -p test_cloud_speech.py -v
