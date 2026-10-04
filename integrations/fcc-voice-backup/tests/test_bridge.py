@@ -208,6 +208,13 @@ class WireTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(await self.client.ask(request), "Лёд легче воды.")
             self.assertEqual(self.calls[-1]["body"]["messages"], [{"role": "user", "content": request}])
 
+    async def test_background_speech_is_not_dropped_without_provider_sentinel(self):
+        request = "Вечером соседи сидели во дворе и обсуждали поездку на дачу."
+        self.payload = message("Обычный ответ модели.")
+        self.assertEqual(await self.client.ask(request), "Обычный ответ модели.")
+        self.assertEqual(len(self.calls), 1)
+        self.assertEqual(self.calls[0]["body"]["messages"], [{"role": "user", "content": request}])
+
     async def test_wyoming_describe_and_transcript(self):
         handler = object.__new__(bridge.Handler)
         handler.client = self.client

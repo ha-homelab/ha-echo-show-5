@@ -4,8 +4,8 @@ Three small services connect the independent FCC voice path alongside Homeway: o
 
 Read [deployment and switching](../../docs/fcc-voice-backup.md), [cloud audio](../../docs/fcc-cloud-audio.md) and [the model shortlist](../../docs/fcc-audio-models.md). Cloud audio uses NVIDIA Parakeet ASR and Russian Chatterbox TTS with the existing operator credential; conversation uses FCC's selected external text route. The conversation bridge has no Home Assistant tools or credentials.
 
-[Assistant behavior](../../docs/fcc-assist-behavior.md) describes the 0.1.2
-general-purpose Russian prompt, explicit background-speech suppression and
+[Assistant behavior](../../docs/fcc-assist-behavior.md) describes the 0.1.3
+classification-first prompt for Russian answers, explicit background-speech suppression and
 bounded spoken replies. Native HA intents still handle device commands before
 the text fallback; updating this bridge does not add device tools to the model.
 
