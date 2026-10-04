@@ -81,7 +81,7 @@ The pinned Companion minimal app includes ARMv7 support and does not need GApps.
 
 The [remote endpoint guide](docs/remote-endpoint.md) covers a target-specific HA
 control panel for clocks, full-screen cameras, music, TV streams, Jitsi and both
-OTTPlay/OttPlayer launchers. Generate the private HA package with
+our OTT-play FOSS Capacitor Android client and separate OTT web/app launchers. Generate the private HA package with
 `scripts/render_remote_endpoint.py` and its matching phone/desktop dashboard with
 `scripts/render_remote_dashboard.py`. Local URLs, device bindings and downloaded
 APKs stay outside Git.

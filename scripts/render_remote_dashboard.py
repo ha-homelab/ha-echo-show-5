@@ -29,7 +29,7 @@ def render_dashboard(config):
         ]},
     ]
     if 'ottplay_native' in c['app_ids']:
-        cards[1]['cards'].append(button('OTTPlay app', 'play-box', 'ottplay_native'))
+        cards[1]['cards'].append(button('OTTPlay FOSS', 'play-box', 'ottplay_native'))
     cards += [
         {'type': 'markdown', 'content': '## Music\nOpen **Choose music**, select a source, then Run. The session ends after 30 minutes. Volume and playback controls apply to the Show.'},
         {'type': 'button', 'name': 'Choose music', 'icon': 'mdi:music',

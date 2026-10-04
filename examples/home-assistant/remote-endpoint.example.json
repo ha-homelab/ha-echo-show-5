@@ -13,7 +13,7 @@
     "jitsi": "org.jitsi.meet",
     "ottplayer": "es.ottplayer.tv",
     "browser": "com.android.chrome",
-    "ottplay_native": "play.ott.foss.nativeapp.preview"
+    "ottplay_native": "play.ott.foss"
   },
   "tv_presets": {
     "channel_one": {

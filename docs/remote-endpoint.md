@@ -99,8 +99,9 @@ data:
   camera_seconds: 120
 ```
 
-To open the separate OTT-play browser, use `mode: ottplay`; to open the branded
-app, use `mode: ottplayer`. Either accepts a bounded `lease_minutes`. A fixed TV
+To open our Capacitor Android client, use `mode: ottplay_native`. The separate
+web route uses `mode: ottplay`; the optional third-party app uses `mode: ottplayer`.
+Each accepts a bounded `lease_minutes`. A fixed TV
 preset uses:
 
 ```yaml
@@ -166,64 +167,152 @@ path available and check microphone restoration afterward. See
 [native Jitsi calls](jitsi-calls.md) for the separate call handoff and acceptance
 requirements. Launching a room is not proof of a connected two-party call.
 
-## The two OTT products
+## OTT-play FOSS on Capacitor
 
-### Our OTT-play web and native apps
+The requested Android client is the Capacitor application from
+[`open-ott-play/ottplay-foss`](https://github.com/open-ott-play/ottplay-foss),
+package **`play.ott.foss`**, launcher `play.ott.foss/.MainActivity`.
+Set `app_ids.ottplay_native` to this package. The existing `ottplay_native` mode
+name is retained for service compatibility; it does not select the separate
+Media3 preview. The dashboard labels this action **OTTPlay FOSS**.
 
-The existing OTT-play FOSS web/server UI can run in a **separate Android
-browser**. This reuses the existing playlist/proxy infrastructure and can serve
-the existing HTTP LAN sources. Open only the private configured player origin;
-the browser has its own settings and does not inherit another device's provider
-configuration. Its first launch may therefore need an intentional source setup.
+The compatible local Full build uses the last Capacitor Android source before
+its packaging was removed:
+[`f8634903aa051592ccf15f675b8d8df3212fe502`](https://github.com/open-ott-play/ottplay-foss/commit/f8634903aa051592ccf15f675b8d8df3212fe502).
+It identifies as **OTT-play FOSS Full 1.1.42-show5.1**, version code `10143`, minimum
+API 24 and target API 36. Its Full manifest explicitly permits HTTP LAN sources.
+Remote HTTP command-queue control remains opt-in and is not enabled by this
+installation; HA launches the fixed application package through ADB.
+
+The pilot APK is 9,679,748 bytes; SHA-256
+`e8b8829351bc0b00244c5a4dc4f5bc0a4bffc06705663c068486dac55060b0dc`.
+Its signing-certificate SHA-256 is
+`811c6a2e06e574d3906279229196eabb61e4424662087e98e0d1683693dd0d55`.
+These identify the local artifact, not an official publisher release. Another
+build may have different archive bytes; preserve the local signing identity for
+in-place upgrades. The release manifest is non-debuggable and the APK has no
+ABI-specific `.so` libraries. The signed Full distribution audit passed.
+
+The local [startup patch](../patches/ottplay-foss-capacitor-startup.patch) removes
+the remaining splash icon from `startPlayer()` and supplies explicit transparent
+posters for the main and picture-in-picture video elements. Without a poster,
+Android WebView supplies its own gray play-circle bitmap; removing app artwork
+alone does not remove that fallback. Native Cast controls are also suppressed.
+Buffering/error messages and the player's aspect-ratio sizing remain intact.
+Initial playback uses the backend's existing readiness path, without a new
+handler that would override a deliberate pause. The patch updates the local
+version and includes startup, poster and readiness/pause regression checks.
+
+This is a historical source build, not a new upstream release. The current
+upstream branch has archived the Android bridge and removed its Gradle packaging
+workflow; see the
+[archived Android build notice](https://github.com/open-ott-play/ottplay-foss/blob/8fd0762/android/README.md).
+The Full build does not include subsequent web/iOS changes. Do not run
+`cap sync android` in the current shared checkout to recreate the old application.
+A future refreshed Capacitor APK needs an explicitly restored and tested build.
+
+The older [published 1.1.41 APK](https://github.com/open-ott-play/ottplay-foss/releases/tag/v1.1.41)
+was verified and could launch on the Show, but its local-catalogue playback check
+produced no channels. That APK lacks the Full manifest's explicit cleartext
+permission. App launch alone is not playback acceptance. The pilot therefore
+uses the Full source build for the local HTTP installation.
+
+### Reproduce the local build and installation
+
+Use Node 22 or newer, JDK 21, Android SDK platform 36, Android SDK Build Tools
+36.0.0, `adb` and an existing checkout of `open-ott-play/ottplay-foss` containing
+the pinned commit. Set `JAVA_HOME` and `ANDROID_HOME` for that toolchain. The
+source supplies its Gradle wrapper and locked npm dependencies.
+
+Run from the local conversion checkout. Its `private/` and `downloads/`
+directories are ignored. Extract into a **new empty** directory; do not overlay
+another checkout or a previous build:
+
+```bash
+mkdir -p private/ottplay-capacitor-build-f863490 downloads
+# This checkout must contain the pinned historical commit.
+git -C /path/to/ottplay-foss archive f8634903aa051592ccf15f675b8d8df3212fe502 | \
+  tar -x -C private/ottplay-capacitor-build-f863490
+(
+  cd private/ottplay-capacitor-build-f863490
+  patch -p1 < ../../patches/ottplay-foss-capacitor-startup.patch
+  npm ci
+  node tests/test_show5_startup.cjs
+  node tests/test_port_engine_lifecycle.cjs
+  npm run android:full:release
+)
+cp private/ottplay-capacitor-build-f863490/android/app/build/outputs/apk/full/release/app-full-release-unsigned.apk \
+  downloads/ottplay-foss-capacitor-full-1.1.42-unsigned.apk
+```
+
+The upstream build command audits the generated Full distribution and APK.
+Leave `KEYSTORE_FILE` unset for this unsigned-build procedure. Sign it with a
+persistent local key before installation. Use SDK Build Tools' `zipalign` and
+`apksigner` on `PATH`:
+
+```bash
+mkdir -p private/ottplay-capacitor-signing
+chmod 700 private/ottplay-capacitor-signing
+# First installation only. Reuse an existing key for later upgrades.
+# keytool prompts for the password; keep it out of shell history.
+keytool -genkeypair -keystore private/ottplay-capacitor-signing/show5-ottplay.p12 \
+  -storetype PKCS12 -alias show5-ottplay -keyalg RSA -keysize 3072 \
+  -validity 10000 -dname 'CN=Show5 OTTPlay Local Sideload'
+chmod 600 private/ottplay-capacitor-signing/show5-ottplay.p12
+zipalign -f -p 4 downloads/ottplay-foss-capacitor-full-1.1.42-unsigned.apk \
+  downloads/ottplay-foss-capacitor-full-1.1.42-aligned.apk
+apksigner sign --ks private/ottplay-capacitor-signing/show5-ottplay.p12 \
+  --ks-key-alias show5-ottplay \
+  --out downloads/ottplay-foss-capacitor-full-1.1.42-local.apk \
+  downloads/ottplay-foss-capacitor-full-1.1.42-aligned.apk
+apksigner verify --verbose --print-certs downloads/ottplay-foss-capacitor-full-1.1.42-local.apk
+# After checking the target's full serial and codename:
+adb -s DEVICE_TRANSPORT install --no-streaming -r \
+  downloads/ottplay-foss-capacitor-full-1.1.42-local.apk
+```
+
+Back up the key and password privately: another signing key cannot update an
+existing installation in place. The pilot uses a persistent local key, not the
+upstream publisher's identity. Installing through authorized ADB does not
+require enabling a browser's “install unknown apps” permission.
+
+Launch through HA with `mode: ottplay_native`, select **English** on first use,
+and configure the authorized provider or playlist inside this app. It has its
+own storage; settings are not inherited from the TV, browser or Media3 preview.
+Set **Type of player for streaming** to **HLS.js** for this Show's LAN HLS source.
+Automatic detection chose the browser player, which returned
+`DEMUXER_ERROR_COULD_NOT_PARSE`. The existing provider-scoped `sPlayers=1`
+preference persists the HLS.js choice without changing other installations.
+For hls-proxy use its explicit `/playlist.m3u8` export rather than relying on
+user-agent-dependent root-page behavior; see the
+[hls-proxy documentation](https://www.hls-proxy.com/docs.php). Retain the existing
+LAN listener and its returned stream URLs.
+
+Home/Stop ends the owned app session and restores the clock. The unrelated
+`play.ott.foss.nativeapp.preview` may remain installed, but is not this action's
+target. No user data is deleted to make the switch.
+
+### Separate web route and other players
+
+`mode: ottplay` opens the existing OTT-play FOSS web/server UI in its own Android
+browser. It uses a private configured player origin and separate browser storage.
 The [public web demo](https://player.ottplay.here.now/) is a static HTTPS site,
-not a proxy that automatically makes an HTTP-only LAN source playable.
+not a proxy that makes an HTTP-only LAN source playable.
 
 Do not navigate the OTT page inside VACA's authenticated WebView: the reviewed
 native external-auth bridge does not restrict requesting-page origin. Keep
-VACA's clock home intact and launch the separately identified browser package.
-The clock page's camera/event activity pauses while it is hidden; verify its
-return and the separate VACA voice service afterward.
+VACA's clock home intact and use the separately identified application/browser.
+The clock page's camera/event activity pauses while hidden; verify its return
+and the separate VACA voice service afterward.
 
-Our separate [OTT-play Native preview 0.2.1-preview.3](https://github.com/open-ott-play/ottplay-android/releases/tag/v0.2.1-preview.3)
-uses Media3 playback and supports touch controls. The verified APK has:
+The OTT-play Control Server controls a player that has already opted in and
+connected. It is not an Android app launcher. Command acknowledgement is also
+distinct from confirmed playback.
 
-- Package `play.ott.foss.nativeapp.preview`, version name `0.2.1-preview`, version
-  code `3`, minimum API 26 and target API 36. ARMv7 is included.
-- Launcher activity `play.ott.nativeapp.MainActivity`.
-- Size **4,601,379 bytes**; SHA-256
-  `afe42bac10fd903df2074242bae9870a561a6fef6ea13e6a1bce8b64bcfd932c`.
-- Signer certificate SHA-256
-  `2021e3c927fff7c42daf395beacbf0ef738c6d878a827091afb48ddaa32c4dd8`, matching the
-  official release manifest. APK signature and archive CRC verification passed.
-
-Its metadata is compatible with Android 11/ARMv7; that does not establish this
-Show's decoder compatibility with every stream. The published preview accepts
-**HTTPS sources only**, including redirects. An HTTP-only media
-installation therefore uses the web route unless an appropriate HTTPS source
-or the distinct native `full` variant is separately prepared. The preview's
-manifest supplies app launchers, not a verified channel/playlist deep link.
-Opening it does not select a programme or import settings.
-
-The separate OTT-play Control Server controls a player that has already opted
-in and connected. It is not an Android app launcher. Its command acknowledgement
-is also distinct from confirmed playback.
-
-### OttPlayer from ottplayer.tv
-
-**OttPlayer** is a different product, with Android package `es.ottplayer.tv`.
-The [official Android page](https://ottplayer.tv/soft/android) lists
-`OttPlayer_6.0.9.apk`; the [Google Play listing](https://play.google.com/store/apps/details?id=es.ottplayer.tv)
-documents its own account and playlist association. These settings are separate
-from our OTT-play installations.
-
-At the October 4, 2026 check, the official site's APK download returned
-**HTTP 403** because its server could not read its access-control file. The
-official `www` endpoint failed as well. No mirror APK was substituted. That
-artifact's signature, hash, ARMv7 content and actual SDK requirements therefore
-remain unverified; the website filename is not evidence of the latest Play
-release. Keep the branded-app action unaccepted until a trusted APK is obtained,
-verified and installed. Do not create an account, upload playlists or enter
-credentials as part of an unattended launch check.
+The optional `ottplayer` action refers to the unrelated `es.ottplayer.tv` product.
+It is not required for our Capacitor client. Keep it hidden or disabled when
+that package is not installed. Its website's APK download failure does not block
+installing or launching `play.ott.foss`.
 
 ## VLC for fixed TV presets
 
@@ -262,11 +351,16 @@ On October 4, 2026 the second-device pilot verified:
   off. Home stopped Jitsi and restored VACA's previously unmuted state.
 - A configured LAN TV preset produced a visible picture in VLC and a playing
   Android media session.
-- Both our native OTT-play preview and the separate web player opened. English
-  was selected in the web player; provider/playlist setup remains separate.
+- Our Capacitor OTT-play FOSS Full 1.1.42-show5.1 opened through the HA action with
+  `play.ott.foss/.MainActivity` in the foreground. The local M3U catalogue loaded,
+  and the provider's HLS.js preference survived Home/Stop and relaunch. A known
+  HD channel decoded 200 more frames over eight seconds during playback and
+  125 frames during an eight-second cold-launch check, with no playback error.
+  The main/PiP transparent poster and disabled native Cast controls survived the
+  relaunch; no play-circle placeholder appeared. The separate web route opened
+  but retains its own provider configuration.
 
-The separate branded OttPlayer APK remains blocked by the official download's
-HTTP 403. Its dashboard button is marked not installed, not advertised as ready.
+The live panel hides the unrelated branded OttPlayer action.
 No two-party Jitsi call, acoustic voice acceptance, Android reboot recovery, or
 long-duration network-loss soak is claimed by these checks. The device had
 observed Wi-Fi roaming disconnects during installation; a successful later
