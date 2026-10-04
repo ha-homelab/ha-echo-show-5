@@ -133,7 +133,7 @@ class VoicePipelineTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_directory_sync_failure_prevents_ha_write(self):
         real_sync = voice._fsync_directory
-        for fail_on in (1, 2):
+        for fail_on in (2, 4):
             with self.subTest(fail_on=fail_on):
                 syncs = []
 
@@ -144,7 +144,7 @@ class VoicePipelineTests(unittest.IsolatedAsyncioTestCase):
                     real_sync(path)
 
                 with mock.patch.object(voice, "_fsync_directory", side_effect=fail_sync):
-                    with self.assertRaises(OSError if fail_on == 1 else voice.SafeError):
+                    with self.assertRaises(OSError if fail_on == 2 else voice.SafeError):
                         await self.switch()
                 self.assertEqual(self.ha.writes, [])
                 self.assertGreaterEqual(len(syncs), fail_on)
@@ -162,8 +162,41 @@ class VoicePipelineTests(unittest.IsolatedAsyncioTestCase):
         with mock.patch.object(os, "fsync", side_effect=observe_fsync):
             voice.save_snapshot(self.snapshot, {"step": "planned"}, initial=True)
             voice.save_snapshot(self.snapshot, {"step": "pending"})
-        self.assertEqual(synced, ["file", "directory", "file", "directory"])
+        self.assertEqual(synced, ["directory", "file", "directory",
+                                  "directory", "file", "directory"])
         self.assertEqual(self.journal(), {"step": "pending"})
+
+    async def test_nested_journal_ancestors_are_durable_before_ha_writes(self):
+        real_sync = voice._fsync_directory
+        self.snapshot = self.root / "private" / "snapshots" / "voice" / "snapshot.json"
+        ancestors = [self.root, self.root / "private", self.root / "private" / "snapshots"]
+        for failing in ancestors:
+            with self.subTest(failing=failing):
+                synced = []
+
+                def fail_ancestor(path):
+                    synced.append(path)
+                    if path == failing:
+                        raise OSError("synthetic ancestor sync failure")
+                    real_sync(path)
+
+                with mock.patch.object(voice, "_fsync_directory", side_effect=fail_ancestor):
+                    with self.assertRaises(OSError):
+                        await self.switch()
+                self.assertEqual(self.ha.writes, [])
+                self.assertFalse(self.snapshot.exists())
+                self.assertEqual(synced, ancestors[:ancestors.index(failing) + 1])
+        synced = []
+
+        def observe_sync(path):
+            synced.append(path)
+            real_sync(path)
+
+        self.ha.after_write = lambda client: self.assertEqual(
+            synced[:4], ancestors + [self.snapshot.parent])
+        with mock.patch.object(voice, "_fsync_directory", side_effect=observe_sync):
+            await self.switch()
+        self.assertEqual(len(self.ha.writes), 3)
 
     async def test_idempotent_switch_does_not_write_or_create_snapshot(self):
         result = await self.switch('homeway')

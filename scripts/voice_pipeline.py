@@ -77,6 +77,15 @@ def _fsync_directory(path):
 def save_snapshot(path, value, initial=False):
     path = private_path(path)
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    # Persist every directory entry down from the existing repository root.
+    # Syncing only the leaf would not preserve newly created parent directories.
+    parent = path.parent
+    ancestors = []
+    while parent != ROOT.resolve():
+        ancestors.append(parent.parent)
+        parent = parent.parent
+    for ancestor in reversed(ancestors):
+        _fsync_directory(ancestor)
     data = json.dumps(value, ensure_ascii=False, indent=2) + '\n'
     if initial:
         fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
