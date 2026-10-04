@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -20,16 +21,46 @@ from wyoming.handle import Handled
 from wyoming.info import Attribution, Describe, Info, HandleModel, HandleProgram
 from wyoming.server import AsyncEventHandler, AsyncServer
 
-VERSION = "0.1.1"
+VERSION = "0.1.2"
 MAX_INPUT_CHARACTERS = 2000
 MAX_RESPONSE_BYTES = 256 * 1024
+MAX_GENERATED_CHARACTERS = 4000
+MAX_SPOKEN_CHARACTERS = 900  # Cloud speech accepts at most 1000 characters.
+MAX_SPOKEN_WORD_CHARACTERS = 200  # A word must fit one cloud speech segment.
+NO_SPEECH_SENTINEL = "[[NO_SPEECH]]"
+# Conservative guard: a model's silence decision must not swallow an obvious
+# question, imperative or greeting. This is not a wake-word/VAD detector.
+REQUEST_PREFIX = re.compile(
+    r"^(?:(?:а|и|пожалуйста)\s+)*(?:"
+    r"кто|что|где|когда|куда|откуда|почему|зачем|как|какой|какая|какие|какое|"
+    r"сколько|можно|можешь|могу|нужно|надо|есть|правда|"
+    r"включи|выключи|запусти|открой|закрой|останови|поставь|покажи|найди|"
+    r"сделай|скажи|расскажи|объясни|ответь|посоветуй|помоги|напомни|"
+    r"убавь|прибавь|продолжи|переключи|играй|стоп|"
+    r"привет|здравствуй|здравствуйте|мышка|котик|"
+    r"what|who|where|when|why|how|can|could|would|is|are|do|does|"
+    r"please|play|stop|turn|open|close|show|tell|explain|hello|hi|hey)\b",
+    re.IGNORECASE,
+)
 SYSTEM = (
-    "Ты резервный голосовой собеседник Home Assistant. Отвечай по-русски, "
-    "кратко, обычно одним-двумя предложениями, без Markdown. "
+    "Ты домашний голосовой помощник и собеседник. Отвечай по-русски прямо на "
+    "вопрос, обычно одним-двумя короткими предложениями, не более 700 символов. "
+    "Используй обычный текст без Markdown, разметки и рассуждений. Не представляйся, "
+    "не перечисляй свои возможности и не предлагай настройку Home Assistant, "
+    "если об этом не спросили. Отвечай на общие вопросы, не ограничиваясь умным "
+    "домом. Не отказывайся от целой темы лишь из-за её названия: давай полезную "
+    "общую информацию, обозначая конкретную неопределённость, когда она важна. "
     "Тебе не предоставлены инструменты управления домом, состояние устройств, "
     "интернет-поиск или часы. Не утверждай, что выполнил действие, и не "
-    "выдумывай текущее состояние. Если просят управлять устройством, сообщи, "
-    "что нужна стандартная команда Home Assistant. Не показывай рассуждения."
+    "выдумывай текущее состояние. Команды устройствам обрабатывает отдельный "
+    "локальный обработчик. Если команда попала к тебе, коротко скажи, что она "
+    "не выполнена, и попроси уточнить устройство или действие. "
+    "Иногда после ложного срабатывания микрофон передаёт посторонний монолог "
+    "или обрывок фонового разговора. Только если в тексте явно нет ни вопроса, "
+    "ни просьбы, ни обращения к помощнику, верни ровно " + NO_SPEECH_SENTINEL +
+    ", без других слов. Никогда не используй этот маркер для настоящего вопроса, "
+    "команды, явного приветствия помощнику или если сомневаешься. Не придумывай "
+    "вопрос вместо фонового текста."
 )
 
 
@@ -88,7 +119,27 @@ def request_body(text: str, model: str) -> dict:
     }
 
 
-def response_text(payload: dict) -> str:
+def spoken_text(answer: str) -> str:
+    """Fit valid, complete text to the speech adapter without hiding truncation."""
+    answer = " ".join(answer.split())
+    if any(len(word) > MAX_SPOKEN_WORD_CHARACTERS for word in answer.split()):
+        raise BridgeError("FCC не вернул подходящий голосовой ответ.")
+    if len(answer) <= MAX_SPOKEN_CHARACTERS:
+        return answer
+    suffix = " Ответ сокращён."
+    prefix = answer[:MAX_SPOKEN_CHARACTERS - len(suffix) - 1]
+    ends = list(re.finditer(r"[.!?…](?:[»\"')\]]+)?(?=\s|$)", prefix))
+    if ends:
+        prefix = prefix[:ends[-1].end()]
+    else:
+        # Do not cut a word when the response has word boundaries.
+        if " " in prefix:
+            prefix = prefix.rsplit(" ", 1)[0]
+        prefix = prefix.rstrip() + "…"
+    return prefix.rstrip() + suffix
+
+
+def response_text(payload: dict, *, request_text: str = "") -> str:
     if not isinstance(payload, dict) or payload.get("type") != "message":
         raise BridgeError("FCC вернул некорректный ответ.")
     if payload.get("stop_reason") not in ("end_turn", "stop_sequence"):
@@ -102,9 +153,24 @@ def response_text(payload: dict) -> str:
     if any(not isinstance(t, str) for t in texts):
         raise BridgeError("FCC вернул некорректный ответ.")
     answer = "\n".join(texts).strip()
-    if not answer or len(answer) > 4000:
+    if not answer or len(answer) > MAX_GENERATED_CHARACTERS:
         raise BridgeError("FCC не вернул подходящий голосовой ответ.")
-    return answer
+    # Only an exact final-text sentinel means silence; empty, malformed or
+    # incomplete provider responses remain errors. HA skips TTS for empty speech.
+    if answer == NO_SPEECH_SENTINEL:
+        words = re.findall(r"\w+", request_text.casefold())
+        standalone_request = len(words) == 1 and words[0] in {
+            "привет", "здравствуй", "здравствуйте", "мышка", "котик", "стоп",
+            "hello", "hi", "hey", "stop",
+        }
+        if "?" in request_text or standalone_request or (
+                len(words) > 1 and REQUEST_PREFIX.match(request_text.strip())):
+            raise BridgeError("Не удалось понять запрос. Повторите, пожалуйста.")
+        return ""
+    if "<" in answer or ">" in answer or any(
+            ord(c) < 32 and c not in "\n\r\t" for c in answer):
+        raise BridgeError("FCC не вернул подходящий голосовой ответ.")
+    return spoken_text(answer)
 
 
 class FCCClient:
@@ -139,7 +205,7 @@ class FCCClient:
                         raise BridgeError("FCC вернул слишком большой ответ.")
                 import json
                 try:
-                    return response_text(json.loads(raw))
+                    return response_text(json.loads(raw), request_text=text)
                 except (ValueError, UnicodeError):
                     raise BridgeError("FCC вернул некорректный ответ.") from None
         except asyncio.TimeoutError:

@@ -22,7 +22,7 @@ spec:
         seccompProfile: {type: RuntimeDefault}
       containers:
         - name: bridge
-          image: fcc-voice-bridge:0.1.1
+          image: fcc-voice-bridge:0.1.2
           imagePullPolicy: Never
           env:
             - {name: FCC_BASE_URL, value: "http://fcc-voice-gateway.homeassistant.svc.cluster.local:8082"}
