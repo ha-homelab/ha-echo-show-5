@@ -179,13 +179,15 @@ Media3 preview. The dashboard labels this action **OTTPlay FOSS**.
 The compatible local Full build uses the last Capacitor Android source before
 its packaging was removed:
 [`f8634903aa051592ccf15f675b8d8df3212fe502`](https://github.com/open-ott-play/ottplay-foss/commit/f8634903aa051592ccf15f675b8d8df3212fe502).
-It identifies as **OTT-play FOSS Full 1.1.42-show5.1**, version code `10143`, minimum
+The current local build identifies as **OTT-play FOSS Full 1.1.42-show5.2**, version code `10144`, minimum
 API 24 and target API 36. Its Full manifest explicitly permits HTTP LAN sources.
-Remote HTTP command-queue control remains opt-in and is not enabled by this
-installation; HA launches the fixed application package through ADB.
+The local HTTP command listener remains disabled. HA launches the fixed
+application package through ADB. This Show build adds the existing
+outbound command-server connection; see [CLI control](ott-command-server.md)
+for registration, private credentials and supported operations.
 
-The pilot APK is 9,679,748 bytes; SHA-256
-`e8b8829351bc0b00244c5a4dc4f5bc0a4bffc06705663c068486dac55060b0dc`.
+The current local APK is 9,692,036 bytes; SHA-256
+`2d48d416ac086dbe5cc893d29ef95e257ec17848fde1b002cee8bb6e2e865b71`.
 Its signing-certificate SHA-256 is
 `811c6a2e06e574d3906279229196eabb61e4424662087e98e0d1683693dd0d55`.
 These identify the local artifact, not an official publisher release. Another
@@ -203,11 +205,21 @@ Initial playback uses the backend's existing readiness path, without a new
 handler that would override a deliberate pause. The patch updates the local
 version and includes startup, poster and readiness/pause regression checks.
 
+Apply the [remote-control patch](../patches/ottplay-foss-capacitor-remote-control.patch)
+second. It ports the acknowledged command/RPC transport from upstream
+`a18cd4c5c9982ef5c8776c9fb7cc2076ba7de05e` and adds a limited adapter for this
+historical player. Its SHA-256 is
+`d2d7bccb9be09dfa6293f0c42656742342e0bfee447410b1587b8bf8a4cf6a07`.
+It uses the existing native HTTP bridge, keeps the local listener disabled, and
+excludes connection credentials and consent from exported settings. See
+[the supported commands and connection lifetime](ott-command-server.md).
+
 This is a historical source build, not a new upstream release. The current
 upstream branch has archived the Android bridge and removed its Gradle packaging
 workflow; see the
 [archived Android build notice](https://github.com/open-ott-play/ottplay-foss/blob/8fd0762/android/README.md).
-The Full build does not include subsequent web/iOS changes. Do not run
+Apart from the documented command-server backport, the Full build does not
+include subsequent web/iOS changes. Do not run
 `cap sync android` in the current shared checkout to recreate the old application.
 A future refreshed Capacitor APK needs an explicitly restored and tested build.
 
@@ -236,8 +248,11 @@ git -C /path/to/ottplay-foss archive f8634903aa051592ccf15f675b8d8df3212fe502 | 
 (
   cd private/ottplay-capacitor-build-f863490
   patch -p1 < ../../patches/ottplay-foss-capacitor-startup.patch
+  patch -p1 < ../../patches/ottplay-foss-capacitor-remote-control.patch
   npm ci
   node tests/test_show5_startup.cjs
+  node tests/test_show5_remote.cjs
+  node tests/test_command_server.cjs
   node tests/test_port_engine_lifecycle.cjs
   npm run android:full:release
 )
