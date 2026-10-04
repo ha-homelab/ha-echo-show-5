@@ -14,7 +14,7 @@ or a media catalogue with working search support. A model claiming that music
 has started is not evidence that a player received or executed a command.
 See HA's [custom sentence guide](https://www.home-assistant.io/voice_control/custom_sentences/).
 
-## Conversation bridge 0.1.2
+## Conversation bridge 0.1.3
 
 The system prompt now asks for direct, concise Russian answers to general
 questions. It avoids unsolicited introductions, lists of capabilities and offers
@@ -38,7 +38,8 @@ does not turn an invalid provider response into a successful answer.
 
 ## Background speech and false activation
 
-When the transcript clearly contains an unrelated monologue or fragment with
+The 0.1.3 prompt classifies the transcript before answering, with contrasting
+Russian examples. When the transcript clearly contains an unrelated monologue or fragment with
 no question, request or address to the assistant, the model may return the
 exact final text `[[NO_SPEECH]]`. Only that exact result becomes an empty
 Wyoming `Handled` response. Normal empty responses, partial markers, incomplete
@@ -66,7 +67,7 @@ Run from the reviewed source checkout with the pinned Python dependencies:
 
 ```bash
 python -m unittest discover -s integrations/fcc-voice-backup/tests -v
-docker build --platform linux/amd64 -t fcc-voice-bridge:0.1.2 \
+docker build --platform linux/amd64 -t fcc-voice-bridge:0.1.3 \
   integrations/fcc-voice-backup
 ```
 
@@ -92,3 +93,46 @@ Validate each behavior independently with synthetic inputs:
 
 Unit tests cover the protocol and limits. They do not establish provider quota,
 model classification quality, physical wake-word reliability or audible playback.
+
+## Deployment checkpoint: 2026-10-04
+
+Wyoming Describe reported 0.1.2 after a bridge-only rollout. An immutable code
+overlay on the previously cached runtime was necessary because the worker's
+container image import was timing out; the source and dependencies were checked.
+The self-healing repository records this temporary recovery path and its rollback.
+
+Synthetic Assist requests reached the FCC model again after an independently
+recreated HA pod finished registering its conversation engine. A factual question
+completed in 16.522 seconds; a request for a basic legal definition, including
+cloud TTS, completed in 20.509 seconds without an unrelated setup offer or blanket
+topic refusal. These are individual observations under load, not latency targets.
+The factual answer contained a contradiction despite its correct opening, and
+the definition had awkward wording. The first background-speech probe still
+produced an unwanted reply. This led to the classification-first 0.1.3 prompt.
+
+Six bounded classification checks of that prompt passed: the previously failing
+narrative was silent twice, a new narrative and isolated “can” were silent, and
+a question and implied music request were answered. Observed response times
+ranged from 8.096 to 29.972 seconds. A definition response nevertheless included
+an incorrect legal citation. Classification improved; these checks do not
+establish factual accuracy or general reliability of the selected small free
+model. Unit tests and transport success must not be presented as answer-quality
+validation.
+
+After deploying 0.1.3, Describe confirmed the new version and the same narrative
+completed through the real Assist pipeline in 19.836 seconds with empty speech.
+The run ended without `tts-start` or `tts-end`. This verifies the end-to-end
+silence protocol for that synthetic case, not a guarantee against all false wakes.
+
+Local origin-aware volume, explicit-target volume, clock and camera commands
+were checked separately and bypassed the external model. Music playback and
+physical wake-word reliability require their own device acceptance; neither is
+established by a successful text response.
+
+A separate synthetic comparison checked the explicitly free Gemma 4 31B route
+listed by FCC and [OpenRouter's endpoint catalogue](https://openrouter.ai/api/v1/models/google/gemma-4-31b-it:free/endpoints).
+Although the catalogue listed an available zero-token-price endpoint, the first
+request exceeded the 30-second deadline (30.931 seconds observed). The comparison
+stopped after that one request; neither answer quality nor suitability was
+established, and the deployed model was not changed. Provider privacy terms also
+need review before a different upstream receives household conversations.
