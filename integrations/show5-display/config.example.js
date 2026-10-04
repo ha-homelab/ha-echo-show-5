@@ -7,12 +7,12 @@ window.SHOW5_DISPLAY_CONFIG = {
   cameras: {
     front: {
       entityId: "camera.replace_me_front",
-      label: "Перед домом",
+      label: "Front",
       motion: { topic: "replace_me/front", payload: "motion" }
     },
     porch: {
       entityId: "camera.replace_me_porch",
-      label: "Крыльцо",
+      label: "Porch",
       motion: { topic: "replace_me/porch", jsonName: "Porch" }
     }
   }

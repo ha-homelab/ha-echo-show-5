@@ -343,10 +343,11 @@ test("decode failure clears a frame and destroy prevents any future activation",
 
 function fakeDocument() {
   const elements = {};
-  for (const id of ["clock-view", "camera-view", "camera-image", "camera-video", "camera-status", "camera-label", "clock-time", "clock-date", "camera-time"]) {
+  for (const id of ["clock-view", "camera-view", "camera-image", "camera-video", "camera-status", "clock-time", "clock-date"]) {
     elements[id] = { hidden: false, textContent: "", listeners: {},
       pause() {},
       classList: { add() {}, remove() {} },
+      setAttribute(name, value) { this[name] = value; },
       removeAttribute(name) { delete this[name]; },
       addEventListener(name, fn) { this.listeners[name] = fn; } };
   }
@@ -354,17 +355,17 @@ function fakeDocument() {
     getElementById(id) { return elements[id]; }, addEventListener(name, fn) { this.listeners[name] = fn; } };
 }
 
-test("DOM view treats labels as text and clears the image source on removal", () => {
+test("DOM view keeps camera labels accessible and clears the image source on removal", () => {
   const doc = fakeDocument(); const view = createView(doc);
   view.showCamera('<img src="https://example.invalid">');
-  assert.equal(doc.elements["camera-label"].textContent, '<img src="https://example.invalid">');
-  assert.equal(doc.elements["camera-label"].innerHTML, undefined);
+  assert.equal(doc.elements["camera-view"]["aria-label"], '<img src="https://example.invalid">');
+  assert.equal(doc.elements["camera-view"].innerHTML, undefined);
   view.showSnapshot("blob:test");
   view.clearSnapshot();
   assert.equal(doc.elements["camera-image"].src, undefined);
   assert.equal(doc.elements["camera-image"].hidden, true);
   view.showUnavailable();
-  assert.equal(doc.elements["camera-status"].textContent, "Камера недоступна");
+  assert.equal(doc.elements["camera-status"].textContent, "Camera unavailable");
 });
 
 test("offscreen decode is abortable and never mutates the visible image", async () => {
@@ -412,8 +413,8 @@ test("browser bootstrap exposes only the display controls and delegates authenti
 
 test("page assets are local, CSP disallows external scripts and camera CSS preserves aspect", () => {
   const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
-  assert.deepEqual([...html.matchAll(/<script src="([^"]+)" defer>/g)].map(x => x[1]), ["config.js?v=20261004-r5", "stream.js?v=20261004-r5", "auth.js?v=20261004-r5", "display.js?v=20261004-r5"]);
-  assert.match(html, /href="display.css\?v=20261004-r5"/);
+  assert.deepEqual([...html.matchAll(/<script src="([^"]+)" defer>/g)].map(x => x[1]), ["config.js?v=20261004-r6", "stream.js?v=20261004-r6", "auth.js?v=20261004-r6", "display.js?v=20261004-r6"]);
+  assert.match(html, /href="display.css\?v=20261004-r6"/);
   assert.match(html, /default-src 'none'/);
   assert.match(html, /script-src 'self'/);
   assert.match(html, /connect-src 'self'/);
@@ -422,7 +423,7 @@ test("page assets are local, CSP disallows external scripts and camera CSS prese
   assert.match(html, /media-src 'self' blob:/);
   assert.match(html, /<video id="camera-video" autoplay muted playsinline hidden>/);
   const css = fs.readFileSync(path.join(__dirname, "../display.css"), "utf8");
-  assert.match(css, /object-fit:\s*contain/);
+  assert.match(css, /object-fit:\s*cover/);
   assert.doesNotMatch(css, /@import|https?:\/\//);
 });
 

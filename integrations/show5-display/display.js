@@ -23,7 +23,7 @@
     if (typeof input.timeZone !== "string" || input.timeZone.length > 80) {
       throw new Error("Display time zone is invalid");
     }
-    try { new Intl.DateTimeFormat("ru-RU", { timeZone: input.timeZone }); }
+    try { new Intl.DateTimeFormat("en-US", { timeZone: input.timeZone }); }
     catch (_) { throw new Error("Display time zone is invalid"); }
     var mode = input.cameraMode === undefined ? "snapshots" : input.cameraMode;
     if (["snapshots", "webrtc"].indexOf(mode) < 0) { throw new Error("Camera mode is invalid"); }
@@ -34,7 +34,7 @@
       if (!camera || typeof camera.entityId !== "string" || !/^camera\.[a-z0-9_]+$/.test(camera.entityId)) {
         throw new Error("Camera entity is invalid");
       }
-      var label = camera.label === undefined ? (role === "front" ? "Перед домом" : "Крыльцо") : camera.label;
+      var label = camera.label === undefined ? (role === "front" ? "Front" : "Porch") : camera.label;
       if (typeof label !== "string" || !label.trim() || label.length > 80) {
         throw new Error("Camera label is invalid");
       }
@@ -255,8 +255,8 @@
       video: video,
       showClock: function () { camera.hidden = true; clock.hidden = false; },
       showCamera: function (label) {
-        document.getElementById("camera-label").textContent = label;
-        status.textContent = "Загрузка камеры…";
+        camera.setAttribute("aria-label", label);
+        status.textContent = "Loading camera…";
         status.classList.remove("frame-delayed");
         status.hidden = false;
         clock.hidden = true;
@@ -264,7 +264,7 @@
       },
       clearSnapshot: function () { image.hidden = true; image.removeAttribute("src"); },
       clearVideo: function () { if (video) { video.pause(); video.srcObject = null; video.hidden = true; } },
-      showVideoLoading: function () { video.hidden = false; status.textContent = "Подключение камеры…"; status.classList.remove("frame-delayed"); status.hidden = false; },
+      showVideoLoading: function () { video.hidden = false; status.textContent = "Connecting to camera…"; status.classList.remove("frame-delayed"); status.hidden = false; },
       showVideo: function () { video.hidden = false; status.hidden = true; },
       prepareSnapshot: function (url, signal) {
         return new Promise(function (resolve, reject) {
@@ -293,8 +293,8 @@
         });
       },
       showSnapshot: function (url) { image.src = url; image.hidden = false; status.hidden = true; status.classList.remove("frame-delayed"); },
-      showDelayed: function () { status.textContent = "Обновление задерживается"; status.classList.add("frame-delayed"); status.hidden = false; },
-      showUnavailable: function () { status.textContent = "Камера недоступна"; status.classList.remove("frame-delayed"); status.hidden = false; }
+      showDelayed: function () { status.textContent = "Update delayed"; status.classList.add("frame-delayed"); status.hidden = false; },
+      showUnavailable: function () { status.textContent = "Camera unavailable"; status.classList.remove("frame-delayed"); status.hidden = false; }
     };
   }
 
@@ -304,12 +304,11 @@
     try { config = validateConfig(root.SHOW5_DISPLAY_CONFIG); }
     catch (_) { document.documentElement.dataset.configuration = "invalid"; }
     var zone = config ? config.timeZone : undefined;
-    var time = new Intl.DateTimeFormat("ru-RU", { timeZone: zone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
-    var date = new Intl.DateTimeFormat("ru-RU", { timeZone: zone, weekday: "long", day: "numeric", month: "long" });
+    var time = new Intl.DateTimeFormat("en-US", { timeZone: zone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+    var date = new Intl.DateTimeFormat("en-US", { timeZone: zone, weekday: "long", day: "numeric", month: "long" });
     function tick() {
       var instant = new Date();
       document.getElementById("clock-time").textContent = time.format(instant);
-      document.getElementById("camera-time").textContent = time.format(instant);
       document.getElementById("clock-date").textContent = date.format(instant);
     }
     tick();

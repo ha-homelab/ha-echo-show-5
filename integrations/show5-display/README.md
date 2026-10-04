@@ -3,11 +3,15 @@
 This standalone page replaces the full Home Assistant dashboard with a large
 clock. A matching Front or Porch motion event shows that camera for 30 seconds;
 another event renews the lease, and the latest camera wins. Expiry returns to the
-clock. Video and images keep their original aspect ratio with `object-fit: contain`.
+clock. The interface, date and status messages are English. Camera video fills
+the entire screen without a title or clock header. `object-fit: cover` preserves
+proportions and crops the excess at the edges instead of stretching or adding
+borders; timestamps embedded by a camera remain part of its video.
 
-Prepared revision **`20261004-r5`** adds transient-connection recovery and durable
-backup handling. It is source-only and has not been deployed or accepted on the
-physical Show; the observed hardware acceptance below belongs to r4.
+Revision **`20261004-r6`** adds the English, full-screen presentation and includes
+the transient-connection recovery prepared in r5. The static display assets are
+deployed to the second Show. The separate Python integration backup hardening
+from r5 remains a source change; this UI rollout does not reload that patch.
 
 Revision **`20261004-r4`** adds actual camera video through Home Assistant's
 WebRTC API. The example configuration selects `cameraMode: "webrtc"`.
@@ -83,9 +87,9 @@ do not add external scripts, frames or navigation to this authenticated page.
 1. Back up any existing `/config/www/show5-display` directory outside `/config/www`.
 2. Copy the five assets `display.css`, `display.js`, `stream.js`, `auth.js` and the filled `config.js` to
    `/config/www/show5-display/`. Copy the source `index.html` as
-   **`index-20261004-r5.html`**, with all five asset URL versions set to
-   **`?v=20261004-r5`**. Do not copy tests or backup files.
-3. Open `/local/show5-display/index-20261004-r5.html?external_auth=1` in the selected VACA
+   **`index-20261004-r6.html`**, with all five asset URL versions set to
+   **`?v=20261004-r6`**. Do not copy tests or backup files.
+3. Open `/local/show5-display/index-20261004-r6.html?external_auth=1` in the selected VACA
    WebView. Verify the clock and the sanitized `Show5Auth.status()` result.
 4. Configure the selected device's persistent home path as described below.
    A one-time browser navigation alone does not survive VACA Refresh/restart.
@@ -117,7 +121,7 @@ Deploy the patch to the HA configuration volume, validate configuration and
 perform one normal HA Core restart to load changed Python modules. An integration
 reload alone does not reliably import edited Python code. Then edit only the
 intended VACA config entry's options, retaining its existing `ha_url`, and set
-`ha_dashboard` to `/local/show5-display/index-20261004-r5.html`. VACA adds `external_auth=1`.
+`ha_dashboard` to `/local/show5-display/index-20261004-r6.html`. VACA adds `external_auth=1`.
 The entry's existing update listener reloads that entry after saving options.
 
 Check the selected device after VACA Refresh and an app restart. Recheck this
@@ -187,6 +191,11 @@ their object URLs. Select this fallback deliberately and deploy the changed
 configuration under a new release version.
 
 ## Observed deployment, October 4, 2026
+
+The r6 page uses an English date and status text. Both camera video elements
+fill the viewport from (0, 0), without visible titles, a clock header or borders.
+The full-screen crop preserves proportions. Existing motion leases, media
+cleanup and the selected voice pipeline are retained.
 
 Revision `20261004-r4` was deployed to the second converted Show and selected as
 its persistent VACA home path, preserving the other device options. On the real
