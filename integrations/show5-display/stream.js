@@ -221,8 +221,10 @@
         };
         function connectionChanged() {
           if (done) { return; }
-          if (["failed", "closed", "disconnected"].indexOf(pc.connectionState) >= 0 ||
-              ["failed", "closed", "disconnected"].indexOf(pc.iceConnectionState) >= 0) { fail("stream_disconnected"); }
+          // ICE disconnection can recover; startup and frame-progress deadlines
+          // still bound a connection that does not deliver usable video.
+          if (["failed", "closed"].indexOf(pc.connectionState) >= 0 ||
+              ["failed", "closed"].indexOf(pc.iceConnectionState) >= 0) { fail("stream_disconnected"); }
         }
         pc.onconnectionstatechange = pc.oniceconnectionstatechange = connectionChanged;
         pc.ontrack = function (event) {

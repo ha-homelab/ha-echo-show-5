@@ -245,6 +245,45 @@ test("ten seconds without decoder progress closes live video even when currentTi
   assert.equal(h.peers[0].closed, true);
 });
 
+test("transient peer and ICE disconnection can recover without replacing live video", async () => {
+  const h = harness(); const { handle, received } = await h.playing();
+  const peer = h.peers[0], stream = h.video.srcObject;
+  peer.connectionState = "disconnected"; peer.onconnectionstatechange();
+  peer.iceConnectionState = "disconnected"; peer.oniceconnectionstatechange();
+  await h.timers.tick(5000);
+  assert.deepEqual(h.errors, []); assert.equal(received.stopped, false);
+  assert.equal(h.video.srcObject, stream); assert.equal(h.sockets[0].closed, undefined);
+  peer.connectionState = "connected"; peer.onconnectionstatechange();
+  peer.iceConnectionState = "completed"; peer.oniceconnectionstatechange();
+  for (let i = 0; i < 8; i += 1) { peer.frames += 1; await h.timers.tick(1000); }
+  assert.deepEqual(h.errors, []); assert.equal(h.peers.length, 1);
+  assert.equal(h.video.srcObject, stream); assert.equal(received.stopped, false);
+  handle.close(); assert.equal(h.timers.tasks.size, 0);
+});
+
+test("persistent ICE disconnection remains bounded by the decoded-frame deadline", async () => {
+  const h = harness(); const { received } = await h.playing(); const peer = h.peers[0];
+  peer.connectionState = "disconnected"; peer.onconnectionstatechange();
+  peer.iceConnectionState = "disconnected"; peer.oniceconnectionstatechange();
+  await h.timers.tick(9999); assert.deepEqual(h.errors, []);
+  await h.timers.tick(1);
+  assert.deepEqual(h.errors, ["stream_stalled"]); assert.equal(received.stopped, true);
+  assert.equal(peer.closed, true); assert.equal(h.video.srcObject, null);
+  assert.equal(h.timers.tasks.size, 0);
+});
+
+test("terminal peer or ICE state closes media immediately and reports failure once", async () => {
+  for (const state of ["failed", "closed"]) {
+    for (const [property, callback] of [["connectionState", "onconnectionstatechange"], ["iceConnectionState", "oniceconnectionstatechange"]]) {
+      const h = harness(); const { received } = await h.playing(); const peer = h.peers[0];
+      const changed = peer[callback]; peer[property] = state; changed(); changed();
+      assert.deepEqual(h.errors, ["stream_disconnected"]); assert.equal(received.stopped, true);
+      assert.equal(peer.closed, true); assert.equal(h.video.srcObject, null);
+      assert.equal(h.timers.tasks.size, 0);
+    }
+  }
+});
+
 test("post-ready disconnection calls onError once while explicit abort stays quiet", async () => {
   const h = harness(); await h.playing(); const oldClose = h.sockets[0].onclose;
   oldClose(); oldClose(); assert.deepEqual(h.errors, ["stream_signaling_closed"]); assert.equal(h.video.srcObject, null);

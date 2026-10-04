@@ -158,15 +158,24 @@ def plan_patch(root: Path) -> dict[str, tuple[bytes, bytes]]:
     return result
 
 
+def fsync_directory(path: Path) -> None:
+    fd = os.open(str(path), os.O_RDONLY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
 def atomic_write(path: Path, data: bytes, mode: int) -> None:
     fd, temporary = tempfile.mkstemp(prefix=".show5-dashboard-", dir=path.parent)
     try:
         with os.fdopen(fd, "wb") as output:
             output.write(data)
             output.flush()
-            os.fsync(output.fileno())
             os.fchmod(output.fileno(), mode)
+            os.fsync(output.fileno())
         os.replace(temporary, path)
+        fsync_directory(path.parent)
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
@@ -191,11 +200,18 @@ def apply_patch(root: Path, backup: Path) -> dict[str, dict[str, str]]:
         with target.open("xb") as output:
             os.chmod(target, 0o600)
             output.write(old)
+            output.flush()
+            os.fsync(output.fileno())
     manifest_path = backup / "manifest.json"
     with manifest_path.open("x") as output:
         os.chmod(manifest_path, 0o600)
         json.dump(manifest, output, indent=2)
         output.write("\n")
+        output.flush()
+        os.fsync(output.fileno())
+    directories = {backup.parent, backup, *((backup / name).parent for name in changes)}
+    for directory in sorted(directories, key=lambda path: len(path.parts), reverse=True):
+        fsync_directory(directory)
     # Detect edits between initial read and the first write.
     for name, (old, _) in changes.items():
         if safe_file(root, name).read_bytes() != old:
@@ -203,8 +219,8 @@ def apply_patch(root: Path, backup: Path) -> dict[str, dict[str, str]]:
     written = []
     try:
         for name, (_, new) in changes.items():
-            atomic_write(root / name, new, modes[name])
             written.append(name)
+            atomic_write(root / name, new, modes[name])
         for name, (_, new) in changes.items():
             if safe_file(root, name).read_bytes() != new:
                 raise PatchError("Post-write verification failed")
@@ -253,8 +269,8 @@ def restore_backup(root: Path, backup: Path) -> dict[str, dict[str, str]]:
     written = []
     try:
         for name, (_, original) in changes.items():
-            atomic_write(root / name, original, modes[name])
             written.append(name)
+            atomic_write(root / name, original, modes[name])
         for name, (_, original) in changes.items():
             if safe_file(root, name).read_bytes() != original:
                 raise PatchError("Restored source verification failed")

@@ -412,8 +412,8 @@ test("browser bootstrap exposes only the display controls and delegates authenti
 
 test("page assets are local, CSP disallows external scripts and camera CSS preserves aspect", () => {
   const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
-  assert.deepEqual([...html.matchAll(/<script src="([^"]+)" defer>/g)].map(x => x[1]), ["config.js?v=20261004-r4", "stream.js?v=20261004-r4", "auth.js?v=20261004-r4", "display.js?v=20261004-r4"]);
-  assert.match(html, /href="display.css\?v=20261004-r4"/);
+  assert.deepEqual([...html.matchAll(/<script src="([^"]+)" defer>/g)].map(x => x[1]), ["config.js?v=20261004-r5", "stream.js?v=20261004-r5", "auth.js?v=20261004-r5", "display.js?v=20261004-r5"]);
+  assert.match(html, /href="display.css\?v=20261004-r5"/);
   assert.match(html, /default-src 'none'/);
   assert.match(html, /script-src 'self'/);
   assert.match(html, /connect-src 'self'/);

@@ -183,6 +183,70 @@ class DeploymentTests(unittest.TestCase):
             self.assertEqual(dashboard.digest((self.root / name).read_bytes()), manifest[name]["after"])
         self.assertEqual(json.loads((backup / "manifest.json").read_text()), manifest)
 
+    def test_backups_and_directory_entries_are_synced_before_source_mutation(self):
+        backup = self.base / "backup"
+        actual_fsync, actual_write = os.fsync, dashboard.atomic_write
+        synced = set()
+
+        def sync(fd):
+            inode = os.fstat(fd).st_ino
+            paths = [backup.parent, backup, backup / "translations", backup / "manifest.json"]
+            paths.extend(backup / name for name in self.originals)
+            synced.update(path for path in paths if path.exists() and path.stat().st_ino == inode)
+            actual_fsync(fd)
+
+        def write(path, data, mode):
+            required = {backup.parent, backup, backup / "translations", backup / "manifest.json"}
+            required.update(backup / name for name in self.originals)
+            self.assertTrue(required <= synced)
+            actual_write(path, data, mode)
+
+        with patch.object(os, "fsync", side_effect=sync), patch.object(dashboard, "atomic_write", side_effect=write):
+            dashboard.apply_patch(self.root, backup)
+
+    def test_failed_backup_sync_never_mutates_sources(self):
+        for kind in ("file", "directory"):
+            with self.subTest(kind=kind):
+                backup = self.base / ("backup-" + kind)
+                actual_fsync = os.fsync
+
+                def sync(fd):
+                    is_directory = stat.S_ISDIR(os.fstat(fd).st_mode)
+                    if is_directory == (kind == "directory"):
+                        raise OSError("synthetic backup sync failure")
+                    actual_fsync(fd)
+
+                with patch.object(os, "fsync", side_effect=sync), patch.object(dashboard, "atomic_write") as write:
+                    with self.assertRaises(OSError):
+                        dashboard.apply_patch(self.root, backup)
+                    write.assert_not_called()
+                self.assert_unchanged()
+
+    def test_rename_sync_failure_rolls_back_the_current_source_on_apply_and_restore(self):
+        backup = self.base / "backup"
+        actual_sync = dashboard.fsync_directory
+        fail = True
+
+        def sync(path):
+            nonlocal fail
+            if path == self.root and fail:
+                fail = False
+                raise OSError("synthetic rename sync failure")
+            actual_sync(path)
+
+        with patch.object(dashboard, "fsync_directory", side_effect=sync):
+            with self.assertRaises(OSError):
+                dashboard.apply_patch(self.root, backup)
+        self.assert_unchanged()
+        backup = self.base / "second-backup"
+        receipt = dashboard.apply_patch(self.root, backup)
+        fail = True
+        with patch.object(dashboard, "fsync_directory", side_effect=sync):
+            with self.assertRaises(OSError):
+                dashboard.restore_backup(self.root, backup)
+        for name in self.originals:
+            self.assertEqual(dashboard.digest((self.root / name).read_bytes()), receipt[name]["after"])
+
     def test_repeat_apply_refuses_without_touching_already_patched_sources(self):
         dashboard.apply_patch(self.root, self.base / "first")
         before = {name: (self.root / name).read_bytes() for name in self.originals}

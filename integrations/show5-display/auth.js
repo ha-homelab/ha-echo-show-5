@@ -98,7 +98,9 @@
     function reconnect(code) {
       if (code) { lastError = code; }
       closeSocket();
-      clock();
+      // Event transport is separate from the bounded camera session. Keep its
+      // current lease on a transient outage, but fail closed on auth/protocol errors.
+      if (["websocket_closed", "websocket_failed", "websocket_stale", "websocket_timeout"].indexOf(code) < 0) { clock(); }
       if (!canConnect() || reconnectTimer !== null) { return; }
       state = "reconnecting";
       reconnectTimer = setTimer(function () { reconnectTimer = null; connect(); }, retryMs);

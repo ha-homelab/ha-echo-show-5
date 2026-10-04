@@ -330,6 +330,35 @@ test("disconnect reconnects with exponential delay and ignores obsolete socket c
   assert.deepEqual(h.displayed, []);
 });
 
+test("transient MQTT outages preserve the current camera without replaying or renewing motion", async () => {
+  for (const cause of ["closed", "failed", "stale", "timeout"]) {
+    const h = harness(); const socket = await h.ready();
+    h.event(socket, "test/front", "motion");
+    const clocks = h.clocks();
+    if (cause === "closed") { socket.disconnect(); }
+    if (cause === "failed") { socket.onerror(); }
+    if (cause === "stale") { await h.timers.tick(25000); }
+    if (cause === "timeout") { socket.disconnect(); await h.timers.tick(11000); }
+    assert.equal(h.adapter.status().connection, "reconnecting", cause);
+    assert.equal(h.clocks(), clocks, cause);
+    assert.deepEqual(h.displayed, ["front"], cause);
+    h.adapter.destroy();
+  }
+});
+
+test("MQTT authentication or protocol failure still closes an active camera lease", async () => {
+  for (const cause of ["auth_invalid", "protocol"]) {
+    const h = harness(); const socket = await h.ready();
+    h.event(socket, "test/front", "motion");
+    const clocks = h.clocks();
+    if (cause === "auth_invalid") { socket.message({ type: "auth_invalid" }); }
+    else { socket.onmessage({ data: "{" }); }
+    assert.equal(h.clocks(), clocks + 1, cause);
+    assert.equal(socket.closed, true);
+    h.adapter.destroy();
+  }
+});
+
 test("reconnect exponential backoff stops growing at thirty seconds", async () => {
   const h = harness(); h.adapter.start(); h.token(); await flush();
   for (const delay of [1000, 2000, 4000, 8000, 16000, 30000, 30000]) {

@@ -46,7 +46,7 @@ See [the catalog and audio route notes](fcc-audio-models.md). The supplied `~/fc
 anthropic/open_router/liquid/lfm-2.5-2.6b:free
 ```
 
-This route is text-only and currently has zero prompt/completion price. Its provider discloses prompt/output retention for training. The adjacent `no-thinking` alias failed with HTTP 400 because this endpoint requires reasoning; the bridge returns only final text. A Gemma free route returned HTTP 429 and is not configured as a fallback. Catalog names do not guarantee working transport, unlimited capacity or a free account allowance. Never substitute a paid route silently.
+This route is text-only and currently has zero prompt/completion price. Its provider discloses prompt/output retention for training. The adjacent `no-thinking` alias failed with HTTP 400 because this endpoint requires reasoning; the bridge returns only final text. A free-tier Gemma route returned HTTP 429 and is not configured as a fallback. Catalog names do not guarantee working transport, unlimited capacity or a free account allowance. Never substitute a paid route silently.
 
 ## Deploy and recover the FCC services
 

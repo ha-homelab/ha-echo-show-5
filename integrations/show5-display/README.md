@@ -5,6 +5,10 @@ clock. A matching Front or Porch motion event shows that camera for 30 seconds;
 another event renews the lease, and the latest camera wins. Expiry returns to the
 clock. Video and images keep their original aspect ratio with `object-fit: contain`.
 
+Prepared revision **`20261004-r5`** adds transient-connection recovery and durable
+backup handling. It is source-only and has not been deployed or accepted on the
+physical Show; the observed hardware acceptance below belongs to r4.
+
 Revision **`20261004-r4`** adds actual camera video through Home Assistant's
 WebRTC API. The example configuration selects `cameraMode: "webrtc"`.
 The peer receives only video, playback is muted, and the page never requests
@@ -22,7 +26,10 @@ lease. A video's advancing playback clock does not override this stall check.
 Repeated motion renews the existing 30-second lease without restarting healthy
 video. Hiding the page, expiry or switching cameras closes the peer, stops its
 tracks and unsubscribes the HA offer session. Returning to the page shows the
-clock; it does not replay earlier motion.
+clock; it does not replay earlier motion. A transient MQTT transport outage keeps
+the current camera lease without extending it: video has its own authenticated
+connection, and the existing 30-second expiry still applies. Authorization or
+protocol failures and rejected subscriptions return to the clock.
 
 ## Configuration and authentication
 
@@ -76,9 +83,9 @@ do not add external scripts, frames or navigation to this authenticated page.
 1. Back up any existing `/config/www/show5-display` directory outside `/config/www`.
 2. Copy the five assets `display.css`, `display.js`, `stream.js`, `auth.js` and the filled `config.js` to
    `/config/www/show5-display/`. Copy the source `index.html` as
-   **`index-20261004-r4.html`**, with all five asset URL versions set to
-   **`?v=20261004-r4`**. Do not copy tests or backup files.
-3. Open `/local/show5-display/index-20261004-r4.html?external_auth=1` in the selected VACA
+   **`index-20261004-r5.html`**, with all five asset URL versions set to
+   **`?v=20261004-r5`**. Do not copy tests or backup files.
+3. Open `/local/show5-display/index-20261004-r5.html?external_auth=1` in the selected VACA
    WebView. Verify the clock and the sanitized `Show5Auth.status()` result.
 4. Configure the selected device's persistent home path as described below.
    A one-time browser navigation alone does not survive VACA Refresh/restart.
@@ -110,7 +117,7 @@ Deploy the patch to the HA configuration volume, validate configuration and
 perform one normal HA Core restart to load changed Python modules. An integration
 reload alone does not reliably import edited Python code. Then edit only the
 intended VACA config entry's options, retaining its existing `ha_url`, and set
-`ha_dashboard` to `/local/show5-display/index-20261004-r4.html`. VACA adds `external_auth=1`.
+`ha_dashboard` to `/local/show5-display/index-20261004-r5.html`. VACA adds `external_auth=1`.
 The entry's existing update listener reloads that entry after saving options.
 
 Check the selected device after VACA Refresh and an app restart. Recheck this
