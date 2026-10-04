@@ -131,6 +131,40 @@ class VoicePipelineTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn('private.invalid', raw)
         self.assertNotIn('attributes', raw)
 
+    async def test_directory_sync_failure_prevents_ha_write(self):
+        real_sync = voice._fsync_directory
+        for fail_on in (1, 2):
+            with self.subTest(fail_on=fail_on):
+                syncs = []
+
+                def fail_sync(path):
+                    syncs.append(path)
+                    if len(syncs) == fail_on:
+                        raise OSError("synthetic directory sync failure")
+                    real_sync(path)
+
+                with mock.patch.object(voice, "_fsync_directory", side_effect=fail_sync):
+                    with self.assertRaises(OSError if fail_on == 1 else voice.SafeError):
+                        await self.switch()
+                self.assertEqual(self.ha.writes, [])
+                self.assertGreaterEqual(len(syncs), fail_on)
+                self.snapshot.unlink()
+
+    def test_initial_and_replaced_journal_sync_the_directory(self):
+        import stat
+        actual_fsync = os.fsync
+        synced = []
+
+        def observe_fsync(fd):
+            synced.append("directory" if stat.S_ISDIR(os.fstat(fd).st_mode) else "file")
+            actual_fsync(fd)
+
+        with mock.patch.object(os, "fsync", side_effect=observe_fsync):
+            voice.save_snapshot(self.snapshot, {"step": "planned"}, initial=True)
+            voice.save_snapshot(self.snapshot, {"step": "pending"})
+        self.assertEqual(synced, ["file", "directory", "file", "directory"])
+        self.assertEqual(self.journal(), {"step": "pending"})
+
     async def test_idempotent_switch_does_not_write_or_create_snapshot(self):
         result = await self.switch('homeway')
         self.assertTrue(result['noop'])

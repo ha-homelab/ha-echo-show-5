@@ -24,6 +24,18 @@ class ContentTests(unittest.TestCase):
         with self.assertRaises(bridge.BridgeError):
             bridge.Config("https://user:secret@example.org", MODEL)
 
+    def test_gateway_transport_requires_tls_except_local_endpoints(self):
+        for host in ("gateway.example.org", "192.168.1.2", "localhost.example.org",
+                     "gateway.svc.cluster.local.example.org", "[2001:db8::1]"):
+            with self.subTest(host=host):
+                with self.assertRaisesRegex(bridge.BridgeError, "must use HTTPS"):
+                    bridge.Config("http://" + host, MODEL, "synthetic-token")
+                bridge.Config("https://" + host, MODEL, "synthetic-token")
+        for host in ("localhost", "127.0.0.1", "[::1]",
+                     "fcc-voice-gateway.homeassistant.svc.cluster.local"):
+            with self.subTest(host=host):
+                bridge.Config("http://" + host + ":8082", MODEL, "synthetic-token")
+
     def test_normal_alias_does_not_force_mandatory_reasoning_off(self):
         config = bridge.Config("http://localhost:8082", MODEL)
         body = bridge.request_body("Тест", config.model)

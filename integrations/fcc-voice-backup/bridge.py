@@ -50,6 +50,10 @@ class Config:
                 or parsed.username or parsed.password or parsed.query or parsed.fragment
                 or parsed.path not in ("", "/")):
             raise BridgeError("FCC_BASE_URL must be the gateway root without credentials or a path")
+        if parsed.scheme == "http" and not (
+                parsed.hostname in ("localhost", "127.0.0.1", "::1")
+                or parsed.hostname.endswith(".svc.cluster.local")):
+            raise BridgeError("FCC_BASE_URL must use HTTPS outside loopback or the cluster")
         prefixes = ("anthropic/open_router/", "claude-3-freecc-no-thinking/open_router/")
         if (not self.model.startswith(prefixes) or not self.model.endswith(":free")
                 or any(c.isspace() for c in self.model)):

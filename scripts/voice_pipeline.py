@@ -66,6 +66,14 @@ def read_json(path):
         raise SafeError('private_json_read_failed') from None
 
 
+def _fsync_directory(path):
+    fd = os.open(str(path), os.O_RDONLY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
 def save_snapshot(path, value, initial=False):
     path = private_path(path)
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -76,6 +84,7 @@ def save_snapshot(path, value, initial=False):
             stream.write(data)
             stream.flush()
             os.fsync(stream.fileno())
+        _fsync_directory(path.parent)
         return
     fd, temporary = tempfile.mkstemp(prefix='.voice-pipeline-', dir=str(path.parent))
     try:
@@ -84,6 +93,7 @@ def save_snapshot(path, value, initial=False):
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary, path)
+        _fsync_directory(path.parent)
     finally:
         Path(temporary).unlink(missing_ok=True)
 
