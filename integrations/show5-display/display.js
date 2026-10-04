@@ -4,7 +4,8 @@
   var ROLES = ["front", "porch"];
   var REQUEST_MS = 10000;
   var SNAPSHOT_MS = 1000;
-  var FRAME_MAX_AGE_MS = 3000;
+  var FRAME_DELAYED_MS = 5000;
+  var FRAME_MAX_AGE_MS = 15000;
   var MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
   function duration(value) {
@@ -65,11 +66,13 @@
     var pollTimer = null;
     var leaseTimer = null;
     var staleTimer = null;
+    var delayedTimer = null;
     var imageURL = null;
     var failures = 0;
 
     function clearImage() {
       if (staleTimer !== null) { clearTimer(staleTimer); staleTimer = null; }
+      if (delayedTimer !== null) { clearTimer(delayedTimer); delayedTimer = null; }
       view.clearSnapshot();
       if (imageURL !== null) { revokeURL(imageURL); imageURL = null; }
     }
@@ -102,15 +105,17 @@
     function unavailable(token) {
       if (!live(token)) { return; }
       failures += 1;
-      clearImage();
-      view.showUnavailable();
+      // A failed refresh does not invalidate the last decoded image. Its age
+      // deadline remains in force; retries and repeated motion cannot extend it.
+      if (imageURL !== null) { view.showDelayed(); }
+      else { view.showUnavailable(); }
     }
 
     async function pump() {
       pollTimer = null;
       if (!live(sequence) || request !== null) { return; }
       var token = sequence;
-      var item = { controller: new Abort(), timeout: null, timedOut: false };
+      var item = { controller: new Abort(), timeout: null, timedOut: false, url: null };
       request = item;
       item.timeout = setTimer(function () {
         item.timedOut = true;
@@ -124,10 +129,22 @@
             typeof blob.size !== "number" || blob.size <= 0 || blob.size > MAX_IMAGE_BYTES) {
           throw new Error("Snapshot is not a supported image");
         }
-        clearImage();
-        imageURL = createURL(blob);
+        item.url = createURL(blob);
+        if (view.prepareSnapshot) { await view.prepareSnapshot(item.url, item.controller.signal); }
+        if (!live(token) || item.timedOut) { return; }
+        // Decode offscreen before replacing the visible image. Never remove a
+        // good frame while the next download or decode is still in progress.
+        var previousURL = imageURL;
+        view.showSnapshot(item.url);
+        imageURL = item.url;
+        item.url = null;
+        if (previousURL !== null) { revokeURL(previousURL); }
         failures = 0;
-        view.showSnapshot(imageURL);
+        clearTimer(delayedTimer); clearTimer(staleTimer);
+        delayedTimer = setTimer(function () {
+          delayedTimer = null;
+          if (live(token) && imageURL !== null) { view.showDelayed(); }
+        }, FRAME_DELAYED_MS);
         staleTimer = setTimer(function () {
           staleTimer = null;
           if (live(token)) { clearImage(); view.showUnavailable(); }
@@ -135,6 +152,7 @@
       } catch (_) {
         if (!item.timedOut) { unavailable(token); }
       } finally {
+        if (item.url !== null) { revokeURL(item.url); }
         clearTimer(item.timeout);
         if (request === item) { request = null; }
         if (live(sequence)) {
@@ -173,7 +191,7 @@
     }
 
     function snapshotFailed() {
-      if (live(sequence)) { unavailable(sequence); }
+      if (live(sequence)) { clearImage(); unavailable(sequence); }
     }
 
     function destroy() {
@@ -196,13 +214,41 @@
       showCamera: function (label) {
         document.getElementById("camera-label").textContent = label;
         status.textContent = "Загрузка камеры…";
+        status.classList.remove("frame-delayed");
         status.hidden = false;
         clock.hidden = true;
         camera.hidden = false;
       },
       clearSnapshot: function () { image.hidden = true; image.removeAttribute("src"); },
-      showSnapshot: function (url) { image.src = url; image.hidden = false; status.hidden = true; },
-      showUnavailable: function () { status.textContent = "Камера недоступна"; status.hidden = false; }
+      prepareSnapshot: function (url, signal) {
+        return new Promise(function (resolve, reject) {
+          var next = document.createElement("img");
+          var settled = false;
+          function finish(error) {
+            if (settled) { return; }
+            settled = true;
+            signal.removeEventListener("abort", abort);
+            next.onload = next.onerror = null;
+            if (error) { next.removeAttribute("src"); }
+            error ? reject(error) : resolve();
+          }
+          function abort() { finish(new Error("Image preparation aborted")); }
+          if (signal.aborted) { abort(); return; }
+          signal.addEventListener("abort", abort, { once: true });
+          next.decoding = "async";
+          next.src = url;
+          if (typeof next.decode === "function") {
+            next.decode().then(function () { finish(); }, function () { finish(new Error("Image decode failed")); });
+          } else {
+            next.onload = function () { finish(); };
+            next.onerror = function () { finish(new Error("Image decode failed")); };
+            if (next.complete) { finish(next.naturalWidth ? null : new Error("Image decode failed")); }
+          }
+        });
+      },
+      showSnapshot: function (url) { image.src = url; image.hidden = false; status.hidden = true; status.classList.remove("frame-delayed"); },
+      showDelayed: function () { status.textContent = "Обновление задерживается"; status.classList.add("frame-delayed"); status.hidden = false; },
+      showUnavailable: function () { status.textContent = "Камера недоступна"; status.classList.remove("frame-delayed"); status.hidden = false; }
     };
   }
 

@@ -39,19 +39,22 @@ class Timers {
   }
 }
 
-function harness(config = CONFIG) {
+function harness(config = CONFIG, prepareSnapshot) {
   const timers = new Timers();
   const calls = [];
   const created = [];
   const revoked = [];
+  const clears = [];
   const state = { mode: "clock", image: null, status: null, label: null };
   const view = {
     showClock() { state.mode = "clock"; },
     showCamera(label) { state.mode = "camera"; state.label = label; state.status = "loading"; },
-    clearSnapshot() { state.image = null; },
+    clearSnapshot() { clears.push(timers.time); state.image = null; },
     showSnapshot(url) { state.image = url; state.status = null; },
+    showDelayed() { state.status = "delayed"; },
     showUnavailable() { state.status = "unavailable"; }
   };
+  if (prepareSnapshot) { view.prepareSnapshot = prepareSnapshot; }
   const controller = createController({
     config, view, now: () => timers.time, setTimeout: timers.set, clearTimeout: timers.clear,
     createObjectURL(blob) { const url = "blob:test-" + (created.length + 1); created.push({ url, blob }); return url; },
@@ -63,7 +66,7 @@ function harness(config = CONFIG) {
       return pending;
     }
   });
-  return { controller, timers, calls, created, revoked, state };
+  return { controller, timers, calls, created, revoked, clears, state };
 }
 
 test("configuration accepts only named camera entities and ignores auth-owned motion fields", () => {
@@ -161,13 +164,19 @@ test("hiding discards the lease; showing again does not silently resume the came
   assert.equal(h.created.length, 0);
 });
 
-test("a displayed frame expires after three seconds while a subsequent fetch hangs", async () => {
+test("a held frame gets a delay badge at five seconds and expires at fifteen despite repeated motion", async () => {
   const h = harness();
   h.controller.showCamera("front");
   h.calls[0].resolve(goodImage()); await flush();
-  await h.timers.tick(2999);
+  await h.timers.tick(4999);
   assert.equal(h.state.image, "blob:test-1");
   assert.equal(h.calls.length, 2);
+  await h.timers.tick(1);
+  assert.equal(h.state.image, "blob:test-1");
+  assert.equal(h.state.status, "delayed");
+  h.controller.showCamera("front");
+  await h.timers.tick(9999);
+  assert.equal(h.state.image, "blob:test-1");
   await h.timers.tick(1);
   assert.equal(h.state.image, null);
   assert.equal(h.state.status, "unavailable");
@@ -189,20 +198,76 @@ test("the ten-second request deadline aborts, clears state and retries only afte
   assert.equal(h.state.image, "blob:test-1");
 });
 
-test("a failed refresh removes the previous frame immediately and retries with bounded backoff", async () => {
+test("transient refresh failures retain the previous frame and retry with bounded backoff", async () => {
   const h = harness();
   h.controller.showCamera("front");
   h.calls[0].resolve(goodImage()); await flush();
   await h.timers.tick(1000);
   h.calls[1].reject(new Error("private network diagnostics")); await flush();
-  assert.equal(h.state.image, null);
-  assert.equal(h.state.status, "unavailable");
+  assert.equal(h.state.image, "blob:test-1");
+  assert.equal(h.state.status, "delayed");
+  assert.deepEqual(h.revoked, []);
   await h.timers.tick(1000);
   h.calls[2].reject(new Error("second failure")); await flush();
   await h.timers.tick(1999); assert.equal(h.calls.length, 3);
   await h.timers.tick(1); assert.equal(h.calls.length, 4);
   h.calls[3].resolve(goodImage()); await flush();
   assert.equal(h.state.status, null);
+  assert.equal(h.state.image, "blob:test-2");
+  assert.deepEqual(h.revoked, ["blob:test-1"]);
+});
+
+test("three-second downloads with a one-second poll gap never blank a healthy camera", async () => {
+  const h = harness();
+  h.controller.showCamera("front");
+  h.calls[0].resolve(goodImage()); await flush();
+  const initialClears = h.clears.length;
+  for (let i = 1; i <= 4; i++) {
+    await h.timers.tick(1000);
+    await h.timers.tick(3000);
+    assert.equal(h.state.image, "blob:test-" + i);
+    assert.equal(h.state.status, null);
+    h.calls[i].resolve(goodImage()); await flush();
+    assert.equal(h.state.image, "blob:test-" + (i + 1));
+    assert.equal(h.clears.length, initialClears, "valid replacements must not clear the visible frame");
+  }
+});
+
+test("old frame remains until replacement decode completes and bad replacements do not erase it", async () => {
+  const prepared = [];
+  const h = harness(CONFIG, (url, signal) => new Promise((resolve, reject) => prepared.push({url, signal, resolve, reject})));
+  h.controller.showCamera("front");
+  h.calls[0].resolve(goodImage()); await flush();
+  assert.equal(h.state.image, null);
+  prepared[0].resolve(); await flush();
+  assert.equal(h.state.image, "blob:test-1");
+  await h.timers.tick(1000);
+  h.calls[1].resolve(goodImage()); await flush();
+  assert.equal(h.state.image, "blob:test-1");
+  assert.deepEqual(h.revoked, []);
+  prepared[1].reject(new Error("decode failed")); await flush();
+  assert.equal(h.state.image, "blob:test-1");
+  assert.equal(h.state.status, "delayed");
+  assert.deepEqual(h.revoked, ["blob:test-2"]);
+  await h.timers.tick(1000);
+  h.calls[2].resolve(goodImage()); await flush();
+  prepared[2].resolve(); await flush();
+  assert.equal(h.state.image, "blob:test-3");
+  assert.deepEqual(h.revoked, ["blob:test-2", "blob:test-1"]);
+});
+
+test("role change during decode cannot display or leak the old pending frame", async () => {
+  let finish;
+  const h = harness(CONFIG, () => new Promise(resolve => { finish = resolve; }));
+  h.controller.showCamera("front");
+  h.calls[0].resolve(goodImage()); await flush();
+  h.controller.showCamera("porch");
+  assert.equal(h.calls[0].signal.aborted, true);
+  finish(); await flush();
+  assert.equal(h.state.image, null);
+  assert.deepEqual(h.revoked, ["blob:test-1"]);
+  await h.timers.tick(0);
+  assert.equal(h.calls[1].entityId, "camera.porch");
 });
 
 test("newest role wins and an abort-ignoring older response cannot render or overlap", async () => {
@@ -275,6 +340,7 @@ function fakeDocument() {
   const elements = {};
   for (const id of ["clock-view", "camera-view", "camera-image", "camera-status", "camera-label", "clock-time", "clock-date", "camera-time"]) {
     elements[id] = { hidden: false, textContent: "", listeners: {},
+      classList: { add() {}, remove() {} },
       removeAttribute(name) { delete this[name]; },
       addEventListener(name, fn) { this.listeners[name] = fn; } };
   }
@@ -293,6 +359,22 @@ test("DOM view treats labels as text and clears the image source on removal", ()
   assert.equal(doc.elements["camera-image"].hidden, true);
   view.showUnavailable();
   assert.equal(doc.elements["camera-status"].textContent, "Камера недоступна");
+});
+
+test("offscreen decode is abortable and never mutates the visible image", async () => {
+  const doc = fakeDocument();
+  let finish, next;
+  doc.createElement = () => next = { decode() { return new Promise(resolve => { finish = resolve; }); }, removeAttribute(k) { delete this[k]; } };
+  const view = createView(doc);
+  view.showSnapshot("blob:old");
+  const abort = new AbortController();
+  const preparation = view.prepareSnapshot("blob:new", abort.signal);
+  assert.equal(doc.elements["camera-image"].src, "blob:old");
+  abort.abort();
+  await assert.rejects(preparation, /aborted/);
+  assert.equal(next.src, undefined);
+  finish(); await flush();
+  assert.equal(doc.elements["camera-image"].src, "blob:old");
 });
 
 test("browser bootstrap exposes only the display controls and delegates authenticated snapshots", async () => {
@@ -324,8 +406,8 @@ test("browser bootstrap exposes only the display controls and delegates authenti
 
 test("page assets are local, CSP disallows external scripts and camera CSS preserves aspect", () => {
   const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
-  assert.deepEqual([...html.matchAll(/<script src="([^"]+)" defer>/g)].map(x => x[1]), ["config.js?v=20261004-r2", "auth.js?v=20261004-r2", "display.js?v=20261004-r2"]);
-  assert.match(html, /href="display.css\?v=20261004-r2"/);
+  assert.deepEqual([...html.matchAll(/<script src="([^"]+)" defer>/g)].map(x => x[1]), ["config.js?v=20261004-r3", "auth.js?v=20261004-r3", "display.js?v=20261004-r3"]);
+  assert.match(html, /href="display.css\?v=20261004-r3"/);
   assert.match(html, /default-src 'none'/);
   assert.match(html, /script-src 'self'/);
   assert.match(html, /connect-src 'self'/);

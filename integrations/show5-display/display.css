@@ -73,6 +73,14 @@ body { -webkit-user-select: none; user-select: none; }
   padding: 24px;
 }
 
+#camera-status.frame-delayed {
+  inset: auto 10px 10px auto;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 70%);
+  font-size: 14px;
+}
+
 @media (max-height: 300px) {
   #clock-time { font-size: 54vh; }
   #clock-date { font-size: 7vh; margin-top: 10px; }

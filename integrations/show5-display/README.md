@@ -8,8 +8,13 @@ clock. Images keep their original aspect ratio.
 The camera view requests authenticated snapshots at approximately one per second
 after each successful response. It is **not a full-frame-rate video stream**.
 There is no camera audio, microphone capture, external font, UI framework or
-continuous image request while the clock is showing. A failed/stale image is
-cleared, and requests stop when the page is hidden or the lease expires.
+continuous image request while the clock is showing. The last decoded image
+stays visible while its replacement downloads and decodes, including across a
+transient refresh failure. A small delayed-update badge appears after five
+seconds without a replacement or a refresh failure. After 15 seconds without
+a replacement, the old image is cleared and the camera is shown as unavailable.
+Requests stop when the page is hidden or the lease expires; changing cameras
+immediately clears the previous camera's image.
 
 ## Configuration and authentication
 
@@ -47,8 +52,8 @@ do not add external scripts, frames or navigation to this authenticated page.
 1. Back up any existing `/config/www/show5-display` directory outside `/config/www`.
 2. Copy `display.css`, `display.js`, `auth.js` and the filled `config.js` to
    `/config/www/show5-display/`. Copy the source `index.html` as
-   **`index-20261004-r2.html`**. Do not copy tests or backup files.
-3. Open `/local/show5-display/index-20261004-r2.html?external_auth=1` in the selected VACA
+   **`index-20261004-r3.html`**. Do not copy tests or backup files.
+3. Open `/local/show5-display/index-20261004-r3.html?external_auth=1` in the selected VACA
    WebView. Verify the clock and the sanitized `Show5Auth.status()` result.
 4. Configure the selected device's persistent home path as described below.
    A one-time browser navigation alone does not survive VACA Refresh/restart.
@@ -80,7 +85,7 @@ Deploy the patch to the HA configuration volume, validate configuration and
 perform one normal HA Core restart to load changed Python modules. An integration
 reload alone does not reliably import edited Python code. Then edit only the
 intended VACA config entry's options, retaining its existing `ha_url`, and set
-`ha_dashboard` to `/local/show5-display/index-20261004-r2.html`. VACA adds `external_auth=1`.
+`ha_dashboard` to `/local/show5-display/index-20261004-r3.html`. VACA adds `external_auth=1`.
 The entry's existing update listener reloads that entry after saving options.
 
 Check the selected device after VACA Refresh and an app restart. Recheck this
@@ -137,3 +142,23 @@ restored API responses and loaded the reviewed dashboard-option patch. The busy
 main-loop callback was not identified; these checks do not establish multi-day
 HA or Wi-Fi reliability. Keep deployment receipts, device identifiers and camera
 screenshots in ignored private storage.
+
+### Camera flicker correction
+
+The owner subsequently reported a repeating image/unavailable cycle. A device
+trace reproduced it: successful camera downloads took 2.89–3.02 seconds, with a
+further one-second polling delay. The original three-second image expiry
+therefore hid healthy frames for roughly one second between updates. HTTP
+requests succeeded and native authentication stayed connected.
+
+Revision `20261004-r3` keeps the last good image for the bounded interval above,
+decodes its replacement offscreen before swapping it, and preserves the image
+through a transient fetch/decode failure. It does not enable HTTP caching of
+camera responses. Regression tests reproduce three-second downloads, delayed
+decode, transient failures and cancellation during a camera switch. The normal
+30-second motion lease and voice configuration are unchanged.
+
+After deployment, a 15.5-second device trace showed four image loads, a single
+initial loading state and no unavailable/blank intervals between frames. Camera
+responses still took 2.66–2.85 seconds: the improvement came from frame retention
+and replacement, not from assuming that the camera had become faster.
