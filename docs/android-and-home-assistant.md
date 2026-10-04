@@ -144,6 +144,35 @@ Use the following order when Companion cannot connect:
 
 Keep endpoint reachability separate from frontend readiness. The [optional readiness workaround](../integrations/show5-intercom/README.md#optional-companion-readiness-workaround) addresses a measured native handshake delay after the frontend connects. It cannot repair DNS, TLS or authentication failures. Verify those prerequisites before attributing a loading overlay to dashboard performance.
 
+### VACA dashboard says it cannot connect, but the satellite is online
+
+VACA's embedded dashboard uses its own native external-auth session. Its Wyoming
+voice connection can remain healthy while that dashboard displays **Unable to
+connect to Home Assistant**. Check the foreground application first: this error
+can come from VACA even when the official Companion application is not running.
+
+If device-side DNS/TLS/HTTPS work and the VACA satellite is still available in HA,
+use **Settings → Devices & services → the intended VACA device → Refresh**.
+The equivalent HA action is `button.press` for that device's `button.*_refresh`.
+On the Show, a two-finger upward swipe opens VACA Quick Actions; select **Reload**.
+The action reloads VACA's configured HA dashboard and repeats external-auth.
+It does not restart the voice service, clear credentials or change the assistant.
+It may return to the configured dashboard rather than the previously open route.
+See the [integration button](https://github.com/msp1974/ViewAssist_Companion_App/blob/v0.13.4/custom_components/vaca/button.py)
+and [pinned Android refresh implementation](https://github.com/msp1974/ViewAssistCompanionApp/blob/65906aebffd2f39772773b44729b22fd022a1f3c/app/src/main/java/com/msp1974/vacompanion/utils/CustomWebView.kt).
+
+**Observed recovery, October 4, 2026 PDT:** the second converted Show had a loaded
+VACA integration, working Wyoming connection and reachable HTTPS endpoint, while
+its embedded dashboard was stuck during initialization. A page-only reload
+restored authenticated HA WebSocket access and rendered the dashboard. A follow-up
+page inspection still reported the connection active, and the owner confirmed
+that the display worked. The selected FCC
+assistant and wake-word settings were preserved, and VACA retained an unsilenced
+microphone recorder. This supports a dashboard/session initialization failure;
+the original trigger was not established. It is not evidence of a permanent fix
+for every reconnection failure. If refresh does not work, investigate transport
+and authentication before clearing app data or restarting HA.
+
 ## Test Assist with a button first
 
 1. In HA, send a harmless **typed** Assist command to test the selected conversation agent and exposed entities.
