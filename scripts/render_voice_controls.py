@@ -150,7 +150,9 @@ def endpoint_script(c, key, e):
                           ("camera_front", "Показываю переднюю камеру."), ("camera_porch", "Показываю камеру крыльца.")):
         steps = _result("У этого устройства нет настроенного экрана.")
         if remote:
-            steps = [_if("{{ " + state + " in ['playing', 'paused', 'buffering'] }}", [_service("media_player.media_stop", player)]),
+            # A buffering VACA device can report idle while MA still owns a live
+            # stream session. Always tear down an available MA session on handoff.
+            steps = [_if("{{ has_value(" + repr(player) + ") }}", [_service("media_player.media_stop", player)]),
                      _service(remote, mode=mode)] + _result(message, True)
         branches.append({"conditions": "{{ command == " + repr(mode) + " }}", "sequence": steps})
     seq.append({"choose": branches})

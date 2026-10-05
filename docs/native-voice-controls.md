@@ -86,6 +86,11 @@ owned app session before music starts/resumes. Switching to the clock, OTT or a
 camera stops only that Show's MA music first. Screen operations retain the remote
 endpoint's existing camera and application leases. MA music runs until its queue
 finishes, is paused, stopped or replaced; it does not create the direct-URL remote endpoint's lease.
+The handoff sends Stop to the available MA entity even when it reports `idle`:
+VACA buffering can temporarily appear idle while an MA stream session remains
+active. When that entity is missing, unknown or unavailable, screen commands
+remain usable without a music service call. A failed Stop on an available entity
+aborts the handoff instead of reporting success.
 The dashboard Home action alone does not own this MA queue; the voice clock
 command explicitly stops it before invoking Home.
 

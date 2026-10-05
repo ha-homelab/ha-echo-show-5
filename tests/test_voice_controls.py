@@ -180,12 +180,41 @@ class VoiceRuntimeTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.calls, [])
 
     async def test_screen_transition_stops_only_its_own_music_first(self):
-        self.hass.states.async_set("media_player.show_music", "playing")
         self.hass.states.async_set("media_player.dot_music", "playing")
-        await self.request("camera_front")
-        self.assertEqual([c[1] for c in self.calls], ["media_stop", "show_remote"])
-        self.assertEqual(self.calls[0][2]["entity_id"], ["media_player.show_music"])
-        self.assertEqual(self.calls[1][2]["mode"], "camera_front")
+        # Idle is not proof of a closed MA session: VACA reports it while
+        # buffering. Each screen handoff must send Stop through the MA wrapper.
+        for state in ("playing", "paused", "buffering", "idle"):
+            self.hass.states.async_set("media_player.show_music", state)
+            for mode in ("home", "ottplay_native", "camera_front", "camera_porch"):
+                with self.subTest(state=state, mode=mode):
+                    self.calls.clear()
+                    await self.request(mode)
+                    self.assertEqual([c[1] for c in self.calls], ["media_stop", "show_remote"])
+                    self.assertEqual(self.calls[0][2]["entity_id"], ["media_player.show_music"])
+                    self.assertEqual(self.calls[1][2]["mode"], mode)
+
+    async def test_screen_handoff_remains_available_without_music_assistant(self):
+        for state in ("unavailable", "unknown", None):
+            if state is None:
+                self.hass.states.async_remove("media_player.show_music")
+            else:
+                self.hass.states.async_set("media_player.show_music", state)
+            for mode in ("home", "ottplay_native", "camera_front", "camera_porch"):
+                with self.subTest(state=state, mode=mode):
+                    self.calls.clear()
+                    result = await self.request(mode)
+                    self.assertTrue(result.conversation_response)
+                    self.assertEqual([c[1] for c in self.calls], ["show_remote"])
+                    self.assertEqual(self.calls[0][2]["mode"], mode)
+
+    async def test_failed_music_stop_prevents_screen_handoff_success(self):
+        async def fail(call):
+            from homeassistant.exceptions import HomeAssistantError
+            raise HomeAssistantError("Synthetic Stop failure")
+        self.hass.services.async_register("media_player", "media_stop", fail)
+        with self.assertRaises(Exception):
+            await self.request("home")
+        self.assertEqual(self.calls, [])
 
     async def test_transport_and_service_failures_are_not_reported_as_success(self):
         for command, expected in (("pause", "media_pause"), ("resume", "media_play"), ("next", "media_next_track")):
