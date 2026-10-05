@@ -111,7 +111,8 @@ old request was cancelled. Do not accumulate repeated Play requests.
 
 A Music Assistant restart affects its other active players. Before an approved
 restart, refresh a private snapshot with `players/all`, `player_queues/all`, and
-`player_queues/items` for each active queue; paginate when needed. Record the
+`player_queues/items` for every nonempty queue, including paused and idle queues;
+paginate through the complete item list. Record the
 current queue item ID, progress timestamp, volume and group membership. Normal
 MA shutdown stops playback and flushes queue state to its persistent cache.
 This is recovery behavior, not a guarantee after a forced shutdown.
@@ -125,6 +126,29 @@ snapshot and account for its progress timestamp; do not treat an old raw
 playing, preserve previously paused/idle devices and existing group coordinators,
 and verify playback and volume independently. Do not replace a lost household
 queue with this package's default track seed as an automatic recovery shortcut.
+
+### Recovery and playback checkpoint: 2026-10-04
+
+An operator-approved MA-only restart cleared the earlier stalled playlist load.
+The fresh snapshot contained no playing queues. One previously paused household
+queue returned with only one of its 26 items; its exact saved order, current item,
+resume position, volume and mute state were restored. It was left idle and ready
+to resume, rather than started without a request. A narrow reload of the existing
+Home Assistant player provider registered the Show again.
+
+Origin-routed Play, Pause, Resume and Next reached the Show, and the operator
+confirmed audible music. Continuous playback did not pass: sound repeatedly
+lasted about three seconds before a gap. During a bounded capture, the same
+Android AudioTrack paused and resumed without audio-focus loss or new HA service
+commands. The current VACA protocol conflates buffering with idle; explicit
+Media3 buffering was not available in its diagnostic events.
+
+The two-CPU Syn worker had load near 20 and CPU pressure around 95–97%, with
+little memory or I/O pressure in the same sample. This strongly supports CPU
+contention as a contributor, but does not prove which stream stage starved.
+Migration to a local NUC is proposed; the target is not yet identified. Stable
+audible playback must be retested after the move. Do not mark music acceptance
+complete based on successful commands alone.
 
 ## Verification
 
