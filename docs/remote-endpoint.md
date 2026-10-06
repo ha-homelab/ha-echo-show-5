@@ -29,6 +29,10 @@ to ignored private storage. Replace every placeholder before rendering:
   persistent home override separately and keep it pointed at that release.
 - `jitsi_room_url` selects the operator's fixed meeting room; `ottplay_url`
   selects the existing OTT-play web/server installation.
+- `jitsi_auto_join` is an optional boolean, default `false`. For an operator-selected
+  shared room, set it to `true` to skip prejoin/name entry and start with camera
+  and microphone enabled. Android permissions must already allow both. This is
+  a deployment setting, not a caller-supplied action parameter.
 - `app_ids` names the inspected installed packages. The example package names
   are not proof that those apps are installed. `ottplay_native` is optional.
 - `tv_presets` maps short preset keys to fixed labels and approved HTTP(S) media
@@ -117,8 +121,8 @@ For music, use `mode: music` with `audio_media_id` set to an approved audio
 media entity, not to VLC or an OTT player. Alternatively,
 `script.<prefix>_play_audio` exposes HA's media selector and passes the selected
 audio item to the same command with a 30-minute lease.
-`mode: jitsi` opens the configured room
-at prejoin. `mode: home` and `mode: stop` use the same stop/return path. Do not
+`mode: jitsi` opens the configured room using the deployed join policy.
+`mode: home` and `mode: stop` use the same stop/return path. Do not
 pass TV URLs, package names, shell arguments or private cleanup fields in these
 service calls.
 
@@ -161,9 +165,11 @@ These are recovery mechanisms, not proof of recovery on an unreachable device.
 The separate `script.<prefix>_refresh` presses only this endpoint's VACA Refresh
 button; it is not a replacement for Home/Stop cleanup.
 
-Opening Jitsi stops at **prejoin**. A person on the Show chooses whether to join;
-opening the app must not answer or join automatically. Keep the explicit End/Home
-path available and check microphone restoration afterward. See
+By default, opening Jitsi stops at **prejoin**. With `jitsi_auto_join: true`, the
+Video call button instead joins the fixed room immediately with media enabled;
+the rendered dashboard describes that behavior. The second Show uses this policy
+with the operator's shared `/call` room, replacing its separate test room.
+Keep the explicit End/Home path available and check microphone restoration afterward. See
 [native Jitsi calls](jitsi-calls.md) for the separate call handoff and acceptance
 requirements. Launching a room is not proof of a connected two-party call.
 

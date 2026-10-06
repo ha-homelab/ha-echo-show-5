@@ -79,12 +79,14 @@
     function stopVideo() {
       clearTimer(videoRetry); videoRetry = null;
       var item = videoRequest; videoRequest = null;
+      // Mask the surface before abort/close clears its MediaStream. Otherwise
+      // Android can briefly paint its fallback play poster during teardown.
+      if (view.clearVideo) { view.clearVideo(); }
       if (item) {
         clearTimer(item.timeout);
         item.controller.abort();
         if (item.handle) { item.handle.close(); }
       }
-      if (view.clearVideo) { view.clearVideo(); }
     }
 
     function clearImage() {
@@ -265,9 +267,24 @@
         camera.hidden = false;
       },
       clearSnapshot: function () { image.hidden = true; image.removeAttribute("src"); },
-      clearVideo: function () { if (video) { video.pause(); video.srcObject = null; video.hidden = true; } },
-      showVideoLoading: function () { video.hidden = false; status.textContent = "Connecting to camera…"; status.classList.remove("frame-delayed"); status.hidden = false; },
-      showVideo: function () { video.hidden = false; status.hidden = true; },
+      clearVideo: function () {
+        if (video) {
+          video.classList.remove("has-frame");
+          video.hidden = true;
+          video.pause();
+          video.srcObject = null;
+        }
+      },
+      showVideoLoading: function () {
+        // Keep decoding enabled while the surface is transparent. The stream
+        // adapter resolves only after playback and a decoded/presented frame.
+        video.classList.remove("has-frame");
+        video.hidden = false;
+        status.textContent = "Connecting to camera…";
+        status.classList.remove("frame-delayed");
+        status.hidden = false;
+      },
+      showVideo: function () { video.classList.add("has-frame"); video.hidden = false; status.hidden = true; },
       prepareSnapshot: function (url, signal) {
         return new Promise(function (resolve, reject) {
           var next = document.createElement("img");

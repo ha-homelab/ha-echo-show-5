@@ -182,6 +182,21 @@ class RemoteEndpointTests(unittest.TestCase):
         self.assertNotIn("input keyevent", command)
         self.assertNotIn("media_projection", json.dumps(self.package))
 
+    def test_operator_can_select_direct_jitsi_with_media_enabled(self):
+        from render_remote_dashboard import render_dashboard
+        config = dict(self.config, jitsi_auto_join=True,
+                      jitsi_room_url="https://meet.example.invalid/call")
+        command = endpoint.fixed_operations(config)["start_jitsi"]
+        self.assertIn("org.jitsi.meet://meet.example.invalid/call#", command)
+        for setting in ("prejoinConfig.enabled=false", "startWithAudioMuted=false",
+                        "startWithVideoMuted=false", "requireDisplayName=false"):
+            self.assertIn(setting, command)
+        self.assertIn("camera and microphone enabled", json.dumps(render_dashboard(config)))
+        self.assertNotIn("jitsi_auto_join", json.dumps(endpoint.render_package(config)["script"]["show5_fixture_command"]["fields"]))
+        for invalid in ("true", "false", 1, None, []):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                endpoint.render_package(dict(self.config, jitsi_auto_join=invalid))
+
     def test_jitsi_stop_is_confirmed_before_microphone_restore(self):
         branch = next(row for row in self.main["sequence"] if "old_mode == 'jitsi'" in json.dumps(row.get("if", [])))
         self.assertEqual(branch["then"][0]["data"]["operation"], "stop_jitsi")

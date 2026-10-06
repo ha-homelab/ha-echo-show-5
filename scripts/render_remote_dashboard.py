@@ -17,8 +17,11 @@ def render_dashboard(config):
                                'perform_action': 'script.' + p + '_command',
                                'data': dict(mode=mode, **fields)}}
 
+    call_hint = ('Video call joins the configured room immediately with camera and microphone enabled.'
+                 if c.get('jitsi_auto_join', False) else
+                 'Calls open a muted prejoin screen; join on the Show.')
     cards = [
-        {'type': 'markdown', 'content': '# Show remote\nChoose what runs on this display. Calls open a muted prejoin screen; join on the Show. Home ends the session and restores the clock.'},
+        {'type': 'markdown', 'content': '# Show remote\nChoose what runs on this display. ' + call_hint + ' Home ends the session and restores the clock.'},
         {'type': 'grid', 'columns': 3, 'square': False, 'cards': [
             button('Home / Stop', 'home', 'home'),
             button('Front', 'cctv', 'camera_front'),

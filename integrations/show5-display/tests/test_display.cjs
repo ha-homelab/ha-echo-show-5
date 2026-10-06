@@ -346,7 +346,7 @@ function fakeDocument() {
   for (const id of ["clock-view", "camera-view", "camera-image", "camera-video", "camera-status", "clock-time", "clock-date"]) {
     elements[id] = { hidden: false, textContent: "", listeners: {},
       pause() {},
-      classList: { add() {}, remove() {} },
+      classList: { values: new Set(), add(v) { this.values.add(v); }, remove(v) { this.values.delete(v); }, contains(v) { return this.values.has(v); } },
       setAttribute(name, value) { this[name] = value; },
       removeAttribute(name) { delete this[name]; },
       addEventListener(name, fn) { this.listeners[name] = fn; } };
@@ -366,6 +366,46 @@ test("DOM view keeps camera labels accessible and clears the image source on rem
   assert.equal(doc.elements["camera-image"].hidden, true);
   view.showUnavailable();
   assert.equal(doc.elements["camera-status"].textContent, "Camera unavailable");
+});
+
+test("camera startup and retry never reveal a poster, and teardown masks before abort", async () => {
+  const doc = fakeDocument();
+  const view = createView(doc);
+  const video = view.video;
+  const timers = new Timers();
+  const streams = [];
+  const controller = createController({
+    config: { ...CONFIG, cameraMode: "webrtc" }, view,
+    now: () => timers.time, setTimeout: timers.set, clearTimeout: timers.clear,
+    createObjectURL() {}, revokeObjectURL() {},
+    startVideo(entity, element, options) {
+      assert.equal(element, video);
+      assert.equal(video.hidden, false, "the decoder can run during startup");
+      assert.equal(video.classList.contains("has-frame"), false);
+      options.signal.addEventListener("abort", () => {
+        assert.equal(video.hidden, true, "mask before adapter clears its stream");
+        assert.equal(video.classList.contains("has-frame"), false);
+      });
+      return new Promise(resolve => streams.push({ entity, resolve, options }));
+    }
+  });
+  controller.showCamera("front"); await flush();
+  assert.equal(video.classList.contains("has-frame"), false);
+  assert.equal(doc.elements["camera-status"].hidden, false);
+  streams[0].resolve({ close() {} }); await flush();
+  assert.equal(video.classList.contains("has-frame"), true);
+  assert.equal(doc.elements["camera-status"].hidden, true);
+  controller.showCamera("front"); await flush();
+  assert.equal(streams.length, 1, "repeated motion keeps playing video");
+  streams[0].options.onError();
+  assert.equal(video.hidden, true);
+  await timers.tick(5000);
+  assert.equal(streams.length, 2);
+  assert.equal(video.classList.contains("has-frame"), false);
+  controller.showClock();
+  streams[1].resolve({ close() {} }); await flush();
+  assert.equal(video.hidden, true, "a stale frame cannot reveal the poster");
+  assert.equal(video.classList.contains("has-frame"), false);
 });
 
 test("offscreen decode is abortable and never mutates the visible image", async () => {
@@ -413,15 +453,15 @@ test("browser bootstrap exposes only the display controls and delegates authenti
 
 test("page assets are local, CSP disallows external scripts and camera CSS preserves aspect", () => {
   const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
-  assert.deepEqual([...html.matchAll(/<script src="([^"]+)" defer>/g)].map(x => x[1]), ["config.js?v=20261004-r8", "stream.js?v=20261004-r8", "auth.js?v=20261004-r8", "display.js?v=20261004-r8"]);
-  assert.match(html, /href="display.css\?v=20261004-r8"/);
+  assert.deepEqual([...html.matchAll(/<script src="([^"]+)" defer>/g)].map(x => x[1]), ["config.js?v=20261005-r9", "stream.js?v=20261005-r9", "auth.js?v=20261005-r9", "display.js?v=20261005-r9"]);
+  assert.match(html, /href="display.css\?v=20261005-r9"/);
   assert.match(html, /default-src 'none'/);
   assert.match(html, /script-src 'self'/);
   assert.match(html, /connect-src 'self'/);
   assert.match(html, /img-src 'self' blob:/);
   assert.doesNotMatch(html, /https?:\/\/|unsafe-inline|unsafe-eval|<iframe|<audio/);
   assert.match(html, /media-src 'self' blob:/);
-  assert.match(html, /<video id="camera-video" autoplay muted playsinline hidden>/);
+  assert.match(html, /<video id="camera-video" autoplay muted playsinline poster="blank-video.svg\?v=20261005-r9" disableremoteplayback hidden>/);
   const css = fs.readFileSync(path.join(__dirname, "../display.css"), "utf8");
   assert.match(css, /object-fit:\s*cover/);
   assert.doesNotMatch(css, /@import|https?:\/\//);

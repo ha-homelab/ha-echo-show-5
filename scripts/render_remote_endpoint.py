@@ -53,9 +53,11 @@ def validate_config(config):
                 "vaca_media_entity", "vaca_refresh_entity", "jitsi_room_url",
                 "ottplay_url", "app_ids", "tv_presets"}
     if (not isinstance(config, dict) or not required <= set(config)
-            or set(config) - required - {"clock_path"}):
+            or set(config) - required - {"clock_path", "jitsi_auto_join"}):
         raise ValueError("Config must contain the documented bindings only")
     c = copy.deepcopy(config)
+    if "jitsi_auto_join" in c and type(c["jitsi_auto_join"]) is not bool:
+        raise ValueError("jitsi_auto_join must be a boolean")
     if not re.fullmatch(r"[a-z][a-z0-9_]{0,39}", _text(c["prefix"], "prefix")):
         raise ValueError("Invalid entity prefix")
     if not re.fullmatch(r"[A-Z0-9]{12,32}", _text(c["serial"], "serial")):
@@ -115,8 +117,13 @@ def fixed_operations(c):
         operations["probe_" + key] = "pm path " + quoted + " 2>/dev/null | grep -q '^package:'"
         operations["stop_" + key] = "am force-stop " + quoted
     room = urlsplit(c["jitsi_room_url"])
+    attended = "false" if c.get("jitsi_auto_join", False) else "true"
     jitsi_uri = ("org.jitsi.meet://" + room.netloc + room.path
-                 + "#config.prejoinConfig.enabled=true&config.startWithAudioMuted=true&config.startWithVideoMuted=true")
+                 + "#config.prejoinConfig.enabled=" + attended
+                 + "&config.startWithAudioMuted=" + attended
+                 + "&config.startWithVideoMuted=" + attended)
+    if c.get("jitsi_auto_join", False):
+        jitsi_uri += "&config.requireDisplayName=false"
     operations["start_jitsi"] = _launch("-a android.intent.action.VIEW -d " + shlex.quote(jitsi_uri) + " -p " + shlex.quote(apps["jitsi"]))
     operations["start_ottplay"] = _launch("-a android.intent.action.VIEW -d " + shlex.quote(c["ottplay_url"]) + " -p " + shlex.quote(apps["browser"]))
     for key in ("ottplayer", "ottplay_native"):

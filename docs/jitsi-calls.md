@@ -10,6 +10,12 @@ A later navigation check found that repeated Companion deep links retained three
 
 A later check found VACA still running while microphone capture had stopped. Muting/unmuting and an app restart did not establish sustained recovery; a subsequent vendor audio-service restart restored an active recorder. The stop followed a no-text STT error, but source inspection did not establish that error as the cause. This remains an unresolved voice-reliability limitation. See the [audio diagnostic limitation](android-and-home-assistant.md#audio-diagnostic-limitation-on-the-tested-rom): one diagnostic triggered a separate HAL crash and must not be repeated.
 
+> The second Show uses the newer [remote endpoint](remote-endpoint.md). Its
+> operator-selected `jitsi_auto_join: true` policy opens the shared `/call` room
+> with camera and microphone enabled, without prejoin/name entry. The attended
+> prejoin defaults and 120-second lease below describe the separate intercom
+> integration; the remote endpoint uses its own bounded lease (30 minutes by default).
+
 ## Reproduce the artifact
 
 The [pinned manifest](../jitsi-artifact.json) selects **Jitsi Meet 26.0.0**, package `org.jitsi.meet`, version code `26000001`, **armeabi-v7a**, minimum SDK26 and target SDK35. This is the F-Droid signing lineage, distinct from the Play Store app. Do not replace an existing installation from another signing lineage without considering its retained data and settings.

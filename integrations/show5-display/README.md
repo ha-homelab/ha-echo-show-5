@@ -8,6 +8,13 @@ the entire screen without a title or clock header. `object-fit: cover` preserves
 proportions and crops the excess at the edges instead of stretching or adding
 borders; timestamps embedded by a camera remain part of its video.
 
+Revision **`20261005-r9`** removes Android WebView's fallback play-circle poster
+from motion camera playback. An explicit same-origin black poster avoids the
+native graphic, and the video surface stays transparent until the stream adapter
+confirms playback and a decoded/presented frame. Cleanup masks the surface before
+clearing its stream. Video still starts automatically and preserves its aspect
+ratio; the camera view has no clock, title or playback controls.
+
 Revision **`20261004-r8`** adds optional authenticated remote camera commands (`remoteTarget`),
 with manual priority over motion and bounded command expiry. It retains the English,
 full-screen presentation and includes
@@ -36,6 +43,14 @@ clock; it does not replay earlier motion. A transient MQTT transport outage keep
 the current camera lease without extending it: video has its own authenticated
 connection, and the existing 30-second expiry still applies. Authorization or
 protocol failures and rejected subscriptions return to the clock.
+
+On-device validation of r9 on the second Show confirmed both Front (854×480)
+and Porch (1920×1080) presented multiple frames automatically. During Porch
+startup, sampled opacity remained zero until decoded frames existed; the captured
+loading screen contained only the connection status on black, with no play icon.
+Returning to the clock cleared the stream and retained the authenticated event
+connection. These checks invoked the same display controller used by motion,
+without publishing a synthetic motion event.
 
 ## Configuration and authentication
 
@@ -87,11 +102,12 @@ do not add external scripts, frames or navigation to this authenticated page.
 ## Installation
 
 1. Back up any existing `/config/www/show5-display` directory outside `/config/www`.
-2. Copy the five assets `display.css`, `display.js`, `stream.js`, `auth.js` and the filled `config.js` to
+2. Copy the six assets `display.css`, `display.js`, `stream.js`, `auth.js`,
+   `blank-video.svg` and the filled `config.js` to
    `/config/www/show5-display/`. Copy the source `index.html` as
-   **`index-20261004-r8.html`**, with all five asset URL versions set to
-   **`?v=20261004-r8`**. Do not copy tests or backup files.
-3. Open `/local/show5-display/index-20261004-r8.html?external_auth=1` in the selected VACA
+   **`index-20261005-r9.html`**, with all six asset URL versions set to
+   **`?v=20261005-r9`**. Do not copy tests or backup files.
+3. Open `/local/show5-display/index-20261005-r9.html?external_auth=1` in the selected VACA
    WebView. Verify the clock and the sanitized `Show5Auth.status()` result.
 4. Configure the selected device's persistent home path as described below.
    A one-time browser navigation alone does not survive VACA Refresh/restart.
@@ -100,7 +116,7 @@ do not add external scripts, frames or navigation to this authenticated page.
 HA `/local` responses can be cached for 31 days. VACA uses `LOAD_DEFAULT` and
 its Refresh action does not clear the WebView cache. **Every deployed update,
 including a configuration-only change, needs a new entry filename and a new
-version on all five asset URLs in the HTML.** Change the selected entry's home
+version on all six asset URLs in the HTML.** Change the selected entry's home
 path to that new filename after copying the complete release. Keep a private
 backup of the previous complete release; a rollback also needs a fresh release
 ID because the original asset URLs may already be cached. Restarting the app
@@ -123,7 +139,7 @@ Deploy the patch to the HA configuration volume, validate configuration and
 perform one normal HA Core restart to load changed Python modules. An integration
 reload alone does not reliably import edited Python code. Then edit only the
 intended VACA config entry's options, retaining its existing `ha_url`, and set
-`ha_dashboard` to `/local/show5-display/index-20261004-r8.html`. VACA adds `external_auth=1`.
+`ha_dashboard` to `/local/show5-display/index-20261005-r9.html`. VACA adds `external_auth=1`.
 The entry's existing update listener reloads that entry after saving options.
 
 Check the selected device after VACA Refresh and an app restart. Recheck this
