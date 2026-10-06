@@ -231,9 +231,9 @@ its final viewer disconnected; it is not preloaded. A bounded active sample
 added no CPU throttling and stayed below 80 MiB; idle working memory returned
 to about 7 MiB. These short checks are not a sustained capacity benchmark.
 
-The companion infrastructure manifest is
-[`025-go2rtc-show5.yaml`](https://github.com/4alvit/k3s-self-healing/blob/codex/show5-camera-stream/deployments/04-kerberos/025-go2rtc-show5.yaml).
-It reads the existing relay, so the media route includes the HA/relay servers;
+The companion infrastructure manifest is maintained with the operator's
+reviewed deployment configuration. It reads the existing relay, so the media
+route includes the HA/relay servers;
 the distance between the physical camera and Show does not make it a direct
 LAN camera connection. A single unsilenced 16 kHz mono VACA recorder remained
 active after the video checks. These checks do not establish an unattended

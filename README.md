@@ -85,3 +85,14 @@ our OTT-play FOSS Capacitor Android client and separate OTT web/app launchers. G
 `scripts/render_remote_endpoint.py` and its matching phone/desktop dashboard with
 `scripts/render_remote_dashboard.py`. Local URLs, device bindings and downloaded
 APKs stay outside Git.
+
+## Related projects
+
+- [Echo Dot 2 conversion](https://github.com/ha-homelab/ha-echo-dot) documents the
+  EchoLocal voice-satellite route for different hardware. Do not interchange
+  its firmware, backups or USB recovery procedure with this runbook.
+- [Amazon Echo Home Energy](https://github.com/4alvit/amazon-echo-home-voice)
+  is a read-only Alexa skill for an unmodified Echo, with a separate account and
+  deployment setup.
+- [HA Homelab project directory](https://github.com/ha-homelab) lists the other
+  public integrations and hardware guides.
