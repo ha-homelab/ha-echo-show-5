@@ -173,6 +173,13 @@ Keep the explicit End/Home path available and check microphone restoration after
 [native Jitsi calls](jitsi-calls.md) for the separate call handoff and acceptance
 requirements. Launching a room is not proof of a connected two-party call.
 
+On the second Show, the shared-call launch was verified on device: the room
+label was `Call`, the conference timer advanced, local camera video appeared,
+and the microphone action was `Mute microphone` (already enabled). Android
+camera/microphone permissions were granted. No Join or name entry was needed.
+This establishes automatic room entry and local video, not a two-party audio
+quality test. Home/Stop and lease expiry retain the existing cleanup path.
+
 ## OTT-play FOSS on Capacitor
 
 The requested Android client is the Capacitor application from
