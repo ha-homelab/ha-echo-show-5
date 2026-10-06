@@ -76,3 +76,14 @@ python3 -m unittest discover -s tests -v
 ```
 
 The pinned Companion minimal app includes ARMv7 support and does not need GApps. Third-party code and firmware retain their upstream terms; this repository provides metadata and preparation tooling rather than redistributing their binaries.
+
+## Related projects
+
+- [Echo Dot 2 conversion](https://github.com/ha-homelab/ha-echo-dot) documents the
+  EchoLocal voice-satellite route for different hardware. Do not interchange
+  its firmware, backups or USB recovery procedure with this runbook.
+- [Amazon Echo Home Energy](https://github.com/4alvit/amazon-echo-home-voice)
+  is a read-only Alexa skill for an unmodified Echo, with a separate account and
+  deployment setup.
+- [HA Homelab project directory](https://github.com/ha-homelab) lists the other
+  public integrations and hardware guides.
