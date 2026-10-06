@@ -180,6 +180,24 @@ camera/microphone permissions were granted. No Join or name entry was needed.
 This establishes automatic room entry and local video, not a two-party audio
 quality test. Home/Stop and lease expiry retain the existing cleanup path.
 
+The follow-up shared-room test initially showed only local previews. On
+2026-10-05 the operator subsequently confirmed Show-to-Mac video, without a
+configuration change or restart during diagnosis. Show logged VP8 encoding with
+`qualityLimitationReason=bandwidth` and displayed a temporary bandwidth-saving
+video suspension. JVB established ICE and DTLS for both endpoints without SRTP
+authentication failures; later samples showed video forwarding. Reverse
+Mac-to-Show video and two-party audio remain unconfirmed for this session.
+
+Do not treat that recovery as sustained media acceptance. During the failure,
+the shared MP host had load around 60 on 16 CPUs and about 84% CPU pressure.
+JVB used its full 2-CPU quota, was throttled throughout a short sample, reported
+stress 1.11, and some packet-processing delays reached seconds. A later sample
+still reported about 30% incoming loss. This is evidence of server-side
+scheduling pressure alongside bandwidth adaptation, not proof that Wi-Fi or
+WAN bandwidth alone caused the interruption. Preserve the working call while
+reviewing server capacity; a local camera preview and a room timer are not
+proof of delivered media.
+
 ## OTT-play FOSS on Capacitor
 
 The requested Android client is the Capacitor application from
