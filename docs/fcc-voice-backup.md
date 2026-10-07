@@ -2,6 +2,23 @@
 
 **FCC (`fcc-claude`) is the Homeway backup, with its own cloud audio path.** Home Assistant supports keeping both assistants connected. The FCC gateway, conversation bridge and cloud audio adapter run as three small services on the designated worker. Local Whisper/Piper remain stopped and excluded from the active deployment.
 
+**Deployment update, October 3, 2026 PDT:** the operator requested promotion after
+reporting that the Homeway monthly allowance was exhausted. **FCC Russian Backup**
+is now HA's preferred pipeline and the explicit selection for both assistant slots
+of two converted Dot 2 units and the reachable VACA Show. The existing name was
+retained. One unavailable restored Show selector was excluded and must be checked
+after reconnection. Homeway remains registered for manual rollback. The guarded
+switch journal records five selector changes plus the global preference; live
+readback and persisted global preference were verified. Wake-word selections and
+thresholds were preserved. No HA restart or device firmware change was needed.
+
+Fresh synthetic-audio checks completed all FCC stages and downloaded valid answer
+audio, but recognition made word errors. An arithmetic phrase still produced the
+correct answer; a subsequent text-to-voice check returned the requested Russian
+word. These checks establish the route, not acoustic acceptance on the devices.
+The earlier timings and Homeway-primary statements in the validation history
+below describe the pre-promotion tests.
+
 ```mermaid
 flowchart LR
     Echo[Echo microphone] --> HA[HA FCC Assist pipeline]
@@ -79,7 +96,7 @@ All services are internal ClusterIP. Wyoming is unauthenticated. The gateway ing
 ## Switch one or several satellites
 
 
-Keep both Homeway and FCC registered. Select FCC only after checking the complete pipeline described in the cloud-audio guide. The CLI refuses missing/unavailable engines, but registered entity availability is not proof of provider quota or current inference health. Homeway remains the selected primary until an operator deliberately changes a satellite.
+Keep both Homeway and FCC registered. Select FCC only after checking the complete pipeline described in the cloud-audio guide. The CLI refuses missing/unavailable engines, but registered entity availability is not proof of provider quota or current inference health. Changing a satellite or the global preference is an explicit operator choice; the deployment observation above records the October 3 promotion.
 
 The simple UI route is each satellite's **Assistant** select: choose **FCC Russian Backup** to use the standby, or the existing Homeway assistant to return. Choosing HA's global preferred pipeline alone does not override a satellite with an explicit assistant selection. No APK reinstall, firmware update, wake-word retraining or USB connection is needed.
 
