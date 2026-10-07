@@ -177,9 +177,18 @@ def render_package(config):
             explicit += [s + " on [the] " + alias for s in en for alias in e["aliases_en"]]
             triggers.append({"platform": "conversation", "id": command + ":" + key, "command": explicit})
         triggers.append({"platform": "conversation", "id": command + ":origin", "command": ru + en})
+    # The origin wildcard may also match a sentence addressed to another device.
+    # Returning no response lets the explicitly targeted trigger own the reply.
+    target_suffixes = [" на " + alias for e in c["endpoints"].values() for alias in e["aliases_ru"]]
+    target_suffixes += [prefix + alias for e in c["endpoints"].values()
+                        for alias in e["aliases_en"] for prefix in (" on ", " on the ")]
+    target_pattern = "(?:" + "|".join(re.escape(suffix) for suffix in target_suffixes) + ")[.!?…]*$"
     action = [
         {"variables": {"device_routes": devices, "satellite_routes": satellites, "endpoint_services": services,
                        "command": "{{ trigger.id.split(':')[0] }}", "requested": "{{ trigger.id.split(':')[1] }}"}},
+        _if("{{ requested == 'origin' and command == 'volume' and "
+            "(trigger.sentence | default('', true) | lower | trim) is search(" + repr(target_pattern) + ") }}",
+            [{"stop": "Explicit target owns the response"}]),
         {"variables": {"endpoint": "{{ requested if requested != 'origin' else satellite_routes.get(trigger.satellite_id | default('', true), device_routes.get(trigger.device_id | default('', true), '')) }}"}},
         _if("{{ endpoint not in endpoint_services }}", [
             {"set_conversation_response": "Не удалось определить устройство. Укажите, на каком устройстве выполнить команду."},
@@ -197,7 +206,7 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     try:
-        write_private(args.output, render_package(json.loads(args.config.read_text())), root=ROOT)
+        write_private(args.output, render_package(json.loads(args.config.read_text(encoding="utf-8"))), root=ROOT)
     except (ValueError, OSError):
         parser.error("Invalid private bindings or unavailable output; no HA changes were made")
     print("Rendered a private native voice package. No HA changes were made.")

@@ -543,7 +543,7 @@
 +}
 --- /dev/null
 +++ b/src/plugins/command-server.ts
-@@ -0,0 +1,655 @@
+@@ -0,0 +1,641 @@
 +import {
 +    commandEndpointBase,
 +    validCommandEnvelope,
@@ -564,6 +564,7 @@
 +    headers: Record<string, string>;
 +    method: string;
 +    timeoutMs: number;
++    followRedirects?: boolean;
 +    url: string;
 +}
 +
@@ -638,7 +639,7 @@
 +    );
 +}
 +
-+/** Injectable transport keeps the same delivery rules for XHR and native HTTP. */
++/** Injectable transport keeps the same delivery rules for Fetch and native HTTP. */
 +export function createCommandServer(
 +    w: any,
 +    send: (
@@ -1094,20 +1095,8 @@
 +                throw new Error(
 +                    "Enter the server's device access code (32–256 letters, digits, _ or -)."
 +                );
-+            if (
-+                !w.__TAURI__ &&
-+                !(
-+                    w.Capacitor &&
-+                    (typeof w.Capacitor.isNativePlatform !== "function" ||
-+                        w.Capacitor.isNativePlatform())
-+                ) &&
-+                w.location &&
-+                w.location.protocol === "https:" &&
-+                /^http:/.test(config.address)
-+            )
-+                throw new Error(
-+                    "This HTTPS player cannot connect to an HTTP server. Use an HTTPS server or open the player over HTTP."
-+                );
++            if (!/^https:/.test(config.address))
++                throw new Error("Use an HTTPS command server to protect the device access code.");
 +            config.enabled = true;
 +            persist(config);
 +            update("connecting", "Connecting...");
@@ -1133,7 +1122,7 @@
 +    };
 +}
 +
-+/** Browser XHR or an existing native HTTP bridge, with bounded cancellation. */
++/** Redirect-free browser Fetch or native HTTP, with bounded cancellation. */
 +export function createCommandServerTransport(
 +    w: any,
 +    nativeRequest?: (
@@ -1156,40 +1145,37 @@
 +            w.clearTimeout(timer);
 +            complete(response);
 +        }
-+        if (nativeRequest) {
++        // Reject redirects before another request can carry credentials. Checking
++        // responseURL afterward would be too late to prevent an HTTP downgrade.
++        if (!/^https:\/\//i.test(request.url)) {
++            finish();
++        } else if (nativeRequest) {
 +            try {
-+                nativeRequest(request).then(finish, function () {
++                nativeRequest({ ...request, followRedirects: false }).then(finish, function () {
 +                    finish();
 +                });
 +            } catch (_error) {
 +                finish();
 +            }
-+        } else {
++        } else if (typeof w.fetch === "function" && typeof w.AbortController === "function") {
 +            try {
-+                xhr = new w.XMLHttpRequest();
-+                xhr.open(request.method, request.url, true);
-+                xhr.timeout = request.timeoutMs;
-+                for (var name in request.headers)
-+                    if (
-+                        Object.prototype.hasOwnProperty.call(
-+                            request.headers,
-+                            name
-+                        )
-+                    )
-+                        xhr.setRequestHeader(name, request.headers[name]);
-+                xhr.onload = function () {
-+                    finish({ body: xhr.responseText, status: xhr.status });
-+                };
-+                xhr.onerror =
-+                    xhr.ontimeout =
-+                    xhr.onabort =
-+                        function () {
-+                            finish();
-+                        };
-+                xhr.send(request.body || null);
++                var controller = new w.AbortController();
++                xhr = { abort: function () { controller.abort(); } };
++                w.fetch(request.url, {
++                    method: request.method, headers: request.headers,
++                    body: request.body, signal: controller.signal,
++                    redirect: "error", credentials: "omit", cache: "no-store",
++                }).then(function (response: any) {
++                    return response.text().then(function (body: string) {
++                        finish({ body: body, status: response.status });
++                    });
++                }).catch(function () { finish(); });
 +            } catch (_error) {
 +                finish();
 +            }
++        } else {
++            // XHR cannot prevent authenticated redirects; fail closed.
++            finish();
 +        }
 +        return function (): void {
 +            if (done) return;
@@ -1392,7 +1378,7 @@
 +}
 --- /dev/null
 +++ b/tests/test_command_server.cjs
-@@ -0,0 +1,1064 @@
+@@ -0,0 +1,1065 @@
 +const assert = require("node:assert/strict");
 +const fs = require("node:fs");
 +const path = require("node:path");
@@ -1550,7 +1536,7 @@
 +    }
 +    function connect(extra = {}) {
 +        controller.configure({
-+            address: "server.local",
++            address: "https://server.local:8081",
 +            enabled: true,
 +            token,
 +            ...extra,
@@ -1570,10 +1556,10 @@
 +    };
 +}
 +const bareQuery = harness();
-+bareQuery.connect({ address: "server.local?device_id=lounge" });
++bareQuery.connect({ address: "https://server.local:8081?device_id=lounge" });
 +assert.equal(
 +    bareQuery.requests[0].request.url,
-+    "http://server.local:8081/api/webhook/commands?device_id=lounge&delivery=ack"
++    "https://server.local:8081/api/webhook/commands?device_id=lounge&delivery=ack"
 +);
 +bareQuery.respond({
 +    commands: [{ command: "popup_message", id: "scoped", message: "Fixture" }],
@@ -1581,7 +1567,7 @@
 +bareQuery.next();
 +assert.equal(
 +    bareQuery.requests[1].request.url,
-+    "http://server.local:8081/api/webhook/commands/ack?device_id=lounge"
++    "https://server.local:8081/api/webhook/commands/ack?device_id=lounge"
 +);
 +assert.deepEqual(JSON.parse(bareQuery.requests[1].request.body), {
 +    ids: ["scoped"],
@@ -1622,7 +1608,7 @@
 +assert.equal(h.requests[1].request.method, "POST");
 +assert.equal(
 +    h.requests[1].request.url,
-+    "http://server.local:8081/api/webhook/commands/ack"
++    "https://server.local:8081/api/webhook/commands/ack"
 +);
 +assert.deepEqual(JSON.parse(h.requests[1].request.body), {
 +    ids: ["one", "two"],
@@ -1652,7 +1638,7 @@
 +h.respond({ acknowledged: 2, status: "ok" });
 +h.next();
 +const old = h.requests.at(-1);
-+h.connect({ address: "other.local", token: "b".repeat(64) });
++h.connect({ address: "https://other.local", token: "b".repeat(64) });
 +assert.equal(old.aborted, true);
 +old.complete({
 +    body: JSON.stringify({
@@ -1667,7 +1653,7 @@
 +);
 +const latest = h.requests.at(-1);
 +h.controller.configure({
-+    address: "other.local",
++    address: "https://other.local",
 +    enabled: false,
 +    token: "b".repeat(64),
 +});
@@ -1688,12 +1674,12 @@
 +reconnect.next();
 +reconnect.respond({}, 503);
 +reconnect.controller.configure({
-+    address: "server.local",
++    address: "https://server.local:8081",
 +    enabled: false,
 +    token,
 +});
 +assert.equal(reconnect.jobs.size, 0);
-+reconnect.connect({ address: "http://server.local:8081/api/webhook/commands" });
++reconnect.connect({ address: "https://server.local:8081/api/webhook/commands" });
 +reconnect.respond({ commands: [volumeStep] });
 +assert.equal(
 +    reconnect.delivered.length,
@@ -1718,7 +1704,7 @@
 +    2,
 +    "a different device token has its own queue"
 +);
-+reconnect.connect({ address: "other.local", token: "b".repeat(64) });
++reconnect.connect({ address: "https://other.local", token: "b".repeat(64) });
 +reconnect.respond({ commands: [volumeStep] });
 +assert.equal(
 +    reconnect.delivered.length,
@@ -1726,11 +1712,11 @@
 +    "a different endpoint has its own queue"
 +);
 +reconnect.controller.configure({
-+    address: "edited.local",
++    address: "https://edited.local",
 +    enabled: false,
 +    token,
 +});
-+reconnect.connect({ address: "other.local", token: "b".repeat(64) });
++reconnect.connect({ address: "https://other.local", token: "b".repeat(64) });
 +reconnect.respond({ commands: [volumeStep] });
 +assert.equal(
 +    reconnect.delivered.length,
@@ -1788,9 +1774,9 @@
 +assert.equal(invalid.requests.length, 0);
 +assert.equal(invalid.saved.at(-1).enabled, false);
 +const secure = harness("https:");
-+secure.connect();
++secure.connect({ address: "http://server.local" });
 +assert.equal(secure.requests.length, 0);
-+assert.match(secure.controller.status().message, /HTTPS player cannot connect/);
++assert.match(secure.controller.status().message, /HTTPS command server/);
 +secure.connect({ address: "https://server.local" });
 +assert.equal(secure.requests.length, 1);
 +const native = harness("https:");
@@ -1799,8 +1785,17 @@
 +assert.equal(
 +    native.requests.length,
 +    1,
-+    "native HTTP does not use WebView mixed content"
++    "native HTTPS remains available"
 +);
++const cleartextNative = harness();
++cleartextNative.w.Capacitor = { isNativePlatform: () => true };
++cleartextNative.connect({ address: "http://server.local" });
++assert.equal(cleartextNative.requests.length, 0, "native credentials never use HTTP");
++assert.match(cleartextNative.controller.status().message, /HTTPS command server/);
++const oldBareAddress = harness();
++oldBareAddress.connect({ address: "server.local:8081" });
++assert.equal(oldBareAddress.requests.length, 0, "legacy bare addresses require explicit HTTPS");
++
 +const malformed = harness();
 +malformed.connect();
 +malformed.respond([{ command: "exit_player", id: "legacy" }]);
@@ -1938,10 +1933,10 @@
 +    const completed = [];
 +    const transport = createCommandServerTransport(
 +        t.w,
-+        () =>
-+            new Promise((resolve) => {
-+                resolveNative = resolve;
-+            })
++        (value) => {
++            assert.equal(value.followRedirects, false);
++            return new Promise((resolve) => { resolveNative = resolve; });
++        }
 +    );
 +    const request = {
 +        body: '{"ids":["one"]}',
@@ -1951,7 +1946,7 @@
 +        },
 +        method: "POST",
 +        timeoutMs: 8000,
-+        url: "http://host/api/webhook/commands/ack",
++        url: "https://host/api/webhook/commands/ack",
 +    };
 +    const abort = transport(request, (value) => completed.push(value));
 +    abort();
@@ -1966,45 +1961,37 @@
 +    resolveNative({ body: "{}", status: 200 });
 +    await Promise.resolve();
 +    assert.equal(completed.length, 1);
-+    let xhr;
-+    t.w.XMLHttpRequest = class {
-+        constructor() {
-+            xhr = this;
-+            this.headers = {};
-+        }
-+        open(method, url, async) {
-+            Object.assign(this, { async, method, url });
-+        }
-+        setRequestHeader(name, value) {
-+            this.headers[name] = value;
-+        }
-+        send(body) {
-+            this.body = body;
-+        }
-+        abort() {
-+            this.aborted = true;
-+            this.onabort();
-+        }
++    let browserRequest, resolveBrowser, rejectedBrowser, aborted = false;
++    t.w.AbortController = class { constructor() { this.signal = {}; } abort() { aborted = true; } };
++    t.w.fetch = (url, options) => {
++        browserRequest = { url, options };
++        return new Promise((resolve, reject) => { resolveBrowser = resolve; rejectedBrowser = reject; });
 +    };
 +    const browserTransport = createCommandServerTransport(t.w);
-+    const browserAbort = browserTransport(request, (value) =>
-+        completed.push(value)
-+    );
-+    assert.equal(xhr.method, "POST");
-+    assert.equal(xhr.body, request.body);
-+    assert.equal(xhr.headers.Authorization, "Bearer " + token);
-+    assert.equal(xhr.timeout, 8000);
++    const browserAbort = browserTransport(request, (value) => completed.push(value));
++    assert.equal(browserRequest.options.method, "POST");
++    assert.equal(browserRequest.options.body, request.body);
++    assert.equal(browserRequest.options.headers.Authorization, "Bearer " + token);
++    assert.equal(browserRequest.options.redirect, "error");
++    assert.equal(browserRequest.options.credentials, "omit");
 +    browserAbort();
-+    assert.equal(xhr.aborted, true);
++    assert.equal(aborted, true);
 +    assert.equal(completed.length, 1);
 +    browserTransport(request, (value) => completed.push(value));
-+    xhr.status = 403;
-+    xhr.responseText = "denied";
-+    xhr.onload();
++    resolveBrowser({ status: 403, text: () => Promise.resolve("denied") });
++    await new Promise(resolve => setImmediate(resolve));
 +    assert.deepEqual({ ...completed[1] }, { body: "denied", status: 403 });
++    browserTransport(request, (value) => completed.push(value));
++    rejectedBrowser(new TypeError("redirect rejected"));
++    await new Promise(resolve => setImmediate(resolve));
++    assert.equal(completed[2], undefined);
++    const before = browserRequest;
++    browserTransport({ ...request, url: "http://host/api/webhook/commands" }, value => completed.push(value));
++    assert.equal(browserRequest, before, "HTTP is rejected before sending credentials");
++    assert.equal(completed[3], undefined);
 +    assert.equal(t.jobs.size, 0);
 +    console.log(
-+        "PASS command server: ES5, address/auth policy, independent consent, ACK retry/dedup, revocation, backoff, native/XHR cancellation and timeouts"
++        "PASS command server: ES5, address/auth policy, independent consent, ACK retry/dedup, revocation, backoff, native/Fetch cancellation and timeouts"
 +    );
 +})().catch((error) => {
 +    console.error(error);
@@ -2063,7 +2050,7 @@
 +    rpc.next();
 +    assert.equal(
 +        rpc.requests.at(-1).request.url,
-+        "http://server.local:8081/api/responses"
++        "https://server.local:8081/api/responses"
 +    );
 +    rpc.respond({ error: "expired" }, 404);
 +    rpc.next();
@@ -2251,7 +2238,7 @@
 +    });
 +    if (revoke) {
 +        rpc.controller.configure({
-+            address: "server.local",
++            address: "https://server.local:8081",
 +            enabled: false,
 +            token,
 +        });
@@ -2304,7 +2291,7 @@
 +    rpc.respond(envelope);
 +    oldDone({ data: {}, status: "ok" });
 +    rpc.controller.configure({
-+        address: "server.local",
++        address: "https://server.local:8081",
 +        enabled: false,
 +        token,
 +    });
@@ -2421,7 +2408,7 @@
 +                executions === 1
 +                    ? {
 +                          toJSON() {
-+                              rpc.connect({ address: "other.local" });
++                              rpc.connect({ address: "https://other.local" });
 +                              return { volume: 1 };
 +                          },
 +                      }
@@ -2484,7 +2471,7 @@
 +};
 --- /dev/null
 +++ b/tests/test_show5_remote.cjs
-@@ -0,0 +1,118 @@
+@@ -0,0 +1,119 @@
 +const assert = require("node:assert/strict");
 +const fs = require("node:fs");
 +const path = require("node:path");
@@ -2568,6 +2555,7 @@
 +assert.equal(stored.get("commandServerEnabled"), "1");
 +assert.equal(sent.headers.Authorization, "Bearer " + ownToken);
 +assert.equal(sent.method, "GET");
++assert.equal(sent.followRedirects, false);
 +assert.match(sent.url, /delivery=ack$/);
 +assert.ok(!JSON.stringify(client.status()).includes(ownToken));
 +assert.equal(stored.has("sLocalHttpEnabled"), false, "outbound client does not enable the listener");
@@ -2603,3 +2591,109 @@
 +assert.equal(stored.get("ordinary"), "restored");
 +console.log("PASS actual JSON and legacy raw-cloud exports exclude command server secrets; JSON imports cannot grant consent");
 +w.close();
+--- a/android/app/src/main/java/play/ott/foss/StalkerPortalPlugin.kt
++++ b/android/app/src/main/java/play/ott/foss/StalkerPortalPlugin.kt
+@@ -70,7 +70,7 @@
+                 val timeout = (call.getInt("timeoutMs") ?: 15000).coerceAtLeast(1)
+                 conn.connectTimeout = timeout
+                 conn.readTimeout = timeout
+-                conn.instanceFollowRedirects = true
++                conn.instanceFollowRedirects = call.getBoolean("followRedirects", true) ?: true
+ 
+                 var contentTypeFromHeaders = false
+                 if (headersObj != null) {
+--- a/src-tauri/src/commands/http.rs
++++ b/src-tauri/src/commands/http.rs
+@@ -38,6 +38,7 @@
+     body: Option<String>,
+     headers: Option<HashMap<String, String>>,
+     timeout_ms: Option<u64>,
++    follow_redirects: Option<bool>,
+ ) -> Result<HttpResponse, HttpError> {
+     let url =
+         reqwest::Url::parse(url.strip_prefix('@').unwrap_or(&url)).map_err(|error| HttpError {
+@@ -55,6 +56,11 @@
+         timeout: false,
+     })?;
+     let client = reqwest::Client::builder()
++        .redirect(if follow_redirects == Some(false) {
++            reqwest::redirect::Policy::none()
++        } else {
++            reqwest::redirect::Policy::limited(10)
++        })
+         .timeout(Duration::from_millis(timeout_ms.unwrap_or(30000).max(1)))
+         .user_agent("OTT-play-FOSS/1.0")
+         .build()?;
+@@ -130,6 +136,7 @@
+                 ("Content-Type".into(), "text/plain".into()),
+             ])),
+             Some(2000),
++            None,
+         )
+         .await
+         .unwrap();
+@@ -146,10 +153,54 @@
+     }
+ 
+     #[tokio::test]
++    async fn explicit_no_redirect_does_not_forward_authorization() {
++        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
++        let target = TcpListener::bind("127.0.0.1:0").unwrap();
++        target.set_nonblocking(true).unwrap();
++        let url = format!("http://{}/commands", listener.local_addr().unwrap());
++        let redirect = format!("HTTP/1.1 302 Found\r\nLocation: http://{}/capture\r\nContent-Length: 0\r\nConnection: close\r\n\r\n", target.local_addr().unwrap());
++        let server = std::thread::spawn(move || {
++            let (mut stream, _) = listener.accept().unwrap();
++            stream
++                .set_read_timeout(Some(Duration::from_secs(2)))
++                .unwrap();
++            let mut reader = BufReader::new(&mut stream);
++            loop {
++                let mut line = String::new();
++                reader.read_line(&mut line).unwrap();
++                if line == "\r\n" || line.is_empty() {
++                    break;
++                }
++            }
++            stream.write_all(redirect.as_bytes()).unwrap();
++        });
++        let response = proxy_http(
++            url,
++            "GET".into(),
++            None,
++            Some(HashMap::from([(
++                "Authorization".into(),
++                "Bearer synthetic-test".into(),
++            )])),
++            Some(2000),
++            Some(false),
++        )
++        .await
++        .unwrap();
++        assert_eq!(response.status, 302);
++        server.join().unwrap();
++        assert_eq!(
++            target.accept().unwrap_err().kind(),
++            std::io::ErrorKind::WouldBlock
++        );
++    }
++
++    #[tokio::test]
+     async fn rejects_non_http_schemes() {
+         let error = proxy_http(
+             "file:///tmp/playlist".into(),
+             "GET".into(),
++            None,
+             None,
+             None,
+             None,
+--- a/src/plugins/stalker-portal.ts
++++ b/src/plugins/stalker-portal.ts
+@@ -36,6 +36,7 @@
+         body?: string;
+         headers?: Record<string, string>;
+         timeoutMs?: number;
++        followRedirects?: boolean;
+     }): Promise<NativeHttpResponse>;
+     portalRequest(opts: {
+         url: string;

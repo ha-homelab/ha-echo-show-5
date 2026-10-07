@@ -14,6 +14,7 @@ try:
     from homeassistant.bootstrap import async_load_base_functionality
     from homeassistant.config_entries import ConfigEntries
     from homeassistant.core import HomeAssistant, SupportsResponse
+    from homeassistant.helpers.typing import UNDEFINED
     from homeassistant.helpers.script import Script
     from homeassistant.helpers import config_validation as cv
     from homeassistant.setup import async_setup_component
@@ -102,10 +103,10 @@ class VoiceRuntimeTest(unittest.IsolatedAsyncioTestCase):
     async def record(self, call):
         self.calls.append((call.domain, call.service, dict(call.data)))
 
-    async def request(self, command, endpoint="origin", device="1" * 32, satellite=None, level=""):
+    async def request(self, command, endpoint="origin", device="1" * 32, satellite=None, level="", sentence=""):
         script = Script(self.hass, cv.SCRIPT_SCHEMA(self.package["automation"][0]["action"]), "Test native routing", "automation")
         return await script.async_run({"trigger": {"id": command + ":" + endpoint, "device_id": device,
-                                      "satellite_id": satellite, "slots": {"level": level}}})
+                                      "satellite_id": satellite, "slots": {"level": level}, "sentence": sentence}})
 
     async def test_known_origin_and_explicit_target_are_isolated(self):
         for target, device, expected in (("origin", "1" * 32, "media_player.show_music"),
@@ -136,6 +137,26 @@ class VoiceRuntimeTest(unittest.IsolatedAsyncioTestCase):
         for level in ("0", "35", "100"):
             await self.request("volume", level=level)
             self.assertEqual(self.calls[-1][2]["volume_level"], int(level) / 100)
+
+    async def test_explicit_volume_suppresses_origin_wildcard_reply(self):
+        for sentence in ("установи громкость 35 процентов на втором шоу",
+                         "set volume to 35 percent on the second show",
+                         "set volume to 35 on second show",
+                         "Set volume to 35 on second show."):
+            self.calls.clear()
+            result = await self.request("volume", device="2" * 32,
+                                        level="35 процентов на втором шоу", sentence=sentence)
+            self.assertIs(result.conversation_response, UNDEFINED)
+            self.assertEqual(self.calls, [])
+            explicit = await self.request("volume", endpoint="show", device="2" * 32,
+                                          level="35", sentence=sentence)
+            self.assertTrue(explicit.conversation_response)
+            self.assertEqual(self.calls[-1][2]["entity_id"], ["media_player.show_music"])
+        self.calls.clear()
+        result = await self.request("volume", device="2" * 32, level="35",
+                                    sentence="установи громкость 35 процентов")
+        self.assertTrue(result.conversation_response)
+        self.assertEqual(self.calls[-1][2]["entity_id"], ["media_player.dot_music"])
 
     async def test_reuses_plex_queue_without_replacing_or_restarting_playback(self):
         from enum import StrEnum

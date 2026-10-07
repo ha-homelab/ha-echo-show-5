@@ -211,7 +211,9 @@ The compatible local Full build uses the last Capacitor Android source before
 its packaging was removed:
 [`f8634903aa051592ccf15f675b8d8df3212fe502`](https://github.com/open-ott-play/ottplay-foss/commit/f8634903aa051592ccf15f675b8d8df3212fe502).
 The current local build identifies as **OTT-play FOSS Full 1.1.42-show5.2**, version code `10144`, minimum
-API 24 and target API 36. Its Full manifest explicitly permits HTTP LAN sources.
+API 24 and target API 36. Its Full manifest explicitly permits HTTP LAN media sources. The current
+command-server patch separately requires HTTPS and rejects redirects; this
+subsequent source hardening is not part of the historical APK identified below.
 The local HTTP command listener remains disabled. HA launches the fixed
 application package through ADB. This Show build adds the existing
 outbound command-server connection; see [CLI control](ott-command-server.md)

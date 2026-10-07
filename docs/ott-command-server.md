@@ -27,9 +27,11 @@ put the actual UUID, server configuration or access code in this repository.
 into public logs or tickets.
 
 Open **OTTPlay FOSS** from the Show's HA dashboard, then open **Settings → Remote
-control → Command server**. Enter the existing server address and this device's
-access code, and connect. The saved connection resumes when the application
-starts. Disconnect from that same page to stop polling.
+control → Command server**. Enter the existing **HTTPS** server address and this
+device's access code, and connect. Use the final URL with a trusted certificate;
+HTTP addresses and redirects are rejected before forwarding credentials. A bare
+hostname from an older configuration must be replaced by its explicit HTTPS URL. The saved connection resumes when the
+application starts. Disconnect from that same page to stop polling.
 
 ## Available commands
 
@@ -83,7 +85,13 @@ individual observations, not a latency guarantee or a network-loss soak test.
 
 The source checks cover command acknowledgement/retry/cancellation, private
 settings export/import, legacy action responses, startup, playback and Android
-policy. Both patches applied cleanly to a fresh archive of the pinned source;
-the resulting 22 affected files match the signed build. Signing and the Full
+policy. Both original patches applied cleanly to a fresh archive of the pinned
+source; their resulting files matched that signed build. Signing and the Full
 distribution audit passed. Physical audibility and Android reboot recovery were
 not part of this check.
+
+The patch now also requires HTTPS and disables redirects in browser and native
+transports. This later hardening was verified against the pinned source with
+synthetic tests; it is not included in the historical APK described above. No
+new APK or device installation is claimed. Rebuilding requires a new version
+code/name and the existing local signing identity before installation.
