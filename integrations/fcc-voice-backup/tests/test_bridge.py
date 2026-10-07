@@ -16,6 +16,11 @@ spec.loader.exec_module(bridge)
 MODEL = "anthropic/open_router/liquid/lfm-2.5-2.6b:free"
 
 
+def message(text):
+    return {"type": "message", "stop_reason": "end_turn",
+            "content": [{"type": "text", "text": text}]}
+
+
 class ContentTests(unittest.TestCase):
     def test_no_paid_alias_or_credential_url(self):
         for model in ["claude-sonnet", "open_router/openrouter/free", "claude-3-freecc-no-thinking/open_router/google/gemini-2.5-flash"]:
@@ -59,6 +64,60 @@ class ContentTests(unittest.TestCase):
         with self.assertRaises(bridge.BridgeError):
             bridge.response_text({**p, "content": [{"type": "tool_use", "name": "turn_on"}]})
 
+    def test_only_exact_complete_sentinel_means_no_speech(self):
+        sentinel = bridge.NO_SPEECH_SENTINEL
+        self.assertEqual(bridge.response_text(message("\n" + sentinel + "\n")), "")
+        for text in (sentinel + ".", "Текст " + sentinel, sentinel.lower()):
+            self.assertNotEqual(bridge.response_text(message(text)), "")
+        for payload in (message(""), message(" \n "),
+                        {**message(sentinel), "stop_reason": "max_tokens"},
+                        {**message(sentinel), "stop_reason": "tool_use"},
+                        {**message(sentinel), "content": []},
+                        {**message(sentinel), "content": [{"type": "text", "text": None}]},
+                        {**message(sentinel), "content": [{"type": "tool_use", "name": "turn_on"}]}):
+            with self.subTest(payload=payload):
+                with self.assertRaises(bridge.BridgeError):
+                    bridge.response_text(payload)
+
+    def test_sentinel_cannot_silence_obvious_questions_commands_or_greetings(self):
+        for request in ("Какая сегодня погода", "Расскажи про договор аренды",
+                        "Включи музыку", "пожалуйста покажи камеру",
+                        "Привет мышка", "Привет", "Стоп", "Stop", "Завтра будет дождь?",
+                        "Play music", "Can you help", "Кто это"):
+            with self.subTest(request=request):
+                with self.assertRaises(bridge.BridgeError):
+                    bridge.response_text(message(bridge.NO_SPEECH_SENTINEL), request_text=request)
+
+    def test_isolated_function_word_fragments_can_be_silent(self):
+        for request in ("can", "could", "Can.", "who", "и", "как", "можно"):
+            with self.subTest(request=request):
+                self.assertEqual(bridge.response_text(message(bridge.NO_SPEECH_SENTINEL), request_text=request), "")
+
+    def test_complete_long_answers_fit_speech_with_explicit_abbreviation(self):
+        for text in ("Первое предложение. " + "Второе предложение. " * 90,
+                     "слово " * 300):
+            result = bridge.response_text(message(text))
+            self.assertLessEqual(len(result), bridge.MAX_SPOKEN_CHARACTERS)
+            self.assertLessEqual(len(result), 1000)
+            self.assertTrue(result.endswith(" Ответ сокращён."))
+        sentence = "Короткий вывод."
+        result = bridge.response_text(message(sentence + " " + "длинное " * 200))
+        self.assertEqual(result, sentence + " Ответ сокращён.")
+
+    def test_invalid_payloads_are_not_made_valid_by_abbreviation(self):
+        for text in ("а" * (bridge.MAX_GENERATED_CHARACTERS + 1),
+                     "а" * (bridge.MAX_SPOKEN_WORD_CHARACTERS + 1),
+                     "<speak>Привет</speak>", "Текст\x00"):
+            with self.assertRaises(bridge.BridgeError):
+                bridge.response_text(message(text))
+        with self.assertRaises(bridge.BridgeError):
+            bridge.response_text({**message("слово " * 300), "stop_reason": "max_tokens"})
+
+    def test_short_complete_answers_are_preserved(self):
+        for text in ("Лёд легче воды.", "Договор аренды определяет условия пользования имуществом.",
+                     "Команда не выполнена. Уточните устройство."):
+            self.assertEqual(bridge.response_text(message(text)), text)
+
 
 class WireTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -66,6 +125,7 @@ class WireTests(unittest.IsolatedAsyncioTestCase):
         self.status = 200
         self.delay = 0
         self.huge = False
+        self.payload = message("Лёд легче воды.")
 
         async def receive(request):
             self.calls.append({"body": await request.json(), "auth": request.headers.get("Authorization")})
@@ -74,7 +134,7 @@ class WireTests(unittest.IsolatedAsyncioTestCase):
                 return web.Response(status=self.status, text="upstream-secret-detail")
             if self.huge:
                 return web.Response(body=b"x" * (bridge.MAX_RESPONSE_BYTES + 1))
-            return web.json_response({"type": "message", "stop_reason": "end_turn", "content": [{"type": "text", "text": "Лёд легче воды."}]})
+            return web.json_response(self.payload)
 
         app = web.Application()
         app.router.add_post("/v1/messages", receive)
@@ -127,6 +187,33 @@ class WireTests(unittest.IsolatedAsyncioTestCase):
         self.huge = True
         with self.assertRaises(bridge.BridgeError):
             await self.client.ask("Тест")
+
+    async def test_wyoming_sentinel_is_successful_empty_speech_not_error(self):
+        self.payload = message(bridge.NO_SPEECH_SENTINEL)
+        handler = object.__new__(bridge.Handler)
+        handler.client = self.client
+        events = []
+        async def write(event): events.append(event)
+        handler.write_event = write
+        self.assertTrue(await handler.handle_event(Transcript(text="И дальше шёл фоновый рассказ.").event()))
+        self.assertEqual(events[-1].type, "handled")
+        self.assertEqual(events[-1].data["text"], "")
+        self.assertFalse(self.client._busy)
+        # A provider choosing silence for a direct command is not accepted.
+        self.assertFalse(await handler.handle_event(Transcript(text="Включи музыку").event()))
+        self.assertEqual(events[-1].type, "error")
+
+    async def test_questions_and_commands_reach_model_without_keyword_filtering(self):
+        for request in ("Что такое договор аренды?", "Включи музыку", "Привет мышка"):
+            self.assertEqual(await self.client.ask(request), "Лёд легче воды.")
+            self.assertEqual(self.calls[-1]["body"]["messages"], [{"role": "user", "content": request}])
+
+    async def test_background_speech_is_not_dropped_without_provider_sentinel(self):
+        request = "Вечером соседи сидели во дворе и обсуждали поездку на дачу."
+        self.payload = message("Обычный ответ модели.")
+        self.assertEqual(await self.client.ask(request), "Обычный ответ модели.")
+        self.assertEqual(len(self.calls), 1)
+        self.assertEqual(self.calls[0]["body"]["messages"], [{"role": "user", "content": request}])
 
     async def test_wyoming_describe_and_transcript(self):
         handler = object.__new__(bridge.Handler)

@@ -1,0 +1,22 @@
+{
+  "prefix": "household_voice",
+  "plex_provider": "plex--configured-provider",
+  "default_tracks": ["plex--configured-provider://track//library/metadata/12345"],
+  "endpoints": {
+    "show_two": {
+      "devices": ["11111111111111111111111111111111"],
+      "satellites": ["assist_satellite.example_show_two"],
+      "aliases_ru": ["втором шоу"],
+      "aliases_en": ["second show"],
+      "music_entity": "media_player.example_show_two_music_assistant",
+      "remote_script": "script.example_show_two_command"
+    },
+    "dot_one": {
+      "devices": ["22222222222222222222222222222222"],
+      "satellites": ["assist_satellite.example_dot_one"],
+      "aliases_ru": ["первом эхо"],
+      "aliases_en": ["first echo"],
+      "music_entity": "media_player.example_dot_one_music_assistant"
+    }
+  }
+}

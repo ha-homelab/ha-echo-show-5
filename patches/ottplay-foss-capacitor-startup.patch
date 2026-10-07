@@ -1,0 +1,258 @@
+--- a/android/app/build.gradle
++++ b/android/app/build.gradle
+@@ -81,8 +81,8 @@
+         applicationId "play.ott.foss"
+         minSdkVersion rootProject.ext.minSdkVersion
+         targetSdkVersion rootProject.ext.targetSdkVersion
+-        versionCode 10142
+-        versionName "1.1.42"
++        versionCode 10143
++        versionName "1.1.42-show5.1"
+         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+         aaptOptions {
+              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "ottplay-foss",
+-  "version": "1.1.42",
++  "version": "1.1.42-show5.1",
+   "description": "OTT-play FOSS - IPTV/OTT set-top-box player",
+   "type": "module",
+   "scripts": {
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,12 +1,12 @@
+ {
+   "name": "ottplay-foss",
+-  "version": "1.1.42",
++  "version": "1.1.42-show5.1",
+   "lockfileVersion": 3,
+   "requires": true,
+   "packages": {
+     "": {
+       "name": "ottplay-foss",
+-      "version": "1.1.42",
++      "version": "1.1.42-show5.1",
+       "dependencies": {
+         "@capacitor/android": "8.5.2",
+         "@capacitor/app": "8.1.1",
+--- a/src/core/index.ts
++++ b/src/core/index.ts
+@@ -1558,6 +1558,19 @@
+     window.close();
+ }
+ 
++/** Keep Android WebView's fallback play poster out of the media surface. */
++function configurePlainVideoSurface(media: HTMLVideoElement): void {
++    // An absent/empty poster asks WebChromeClient for its default graphic.
++    // Use an explicit transparent pixel instead; decoded frames still replace it.
++    media.poster =
++        "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
++    media.controls = false;
++    media.setAttribute("playsinline", "");
++    media.setAttribute("disableremoteplayback", "");
++    media.setAttribute("controlslist", "noremoteplayback");
++    (media as any).disableRemotePlayback = true;
++}
++
+ /**
+  * Initialise the STB player: inject video DOM elements, attach event handlers,
+  * go fullscreen, and set the global key handler.
+@@ -1604,6 +1617,7 @@
+             );
+         }
+         video = document.getElementById("video") as HTMLVideoElement;
++        configurePlainVideoSurface(video);
+         try {
+             // Intrinsic size arrives async; re-center contain letterbox once known.
+             video!.addEventListener("loadedmetadata", function () {
+@@ -1738,6 +1752,7 @@
+             }
+         }, 1000);
+         videoPip = document.getElementById("videopip") as HTMLVideoElement;
++        configurePlainVideoSurface(videoPip);
+         videoPip!.addEventListener("loadstart", function () {
+             if (videoPip!.style.display != "none") $("#pip_buffering").show();
+         });
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -1704,7 +1704,7 @@
+  * the full startup chain (onStbReady → language → provider).
+  *
+  * Side effects: Resets storage, calls uiInit(), stbInit(), wires
+- * window.onkeydown, calls onStbReady(). Appends version and icon to
++ * window.onkeydown, calls onStbReady(). Appends version information to
+  * the #launch element.
+  *
+  * Edge case: Wrapped in try/catch — exceptions are displayed in #launch.
+@@ -1741,16 +1741,9 @@
+     try {
+         console.log("startPlayer");
+ 
+-        // OTTPLAY_FULL_ONLY_BEGIN
+-        if (launchEl && !isPlayDistribution()) {
+-            launchEl.innerHTML +=
+-                '<img src="' +
+-                hostUrl +
+-                "/stbPlayer/icon.png?" +
+-                PLAYER_VERSION +
+-                '" style="position: absolute; left: 100px; bottom:100px;" height="30%" alt=""/>';
+-        }
+-        // OTTPLAY_FULL_ONLY_END
++        // Small displays use the existing text boot status. A decorative player
++        // image obscures the playback surface and can look like a play button.
++        // Buffering and playback failures retain their ordinary status UI.
+ 
+         storage.reset();
+ 
+--- a/tests/android_provider_policy.cjs
++++ b/tests/android_provider_policy.cjs
+@@ -726,7 +726,7 @@
+ for (const flavor of ["full", "play"]) {
+     test(
+         flavor +
+-            " actual startup renders its version and completes initialization with the correct logo policy",
++            " actual startup renders its version and completes initialization without a startup image",
+         () => {
+             const f = startupFixture(flavor);
+             try {
+@@ -745,14 +745,9 @@
+                 ]);
+                 assert.deepEqual(f.errors, []);
+                 const images = Array.from(launch.querySelectorAll("img"));
+-                assert.equal(images.length, flavor === "full" ? 1 : 0);
+-                if (flavor === "full")
+-                    assert.equal(
+-                        images[0].src,
+-                        "https://localhost/stbPlayer/icon.png?42.7.fixture"
+-                    );
+-                // Inspect actual emitted string literals, alongside live DOM. A
+-                // hidden or unreachable request must not remain in Play JavaScript.
++                assert.equal(images.length, 0);
++                // Inspect emitted literals too: hiding the image with CSS alone
++                // would still request it and regress the compact startup surface.
+                 const parsed = ts.createSourceFile(
+                     "startup.js",
+                     startupProfiles[flavor],
+@@ -769,7 +764,7 @@
+                     ts.forEachChild(node, visit);
+                 }
+                 visit(parsed);
+-                assert.equal(iconLiterals.length, flavor === "full" ? 1 : 0);
++                assert.equal(iconLiterals.length, 0);
+                 acorn.parse(startupProfiles[flavor], { ecmaVersion: 5 });
+             } finally {
+                 f.close();
+--- a/tests/test_port_engine_lifecycle.cjs
++++ b/tests/test_port_engine_lifecycle.cjs
+@@ -404,6 +404,22 @@
+     });
+     assert.equal(players[0].removed, undefined);
+ });
++test("requested HLS starts when ready without a second press and preserves a later pause", () => {
++    const { w, players } = fixture();
++    w.playerMode = 1;
++    w.stbPlay("first.m3u8");
++    assert.equal(w.video.playCalls, 0, "wait for the requested stream manifest");
++    players[0].events.manifest();
++    assert.equal(w.video.playCalls, 1, "start automatically when ready");
++    w.stbPause();
++    players[0].events.manifest();
++    assert.equal(w.video.playCalls, 1, "manifest refresh must preserve user pause");
++    w.stbPlay("second.m3u8");
++    players[0].events.manifest();
++    assert.equal(w.video.playCalls, 1, "stale stream must not start playback");
++    players[1].events.manifest();
++    assert.equal(w.video.playCalls, 2, "newly requested channel starts when ready");
++});
+ (async () => {
+     let failures = 0;
+     for (const [name, fn] of cases) {
+--- /dev/null
++++ b/tests/test_show5_startup.cjs
+@@ -0,0 +1,83 @@
++const assert = require("node:assert/strict");
++const fs = require("node:fs");
++const path = require("node:path");
++const vm = require("node:vm");
++const ts = require("typescript");
++const { JSDOM } = require("jsdom");
++const root = path.resolve(__dirname, "..");
++const ast = ts.createSourceFile("index.ts", fs.readFileSync(path.join(root, "src/index.ts"), "utf8"), ts.ScriptTarget.Latest, true);
++const entry = ast.statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === "startPlayer");
++assert.ok(entry, "production entry point exists");
++const script = ts.transpileModule(entry.getText(ast).replace(/^export /, ""), {
++    compilerOptions: { target: ts.ScriptTarget.ES5, module: ts.ModuleKind.None },
++}).outputText;
++function boot(failure) {
++    const dom = new JSDOM('<div id="launch"><span id="boot-status">Starting…</span></div>', { url: "https://localhost" });
++    const calls = [];
++    const context = {
++        window: dom.window,
++        document: dom.window.document,
++        hostUrl: "",
++        PLAYER_VERSION: "test",
++        console: { log() {}, error() {} },
++        onPlayerStart() { calls.push("start"); },
++        storage: { reset() { calls.push("storage"); } },
++        uiInit() { if (failure) throw new Error("Synthetic startup failure"); calls.push("ui"); },
++        initBackgroundIntervals() { calls.push("intervals"); },
++        stbInit() { calls.push("media"); return true; },
++        onStbReady() { calls.push("ready"); },
++    };
++    vm.createContext(context);
++    vm.runInContext(script + "\nstartPlayer();", context);
++    return { dom, calls };
++}
++const normal = boot(false);
++assert.deepEqual(normal.calls, ["start", "storage", "ui", "intervals", "media", "ready"]);
++assert.equal(normal.dom.window.document.querySelectorAll("#launch img").length, 0, "startup must not insert a decorative play/logo image");
++assert.equal(normal.dom.window.document.querySelector("#boot-status").textContent, "Starting…", "real boot progress remains visible");
++const failed = boot(true);
++assert.match(failed.dom.window.document.querySelector("#launch").textContent, /Synthetic startup failure/, "startup errors remain visible");
++assert.ok(!failed.calls.includes("ready"), "failed startup must not report media ready");
++console.log("PASS Show5 startup has no decorative image and preserves progress/errors");
++
++// Run the production media bootstrap, including its real loading/error handlers.
++// A missing/empty HTML poster falls back to WebChromeClient's large play graphic.
++const coreAst = ts.createSourceFile("core.ts", fs.readFileSync(path.join(root, "src/core/index.ts"), "utf8"), ts.ScriptTarget.Latest, true);
++const coreBootstrap = coreAst.statements.filter((node) => ts.isFunctionDeclaration(node) && ["configurePlainVideoSurface", "stbInit"].includes(node.name?.text)).map((node) => node.getText(coreAst).replace(/^export /, "")).join("\n");
++const mediaDom = new JSDOM('<div id="buffering"></div><div id="video_res"></div><div id="pip_buffering"></div>', { runScripts: "dangerously", url: "https://localhost" });
++const w = mediaDom.window;
++w.eval(fs.readFileSync(path.join(root, "js/jquery-1.11.1.min.js"), "utf8"));
++const errors = [];
++Object.assign(w, {
++    video: null, videoPip: null, playerMode: 1,
++    videoEvent() {}, stbToFullScreen() {}, installTauriFsKeyCapture() {},
++    setInterval() { return 1; },
++});
++w.console.error = (error) => errors.push(error);
++w.eval(ts.transpileModule(coreBootstrap, { compilerOptions: { target: ts.ScriptTarget.ES5, module: ts.ModuleKind.None } }).outputText);
++w.stbInit();
++assert.deepEqual(errors, [], "media bootstrap succeeds");
++for (const id of ["video", "videopip"]) {
++    const media = w.document.getElementById(id);
++    assert.match(media.poster, /^data:image\/gif;base64,/, "explicit embedded poster suppresses the platform default");
++    const gif = Buffer.from(media.poster.split(",")[1], "base64");
++    assert.equal(gif.readUInt16LE(6), 1);
++    assert.equal(gif.readUInt16LE(8), 1);
++    const gce = gif.indexOf(Buffer.from([0x21, 0xf9, 0x04]));
++    assert.ok(gce >= 0 && (gif[gce + 3] & 1), "poster pixel is transparent");
++    assert.equal(media.controls, false, "keep OTTPlay's custom controls");
++    assert.equal(media.disableRemotePlayback, true);
++    assert.ok(media.hasAttribute("disableremoteplayback"));
++    assert.ok(media.hasAttribute("playsinline"));
++}
++assert.equal(w.video.style.objectFit, "contain", "video retains its natural aspect ratio");
++w.video.dispatchEvent(new w.Event("loadstart"));
++assert.notEqual(w.document.getElementById("buffering").style.display, "none");
++w.video.dispatchEvent(new w.Event("playing"));
++assert.equal(w.document.getElementById("buffering").style.display, "none");
++Object.defineProperty(w.video, "error", { value: { code: 4, message: "Synthetic unsupported stream" } });
++w.video.dispatchEvent(new w.Event("error"));
++assert.match(w.document.getElementById("video_res").textContent, /error 4 SRC_NOT_SUPPORTED/);
++assert.equal(w.document.querySelectorAll("#vdiv img").length, 0);
++w.close();
++console.log("PASS Show5 video has transparent posters, no Cast overlay, and visible loading/errors");

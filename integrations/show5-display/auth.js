@@ -13,6 +13,9 @@
 
   function configuration(input) {
     if (!input || !input.cameras || typeof input.cameras !== "object") { throw failure("invalid_configuration"); }
+    if (input.remoteTarget !== undefined && (typeof input.remoteTarget !== "string" || !/^[a-z0-9_]{1,48}$/.test(input.remoteTarget))) {
+      throw failure("invalid_configuration");
+    }
     var entities = new Set();
     var rules = [];
     Object.keys(input.cameras).forEach(function (role) {
@@ -32,7 +35,8 @@
       if (typeof value !== "string" || !value || value.length > 1024) { throw failure("invalid_configuration"); }
       rules.push(Object.freeze({ role: role, topic: motion.topic, payload: motion.payload, jsonName: motion.jsonName }));
     });
-    return { entities: entities, rules: rules, topics: Array.from(new Set(rules.map(function (rule) { return rule.topic; }))) };
+    return { entities: entities, rules: rules, roles: Object.keys(input.cameras), remoteTarget: input.remoteTarget,
+      topics: Array.from(new Set(rules.map(function (rule) { return rule.topic; }))) };
   }
 
   function createAdapter(options) {
@@ -46,6 +50,7 @@
     var Abort = options.AbortController || root.AbortController;
     var BlobType = options.Blob || root.Blob;
     var now = options.now || function () { return root.performance.now(); };
+    var wallNow = options.wallNow || function () { return Date.now() / 1000; };
     var setTimer = options.setTimeout || root.setTimeout.bind(root);
     var clearTimer = options.clearTimeout || root.clearTimeout.bind(root);
     var display = options.display || function () { return root.Show5Display; };
@@ -73,20 +78,25 @@
     var operations = new Set();
     var videoRefreshWaiters = new Set();
     var forceNextAuth = false;
+    var manualUntil = 0;
+    var recentCommands = new Map();
+    var acknowledgements = new Set();
 
     function clock() {
+      manualUntil = 0;
       var target = display();
       if (target && typeof target.showClock === "function") { target.showClock(); }
     }
 
     function validToken() { return token !== null && now() < tokenExpires; }
-    function canConnect() { return started && !hidden && !destroyed && !blocked && config.topics.length > 0; }
+    function canConnect() { return started && !hidden && !destroyed && !blocked && (config.topics.length > 0 || Boolean(config.remoteTarget)); }
 
     function closeSocket() {
       epoch += 1;
       clearTimer(handshakeTimer); clearTimer(heartbeatTimer); clearTimer(pongTimer);
       handshakeTimer = null; heartbeatTimer = null; pongTimer = null; pingId = null;
       subscriptions.clear();
+      acknowledgements.clear();
       var previous = socket;
       socket = null;
       if (previous) {
@@ -290,6 +300,7 @@
     }
 
     function motionEvent(topic, message) {
+      if (now() < manualUntil) { return; }
       if (!message || message.retain !== false || message.topic !== topic || typeof message.payload !== "string" || message.payload.length > 16384) { return; }
       config.rules.forEach(function (rule) {
         if (rule.topic !== topic) { return; }
@@ -304,6 +315,45 @@
         // Motion is never queued while the renderer is absent or hidden.
         if (matches && !hidden && target && typeof target.showCamera === "function") { target.showCamera(rule.role); }
       });
+    }
+
+    function remoteEvent(event, send) {
+      if (hidden || destroyed || !config.remoteTarget || !event || event.event_type !== "show5_remote_display") { return; }
+      var command = event.data;
+      if (!command || typeof command !== "object" || Array.isArray(command) ||
+          Object.keys(command).some(function (key) { return ["target", "command_id", "command", "role", "seconds", "expires_at"].indexOf(key) < 0; }) ||
+          command.target !== config.remoteTarget || typeof command.command_id !== "string" || !/^[A-Za-z0-9_-]{1,80}$/.test(command.command_id) ||
+          ["camera", "home"].indexOf(command.command) < 0 || typeof command.expires_at !== "number" || !Number.isFinite(command.expires_at)) { return; }
+      var remaining = command.expires_at - wallNow();
+      if (!(remaining > 0 && remaining <= 30)) { return; }
+      if (command.command === "camera") {
+        if (config.roles.indexOf(command.role) < 0 || typeof command.seconds !== "number" || !Number.isFinite(command.seconds) ||
+            command.seconds < 5 || command.seconds > 120) { return; }
+      } else if (command.role !== undefined || command.seconds !== undefined) { return; }
+      var signature = JSON.stringify([command.command, command.role, command.seconds, command.expires_at]);
+      var previous = recentCommands.get(command.command_id);
+      if (previous && previous.signature !== signature) { return; }
+      var status = previous ? previous.status : "error";
+      if (!previous) {
+        try {
+          var target = display();
+          if (command.command === "home" && target && typeof target.showClock === "function") {
+            clock(); status = "ok";
+          } else if (command.command === "camera" && target && typeof target.showCamera === "function" &&
+              target.showCamera(command.role, command.seconds) === true) {
+            manualUntil = now() + command.seconds * 1000; status = "ok";
+          }
+        } catch (_) { status = "error"; }
+        recentCommands.set(command.command_id, { signature: signature, status: status });
+        if (recentCommands.size > 32) { recentCommands.delete(recentCommands.keys().next().value); }
+      }
+      var id = ++nextId;
+      acknowledgements.add(id);
+      if (acknowledgements.size > 32) { acknowledgements.delete(acknowledgements.values().next().value); }
+      // This confirms the renderer accepted the command, not decoded video or
+      // camera availability. The existing renderer owns the bounded media lease.
+      send({ id: id, type: "fire_event", event_type: "show5_remote_ack",
+        event_data: { target: config.remoteTarget, command_id: command.command_id, status: status } });
     }
 
     function connect() {
@@ -352,13 +402,18 @@
             config.topics.forEach(function (topic) {
               if (!currentSocket()) { return; }
               var id = ++nextId;
-              subscriptions.set(id, { topic: topic, ready: false });
+              subscriptions.set(id, { kind: "motion", topic: topic, ready: false });
               send({ id: id, type: "mqtt/subscribe", topic: topic, qos: 0 });
             });
+            if (config.remoteTarget && currentSocket()) {
+              var id = ++nextId;
+              subscriptions.set(id, { kind: "remote", ready: false });
+              send({ id: id, type: "subscribe_events", event_type: "show5_remote_display" });
+            }
           } else if (authenticated && message.type === "result" && subscriptions.has(message.id)) {
             if (message.success !== true) {
-              // MQTT's HA websocket API is admin-only. Any rejected subscription
-              // disables motion until reload rather than partially activating it.
+              // MQTT and custom HA event subscriptions are admin-only. Do not
+              // partially activate controls when any subscription is rejected.
               blocked = true; lastError = "subscription_forbidden"; state = "forbidden";
               clearTimer(reconnectTimer); reconnectTimer = null; closeSocket(); clock(); return;
             }
@@ -369,7 +424,12 @@
               heartbeat();
             }
           } else if (state === "ready" && message.type === "event" && subscriptions.has(message.id)) {
-            motionEvent(subscriptions.get(message.id).topic, message.event);
+            var subscription = subscriptions.get(message.id);
+            if (subscription.kind === "remote") { remoteEvent(message.event, send); }
+            else { motionEvent(subscription.topic, message.event); }
+          } else if (authenticated && message.type === "result" && acknowledgements.has(message.id)) {
+            acknowledgements.delete(message.id);
+            if (message.success !== true) { lastError = "remote_ack_failed"; }
           } else if (message.type === "pong" && message.id === pingId && pingId !== null) {
             clearTimer(pongTimer); pongTimer = null; pingId = null; heartbeat();
           }

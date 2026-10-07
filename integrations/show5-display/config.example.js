@@ -3,16 +3,18 @@
 window.SHOW5_DISPLAY_CONFIG = {
   timeZone: "America/Los_Angeles",
   cameraSeconds: 30,
+  // Optional: match the generated HA remote endpoint prefix. No credentials.
+  // remoteTarget: "show5_two",
   cameraMode: "webrtc",
   cameras: {
     front: {
       entityId: "camera.replace_me_front",
-      label: "Перед домом",
+      label: "Front",
       motion: { topic: "replace_me/front", payload: "motion" }
     },
     porch: {
       entityId: "camera.replace_me_porch",
-      label: "Крыльцо",
+      label: "Porch",
       motion: { topic: "replace_me/porch", jsonName: "Porch" }
     }
   }

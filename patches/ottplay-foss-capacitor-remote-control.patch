@@ -1,0 +1,2699 @@
+--- a/android/app/build.gradle
++++ b/android/app/build.gradle
+@@ -81,8 +81,8 @@
+         applicationId "play.ott.foss"
+         minSdkVersion rootProject.ext.minSdkVersion
+         targetSdkVersion rootProject.ext.targetSdkVersion
+-        versionCode 10143
+-        versionName "1.1.42-show5.1"
++        versionCode 10144
++        versionName "1.1.42-show5.2"
+         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+         aaptOptions {
+              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,12 +1,12 @@
+ {
+   "name": "ottplay-foss",
+-  "version": "1.1.42-show5.1",
++  "version": "1.1.42-show5.2",
+   "lockfileVersion": 3,
+   "requires": true,
+   "packages": {
+     "": {
+       "name": "ottplay-foss",
+-      "version": "1.1.42-show5.1",
++      "version": "1.1.42-show5.2",
+       "dependencies": {
+         "@capacitor/android": "8.5.2",
+         "@capacitor/app": "8.1.1",
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "ottplay-foss",
+-  "version": "1.1.42-show5.1",
++  "version": "1.1.42-show5.2",
+   "description": "OTT-play FOSS - IPTV/OTT set-top-box player",
+   "type": "module",
+   "scripts": {
+--- a/scripts/classic-bundle.cjs
++++ b/scripts/classic-bundle.cjs
+@@ -19,6 +19,10 @@
+     "build/keyhandler/index.js",
+     "build/provider/index.js",
+     "build/commands/index.js",
++    "build/shared/wire-contracts.js",
++    "build/commands/remote-requests.js",
++    "build/plugins/command-server.js",
++    "build/plugins/command-server-settings.js",
+     "build/app/init.js",
+     "build/app/device.js",
+     "build/settings/sleepTimer.js",
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -37,10 +37,11 @@
+ import "./polyfills";
+ 
+ import { createLocalHttpRemote } from "./plugins/local-http-remote";
++import { installCommandServer, readCommandServerConfig } from "./plugins/command-server-settings";
+ import { setupCapacitorCompanionShim } from "./plugins/m3u-proxy";
+ import { MobileNativeMedia } from "./plugins/mobile-native-media";
+ import { installTauriHttpTransport } from "./plugins/native-http";
+-import { setupStalkerPortalShim } from "./plugins/stalker-portal";
++import { setupStalkerPortalShim, StalkerPortal } from "./plugins/stalker-portal";
+ 
+ // Utils
+ import * as encoding from "./utils/encoding";
+@@ -1796,6 +1797,7 @@
+         // Sync PlayerSettings → window.* for settings submenu compatibility
+         applySettingsToWindow(settings);
+         (window as any).__ottLocalHttpRemote.init();
++        (window as any).__ottCommandServer.configure(readCommandServerConfig(window));
+         // Device UUID for remote control / swop allowlist; optional /local/swop.json
+         if (typeof (window as any).ensureDeviceClientId === "function")
+             (window as any).ensureDeviceClientId();
+@@ -6247,6 +6249,17 @@
+ window.handleCommand = handleCommand;
+ window.showPopup = showPopup;
+ 
++// Outbound command polling is separate from the disabled local HTTP listener.
++(window as any).__ottCommandServer = installCommandServer(
++    window,
++    typeof window.__TAURI__ !== "undefined"
++        ? function (request: any): Promise<any> { return tauriInvoke("proxy_http", request); }
++        : (window as any).Capacitor &&
++            (!(window as any).Capacitor.isNativePlatform || (window as any).Capacitor.isNativePlatform())
++          ? function (request: any): Promise<any> { return StalkerPortal.httpRequest(request); }
++          : undefined
++);
++
+ // HTTP control is activated only by this device's explicit saved consent.
+ (window as any).__ottLocalHttpRemote = createLocalHttpRemote(
+     window,
+@@ -6634,6 +6647,16 @@
+     var changingHttpRemote = false;
+     var httpRemoteError = false;
+     var closed = false;
++    var commandServer = w.__ottCommandServer;
++    function refreshCommandStatus(): void {
++        if (closed || !commandServer) return;
++        var state = commandServer.status();
++        var label = document.getElementById("show5CommandStatus");
++        if (label) label.textContent = state.message;
++        var button = document.getElementById("show5CommandConnect");
++        if (button) button.textContent = state.enabled ? "Disconnect" : "Connect";
++    }
++    if (commandServer) commandServer.subscribe(refreshCommandStatus);
+     var parent = ["listCaption", "listDetail", "listPodval"].map(function (id) {
+         var element = document.getElementById(id);
+         return element ? element.innerHTML : "";
+@@ -6699,6 +6722,13 @@
+                 )
+             ) +
+             "<br/><br/>";
++        var serverConfig = readCommandServerConfig(w);
++        html += '<b>Command server:</b><br/>' + text(serverConfig.address || "not configured") +
++            '<br/>Access code: ' + (serverConfig.token ? "configured" : "not configured") +
++            '<br/><span id="show5CommandStatus" role="status"></span><br/>' +
++            '<button id="show5CommandAddress">3 Server address</button> ' +
++            '<button id="show5CommandToken">4 Access code</button> ' +
++            '<button id="show5CommandConnect">5 Connect</button><br/><br/>';
+         if (remoteStatus.enabled && remoteStatus.code) {
+             html +=
+                 "<b>" +
+@@ -6755,6 +6785,15 @@
+             "popup_message, channel_by_number, channel_by_name, random_channel, change_provider, change_playlist<br/><br/>" +
+             "UP/DOWN or swipe to scroll. Use the controls below to edit or close.</div>";
+         $("#listAbout").show().html(html);
++        ["show5CommandAddress", "show5CommandToken", "show5CommandConnect"].forEach(function (id, index) {
++            var button = document.getElementById(id);
++            if (button) button.onclick = function (event): void {
++                event.stopPropagation();
++                if (index === 2) toggleCommandServer();
++                else editCommandServer(index === 1);
++            };
++        });
++        refreshCommandStatus();
+         var codeInput = document.getElementById(
+             "localHttpDeviceCode"
+         ) as HTMLInputElement | null;
+@@ -6774,6 +6813,28 @@
+                     event.stopPropagation();
+             };
+         }
++    }
++
++    function toggleCommandServer(): void {
++        if (!commandServer) return;
++        var config = readCommandServerConfig(w);
++        config.enabled = !commandServer.status().enabled;
++        commandServer.configure(config);
++        render();
++    }
++    function editCommandServer(secret: boolean): void {
++        var config = readCommandServerConfig(w);
++        $("#listAbout").hide();
++        editSettingsText(secret ? "Command server access code (empty removes it)" : "Command server address",
++            secret ? "" : config.address,
++            function (value) {
++                var next = readCommandServerConfig(w);
++                if (secret) next.token = value.trim();
++                else next.address = value.trim();
++                next.enabled = false;
++                if (commandServer) commandServer.configure(next);
++                render();
++            }, render);
+     }
+ 
+     function toggleHttpRemote(): void {
+@@ -6838,6 +6899,7 @@
+     w.aboutKeyHandler = function (e: number): boolean {
+         if (e === w.keys.RETURN || e === w.keys.EXIT) {
+             closed = true;
++            if (commandServer) commandServer.subscribe(null);
+             $("#listAbout").hide().text("");
+             ["listCaption", "listDetail", "listPodval"].forEach(
+                 function (id, index) {
+@@ -6863,6 +6925,8 @@
+             editUrl(e !== w.keys.ENTER);
+             return true;
+         }
++        if (e === 51 || e === 52) { editCommandServer(e === 52); return true; }
++        if (e === 53) { toggleCommandServer(); return true; }
+         if (e === w.keys.N1 || e === 49) {
+             toggleHttpRemote();
+             return true;
+--- a/src/provider/index.ts
++++ b/src/provider/index.ts
+@@ -1118,6 +1118,7 @@
+  * Edge case: Stops any active playback before loading.
+  */
+ export function loadChannels(): void {
++    (window as any).commandChannelsReady = false;
+     var idMigration = beginPortChannelIdMigration();
+     if (!$("#launch").is(":visible")) {
+         if (stbIsPlaying()) stbStop();
+@@ -1220,6 +1221,7 @@
+         clearTimeout(_loadTimer);
+         finishPortChannelIdMigration(idMigration);
+         onChanelsLoaded();
++        (window as any).commandChannelsReady = true;
+     });
+ }
+ 
+--- a/src/settings/cloud.ts
++++ b/src/settings/cloud.ts
+@@ -1,3 +1,5 @@
++import { isCommandServerPrivateKey, preserveCommandServerOnImport } from "../plugins/command-server-settings";
++
+ /**
+  * Cloud settings helpers — upload/download settings via the
+  * host_ott/swop/a.php service (STB firmware only).
+@@ -71,7 +73,8 @@
+         if (
+             Object.prototype.hasOwnProperty.call(items, prop) &&
+             prop !== "sLocalHttpEnabled" &&
+-            prop !== "sLocalHttpDeviceCode"
++            prop !== "sLocalHttpDeviceCode" &&
++            !isCommandServerPrivateKey(prop)
+         )
+             xml += '\n<entry key="' + prop + '">' + items[prop] + "</entry>";
+     }
+@@ -203,6 +206,7 @@
+                                 );
+                             var entries = xml.split('<entry key="');
+                             entries.shift();
++                            preserveCommandServerOnImport(w, function () {
+                             try {
+                                 if (typeof w.stbClearAllItems === "function")
+                                     w.stbClearAllItems();
+@@ -216,9 +220,11 @@
+                                 if (
+                                     parts[0] !== "sLocalHttpEnabled" &&
+                                     parts[0] !== "sLocalHttpDeviceCode" &&
++                                    !isCommandServerPrivateKey(parts[0]) &&
+                                     typeof w.stbSetItem === "function"
+                                 )
+                                     w.stbSetItem(parts[0], parts[1]);
++                            });
+                             });
+                             if (typeof w.restart === "function") w.restart();
+                         } else {
+--- a/src/settings/index.ts
++++ b/src/settings/index.ts
+@@ -6,6 +6,7 @@
+  * defines every tunable parameter exposed to the user via the settings UI.
+  */
+ import { storage } from "../storage/index";
++import { isCommandServerPrivateKey, preserveCommandServerOnImport } from "../plugins/command-server-settings";
+ 
+ // The polyfill preserves this getter so "system" also restores native DST rules.
+ const systemTimezoneOffset =
+@@ -524,6 +525,9 @@
+     }
+     // Consent and credentials belong to this installation, never a backup.
+     const exportedSettings = { ...settings };
++    Object.keys(exportedSettings).forEach(function (key) {
++        if (isCommandServerPrivateKey(key)) delete (exportedSettings as any)[key];
++    });
+     delete (exportedSettings as Partial<PlayerSettings>).localHttpEnabled;
+     delete (exportedSettings as Partial<PlayerSettings>).localHttpDeviceCode;
+     const env: ExportEnvelopeV1 = {
+@@ -595,10 +599,16 @@
+ function applyImport(env: ExportEnvelopeV1): void {
+     // Ignore even explicitly injected credentials/consent in imported JSON.
+     // Importing ordinary preferences preserves this installation's own consent.
+-    saveSettings({
+-        ...env.settings,
+-        localHttpDeviceCode: settings.localHttpDeviceCode || "",
+-        localHttpEnabled: settings.localHttpEnabled === 1 ? 1 : 0,
++    const importedSettings: any = { ...env.settings };
++    Object.keys(importedSettings).forEach(function (key) {
++        if (isCommandServerPrivateKey(key)) delete importedSettings[key];
++    });
++    preserveCommandServerOnImport(window, function () {
++        saveSettings({
++            ...importedSettings,
++            localHttpDeviceCode: settings.localHttpDeviceCode || "",
++            localHttpEnabled: settings.localHttpEnabled === 1 ? 1 : 0,
++        });
+     });
+     if (typeof window.providerSetItem === "function") {
+         window.providerSetItem(
+--- a/tests/test_http_remote_cloud.cjs
++++ b/tests/test_http_remote_cloud.cjs
+@@ -34,6 +34,9 @@
+         keys: { EXIT: 27, RETURN: 8 },
+         setTimeout: () => 1,
+     });
++    ["isCommandServerPrivateKey", "readCommandServerConfig", "persistCommandServerConfig", "preserveCommandServerOnImport"].forEach(name => {
++        w.eval(func("src/plugins/command-server-settings.ts", name));
++    });
+     return w;
+ }
+ 
+@@ -50,6 +53,9 @@
+         w.host_ott_proto = "https://";
+         w.stbGetAllItems = () => ({
+             fixture: "value",
++            commandServerAddress: "https://private-control.invalid",
++            commandServerToken: "private-command-token-do-not-upload",
++            commandServerEnabled: "1",
+             sLocalHttpDeviceCode: "private-device-code-do-not-upload",
+             sLocalHttpEnabled: "1",
+         });
+@@ -63,6 +69,9 @@
+         assert(!post.data.d.includes("sLocalHttpEnabled"));
+         assert(!post.data.d.includes("sLocalHttpDeviceCode"));
+         assert(!post.data.d.includes("private-device-code-do-not-upload"));
++        assert(!post.data.d.includes("commandServer"));
++        assert(!post.data.d.includes("private-command-token"));
++        assert(!post.data.d.includes("private-control.invalid"));
+     } finally {
+         w.close();
+     }
+@@ -75,6 +84,9 @@
+             ["sLocalHttpEnabled", "1"],
+             ["sLocalHttpDeviceCode", "old-local-code"],
+             ["ordinary", "old-value"],
++            ["commandServerAddress", "https://own-control.invalid"],
++            ["commandServerToken", "own-command-token"],
++            ["commandServerEnabled", "1"],
+         ]);
+         let cleared = 0;
+         let restarted = 0;
+@@ -87,6 +99,7 @@
+             stored.clear();
+         };
+         w.stbSetItem = (key, value) => stored.set(key, value);
++        w.stbGetItem = key => stored.get(key) ?? null;
+         w.restart = () => restarted++;
+         w.setTimeout = (callback, delay) => {
+             if (delay === 10000) poll = callback;
+@@ -110,6 +123,9 @@
+             data:
+                 "<properties><comment>OTT-Play Preferences</comment>" +
+                 '<entry key="ordinary">restored-value</entry>' +
++                '<entry key="commandServerAddress">https://injected.invalid</entry>' +
++                '<entry key="commandServerToken">injected-token</entry>' +
++                '<entry key="commandServerEnabled">1</entry>' +
+                 '<entry key="sLocalHttpEnabled">1</entry>' +
+                 '<entry key="sLocalHttpDeviceCode">injected-code</entry>' +
+                 "</properties>",
+@@ -118,6 +134,9 @@
+         assert.equal(cleared, 1);
+         assert.equal(restarted, 1);
+         assert.equal(stored.get("ordinary"), "restored-value");
++        assert.equal(stored.get("commandServerToken"), "own-command-token");
++        assert.equal(stored.get("commandServerAddress"), "https://own-control.invalid");
++        assert.equal(stored.get("commandServerEnabled"), "0");
+         assert.equal(
+             stored.has("sLocalHttpEnabled"),
+             false,
+--- a/tests/test_remote_settings_layout.cjs
++++ b/tests/test_remote_settings_layout.cjs
+@@ -35,6 +35,7 @@
+ const w = dom.window;
+ w.eval(fs.readFileSync(path.join(root, "js/jquery-1.11.1.min.js"), "utf8"));
+ const stored = new Map();
++w.eval(extract("src/plugins/command-server-settings.ts", ["isCommandServerPrivateKey", "readCommandServerConfig", "persistCommandServerConfig", "preserveCommandServerOnImport"]));
+ Object.assign(w, {
+     _: (text) => text,
+     deviceUUID: "<script>window.injected=true</script>" + "uid".repeat(100),
+@@ -53,6 +54,7 @@
+         '<img src=x onerror="window.injected=true">',
+     sSwopBaseUrl: "https://example.invalid/swop",
+     stbSetItem: (key, value) => stored.set(key, value),
++    stbGetItem: key => stored.get(key) ?? null,
+     ui_state: {},
+ });
+ w.eval(
+--- a/tests/test_settings_parity.cjs
++++ b/tests/test_settings_parity.cjs
+@@ -149,6 +149,7 @@
+         stbPlayPip() {},
+         stbSetBuffer() {},
+         stbSetItem: storage.set,
++        stbGetItem: storage.get,
+         stbSetOsdOpacity() {},
+         stbToggleAspectRatio() {},
+         stbToggleAudioTrack() {},
+@@ -184,6 +185,9 @@
+     }
+     w.window = w;
+     vm.createContext(w);
++    vm.runInContext(compile(selectedSource("src/plugins/command-server-settings.ts", [
++        "isCommandServerPrivateKey", "readCommandServerConfig", "persistCommandServerConfig", "preserveCommandServerOnImport"
++    ])), w);
+     const policy = compile(
+         selectedSource(
+             "src/provider/index.ts",
+--- /dev/null
++++ b/src/shared/wire-contracts.ts
+@@ -0,0 +1,148 @@
++// Generated by ottplay-unification; do not edit.
++// Wire schema v1 SHA-256: 23a19dae2cb07334edadb2cb938749303dd44f0e81ad205352aa2a049c5b6ca4
++
++export interface Command {
++    channel_name?: string;
++    channel_number?: number;
++    command: string;
++    message?: string;
++    playlist?: string;
++    popup_duration?: number;
++    provider?: number;
++    provider_settings?: string;
++    random_range?: [number, number];
++    volume?: number;
++    volume_step?: number;
++}
++
++export interface SwopSessionResponse {
++    code?: string;
++    error?: string;
++    expiresIn?: number;
++    url?: string;
++}
++
++export interface SwopValueResponse {
++    error?: string;
++    status?: string;
++    value?: string;
++}
++
++export const wire = {
++    ackBatchMax: 50,
++    ackPath: "/api/webhook/commands/ack",
++    clientCommandIdPattern: "^[A-Za-z0-9_-]{1,128}$",
++    commandEnvelopeMax: 256,
++    commandPath: "/api/webhook/commands",
++    deviceIdPattern: "^[A-Za-z0-9._:-]{1,128}$",
++    legacyNotifyPath: "/webhook/notify",
++    legacyPollPath: "/webhook/poll",
++    serverCommandIdPattern: "^[0-9a-f]{32}$",
++    swopCaptionLimit: 200,
++    swopClientHeader: "X-Swop-Client-Id",
++    swopClientIdPattern: "^[A-Za-z0-9._:-]{8,128}$",
++    swopCodeAlphabet: "ABCDEFGHJKLMNPQRSTUVWXYZ23456789",
++    swopCodeLength: 6,
++    swopDefaultTtl: 600,
++    swopDraftLimit: 4000,
++    swopFallbackClientHeader: "X-Ottplay-Client-Id",
++    swopNoteLimit: 200,
++    swopSessionPath: "/session",
++    swopSubmitPath: "/submit",
++    swopValueLimit: 8000,
++    swopValuePath: "/val",
++    tokenPattern: "^[A-Za-z0-9_-]{32,256}$",
++};
++
++const wireDeviceIdPattern = new RegExp(wire.deviceIdPattern);
++const wireDeviceTokenPattern = new RegExp(wire.tokenPattern);
++const wireCommandIdPattern = new RegExp(wire.clientCommandIdPattern);
++const wireSwopClientIdPattern = new RegExp(wire.swopClientIdPattern);
++
++export function validDeviceId(value: string): boolean {
++    return wireDeviceIdPattern.test(value);
++}
++
++export function validDeviceToken(value: string): boolean {
++    return wireDeviceTokenPattern.test(value);
++}
++
++export function validSwopClientId(value: string): boolean {
++    return wireSwopClientIdPattern.test(value);
++}
++
++export function validCommandEnvelope(data: any): boolean {
++    if (!data || !Array.isArray(data.commands)) return false;
++    if (data.commands.length > wire.commandEnvelopeMax) return false;
++    for (var i = 0; i < data.commands.length; i++) {
++        var item = data.commands[i];
++        if (!item || typeof item !== "object") return false;
++        if (typeof item.id !== "string" || !wireCommandIdPattern.test(item.id))
++            return false;
++    }
++    return true;
++}
++
++function wireFinite(value: any): boolean {
++    return typeof value === "number" && isFinite(value);
++}
++
++function wireInteger(value: any, minimum: number): boolean {
++    return wireFinite(value) && Math.floor(value) === value && value >= minimum;
++}
++
++export function validPlayerCommand(cmd: any): boolean {
++    if (!(cmd && typeof cmd.command === "string")) return false;
++    if (cmd.popup_duration !== undefined) {
++        if (
++            !wireFinite(cmd.popup_duration) ||
++            cmd.popup_duration <= 0 ||
++            cmd.popup_duration > 3600
++        )
++            return false;
++    }
++    if (cmd.channel_number !== undefined) {
++        if (!wireInteger(cmd.channel_number, 1)) return false;
++    }
++    if (cmd.provider !== undefined) {
++        if (!wireInteger(cmd.provider, 0)) return false;
++    }
++    if (cmd.volume !== undefined) {
++        if (!wireFinite(cmd.volume)) return false;
++    }
++    if (cmd.volume_step !== undefined) {
++        if (!wireFinite(cmd.volume_step)) return false;
++    }
++    if (cmd.random_range !== undefined) {
++        if (
++            !Array.isArray(cmd.random_range) ||
++            cmd.random_range.length !== 2 ||
++            !wireInteger(cmd.random_range[0], 1) ||
++            !wireInteger(cmd.random_range[1], 1) ||
++            cmd.random_range[0] > cmd.random_range[1]
++        )
++            return false;
++    }
++    if (cmd.channel_name !== undefined) {
++        if (typeof cmd.channel_name !== "string") return false;
++    }
++    if (cmd.message !== undefined) {
++        if (typeof cmd.message !== "string") return false;
++    }
++    if (cmd.playlist !== undefined) {
++        if (typeof cmd.playlist !== "string") return false;
++    }
++    if (cmd.provider_settings !== undefined) {
++        if (typeof cmd.provider_settings !== "string") return false;
++    }
++    return true;
++}
++
++export function commandEndpointBase(path: string): string {
++    var paths = [wire.commandPath, wire.legacyPollPath, wire.legacyNotifyPath];
++    for (var i = 0; i < paths.length; i++) {
++        if (path.slice(-paths[i].length) === paths[i])
++            return path.slice(0, -paths[i].length);
++    }
++    return path;
++}
+--- /dev/null
++++ b/src/plugins/command-server.ts
+@@ -0,0 +1,641 @@
++import {
++    commandEndpointBase,
++    validCommandEnvelope,
++    validDeviceId,
++    validDeviceToken,
++    wire,
++} from "../shared/wire-contracts";
++
++/** Outbound command delivery. Independent of native HTTP listening and WebCrypto. */
++export interface CommandServerConfig {
++    address: string;
++    enabled: boolean;
++    token: string;
++}
++
++export interface CommandServerRequest {
++    body?: string;
++    headers: Record<string, string>;
++    method: string;
++    timeoutMs: number;
++    followRedirects?: boolean;
++    url: string;
++}
++
++export interface CommandServerResponse {
++    body: string;
++    status: number;
++}
++
++/** Accept an address or an old command endpoint; new connections always use ACK delivery. */
++export function normalizeCommandServerAddress(value: string): string {
++    var address = String(value || "").trim();
++    if (!address || /[\s\\#]/.test(address))
++        throw new Error("Enter a server address without spaces or a fragment.");
++    if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(address)) {
++        if (
++            /^[a-z][a-z0-9+.-]*:/i.test(address) &&
++            !/^[^:]+:\d+(?:[/?]|$)/.test(address) &&
++            address.charAt(0) !== "[" &&
++            (address.match(/:/g) || []).length < 2
++        )
++            throw new Error("Use an HTTP or HTTPS server address.");
++        // Add the default port to the authority, never to the device query.
++        var suffix = address.search(/[/?]/);
++        var host = suffix < 0 ? address : address.slice(0, suffix);
++        var rest = suffix < 0 ? "" : address.slice(suffix);
++        if (host.charAt(0) !== "[" && (host.match(/:/g) || []).length > 1)
++            host = "[" + host + "]";
++        if (!/:\d+$/.test(host)) host += ":8081";
++        address = "http://" + host + rest;
++    }
++    var parsed: URL;
++    try {
++        parsed = new URL(address);
++    } catch (_error) {
++        throw new Error(
++            "Enter a valid server address, for example 192.168.1.20:8081."
++        );
++    }
++    if (
++        !/^https?:$/.test(parsed.protocol) ||
++        !parsed.hostname ||
++        parsed.username ||
++        parsed.password
++    )
++        throw new Error(
++            "Use HTTP or HTTPS without a username or password in the address."
++        );
++    var deviceQuery = "";
++    if (parsed.search) {
++        var parts = parsed.search.slice(1).split("&");
++        if (parts.length !== 1 || parts[0].split("=")[0] !== "device_id")
++            throw new Error(
++                "Enter the access code separately, not in the server address."
++            );
++        var device = "";
++        try {
++            device = decodeURIComponent(parts[0].slice("device_id=".length));
++        } catch (_error) {}
++        if (!validDeviceId(device))
++            throw new Error("The device ID in the address is invalid.");
++        deviceQuery = "?device_id=" + encodeURIComponent(device);
++    }
++    var base = parsed.pathname.replace(/\/+$/, "");
++    base = commandEndpointBase(base);
++    return (
++        parsed.protocol +
++        "//" +
++        parsed.host +
++        base +
++        wire.commandPath +
++        deviceQuery
++    );
++}
++
++/** Injectable transport keeps the same delivery rules for Fetch and native HTTP. */
++export function createCommandServer(
++    w: any,
++    send: (
++        request: CommandServerRequest,
++        complete: (response?: CommandServerResponse) => void
++    ) => () => void,
++    persist: (config: CommandServerConfig) => void,
++    dispatch: (command: any) => string | void,
++    execute?: (request: any, done: (result: any) => void) => (() => void) | void
++): any {
++    var config: CommandServerConfig = {
++        address: "",
++        enabled: false,
++        token: "",
++    };
++    var generation = 0;
++    var timer: any = null;
++    var cancel: (() => void) | null = null;
++    var active = false;
++    var failures = 0;
++    var seen: Record<string, boolean> = Object.create(null);
++    var seenOrder: string[] = [];
++    var seenAddress = "";
++    var seenToken = "";
++    var pending: string[] = [];
++    var deferredUntil: Record<string, number> = Object.create(null);
++    var lastCommandMessage = "";
++    var state = "disconnected";
++    var message = "Disconnected";
++    var listener: (() => void) | null = null;
++    var responses: string[] = [];
++    var responseHistory: Record<string, string> = Object.create(null);
++    var responseOrder: string[] = [];
++    var historySize = 0;
++    var moreRequests = false;
++    var cancelExecution: (() => void) | null = null;
++
++    function status(): any {
++        return {
++            address: config.address,
++            enabled: config.enabled,
++            generation: generation,
++            message: message,
++            state: state,
++        };
++    }
++    function update(next: string, text: string): void {
++        state = next;
++        message = text;
++        if (listener) listener();
++    }
++    function stop(): void {
++        generation++;
++        if (timer !== null) w.clearTimeout(timer);
++        timer = null;
++        var abort = cancel;
++        cancel = null;
++        active = false;
++        var abortWork = cancelExecution;
++        cancelExecution = null;
++        if (abortWork) {
++            try {
++                abortWork();
++            } catch (_error) {}
++        }
++        responses = [];
++        moreRequests = false;
++        if (abort) {
++            try {
++                abort();
++            } catch (_error) {}
++        }
++        pending = [];
++        deferredUntil = Object.create(null);
++        lastCommandMessage = "";
++        failures = 0;
++    }
++    function schedule(delay: number): void {
++        if (!config.enabled) return;
++        if (timer !== null) w.clearTimeout(timer);
++        timer = w.setTimeout(function () {
++            timer = null;
++            poll();
++        }, delay);
++    }
++    function failed(response?: CommandServerResponse): void {
++        failures++;
++        var denied =
++            response && (response.status === 401 || response.status === 403);
++        update(
++            "error",
++            denied
++                ? "Access denied. Check the server access code."
++                : "Server unavailable. Retrying automatically; check its address and network access."
++        );
++        schedule(
++            Math.min(30000, 1000 * Math.pow(2, Math.min(failures, 5))) +
++                Math.floor(Math.random() * 500)
++        );
++    }
++    function request(
++        method: string,
++        ids?: string[],
++        responseToSend?: string
++    ): void {
++        if (!config.enabled || active) return;
++        var current = generation;
++        var requestStarted = Date.now();
++        active = true;
++        var url = config.address;
++        var queryIndex = url.indexOf("?");
++        if (responseToSend)
++            url =
++                (queryIndex < 0 ? url : url.slice(0, queryIndex)).slice(
++                    0,
++                    -wire.commandPath.length
++                ) + "/api/responses";
++        else if (ids)
++            url =
++                (queryIndex < 0 ? url : url.slice(0, queryIndex)) +
++                wire.ackPath.slice(wire.commandPath.length) +
++                (queryIndex < 0 ? "" : url.slice(queryIndex));
++        else url += (queryIndex < 0 ? "?" : "&") + "delivery=ack";
++        var headers: Record<string, string> = {
++            Authorization: "Bearer " + config.token,
++        };
++        if (ids || responseToSend) headers["Content-Type"] = "application/json";
++        var finished = false;
++        function complete(response?: CommandServerResponse): void {
++            if (finished || current !== generation || !config.enabled) return;
++            finished = true;
++            active = false;
++            cancel = null;
++            // The server may have restarted or expired a request during execution.
++            if (responseToSend && response && response.status === 404) {
++                responses.shift();
++                schedule(1000);
++                return;
++            }
++            if (!response || response.status !== 200) {
++                failed(response);
++                return;
++            }
++            var data: any;
++            try {
++                data = JSON.parse(response.body);
++            } catch (_error) {
++                failed();
++                return;
++            }
++            var waiting = false;
++            if (responseToSend) {
++                if (!data || data.status !== "ok") {
++                    failed();
++                    return;
++                }
++                responses.shift();
++            } else if (ids) {
++                if (!data || data.status !== "ok") {
++                    failed();
++                    return;
++                }
++                pending = pending.filter(function (id) {
++                    return ids.indexOf(id) === -1;
++                });
++            } else {
++                if (!validCommandEnvelope(data)) {
++                    failed();
++                    return;
++                }
++                moreRequests = false;
++                var now = Date.now();
++                for (var j = 0; j < data.commands.length; j++) {
++                    var command = data.commands[j];
++                    if (!seen[command.id]) {
++                        var deadline = deferredUntil[command.id];
++                        if (!deadline) deadline = now + 60000;
++                        if (
++                            typeof command.expires_at === "number" &&
++                            isFinite(command.expires_at) &&
++                            typeof data.server_time === "number" &&
++                            isFinite(data.server_time)
++                        )
++                            deadline = Math.min(
++                                deadline,
++                                requestStarted +
++                                    Math.max(
++                                        0,
++                                        command.expires_at - data.server_time
++                                    ) *
++                                        1000
++                            );
++                        var result: string | void = "accepted";
++                        // Mark before dispatch: an ACK retry must not repeat a volume step.
++                        seen[command.id] = true;
++                        seenOrder.push(command.id);
++                        while (seenOrder.length > 2048)
++                            delete seen[seenOrder.shift()!];
++                        if (now >= deadline) {
++                            lastCommandMessage =
++                                "A command expired while the player was loading channels.";
++                        } else {
++                            try {
++                                result = dispatch(command);
++                            } catch (_error) {
++                                result = "rejected";
++                            }
++                            if (current !== generation || !config.enabled)
++                                return;
++                            if (result === "deferred") {
++                                delete seen[command.id];
++                                seenOrder.splice(
++                                    seenOrder.indexOf(command.id),
++                                    1
++                                );
++                                deferredUntil[command.id] = deadline;
++                                waiting = true;
++                                break;
++                            }
++                            if (
++                                result === "unsupported" ||
++                                result === "rejected"
++                            )
++                                lastCommandMessage =
++                                    "A command was rejected by the player. Check its provider and settings.";
++                        }
++                        delete deferredUntil[command.id];
++                    }
++                    if (current !== generation || !config.enabled) return;
++                    if (pending.indexOf(command.id) === -1)
++                        pending.push(command.id);
++                }
++                if (
++                    execute &&
++                    Array.isArray(data.requests) &&
++                    data.requests.length
++                ) {
++                    var item = data.requests[0];
++                    if (
++                        item &&
++                        typeof item.id === "string" &&
++                        /^[a-f0-9]{32}$/.test(item.id) &&
++                        typeof item.expires_at === "number" &&
++                        isFinite(item.expires_at) &&
++                        typeof data.server_time === "number" &&
++                        isFinite(data.server_time) &&
++                        (item.expires_at - data.server_time) * 1000 >
++                            Date.now() - requestStarted
++                    ) {
++                        // A replay does not prove the server made queue progress.
++                        moreRequests =
++                            data.requests.length > 1 &&
++                            !responseHistory[item.id];
++                        if (responseHistory[item.id])
++                            responses.push(responseHistory[item.id]);
++                        else {
++                            active = true;
++                            var completed = false;
++                            var executionTimer = w.setTimeout(
++                                function () {
++                                    var abortWork = cancelExecution;
++                                    finishExecution({
++                                        data: {
++                                            error: "Request timed out in the player.",
++                                        },
++                                        status: "rejected",
++                                    });
++                                    if (abortWork) {
++                                        try {
++                                            abortWork();
++                                        } catch (_error) {}
++                                    }
++                                },
++                                Math.min(
++                                    40000,
++                                    Math.max(
++                                        1,
++                                        (item.expires_at - data.server_time) *
++                                            1000 -
++                                            (Date.now() - requestStarted)
++                                    )
++                                )
++                            );
++                            var finishExecution = function (value: any): void {
++                                if (
++                                    completed ||
++                                    current !== generation ||
++                                    !config.enabled
++                                )
++                                    return;
++                                completed = true;
++                                w.clearTimeout(executionTimer);
++                                active = false;
++                                cancelExecution = null;
++                                var serialized: string;
++                                var error =
++                                    "The player returned an invalid result.";
++                                try {
++                                    var resultStatus = value && value.status;
++                                    if (
++                                        resultStatus !== "ok" &&
++                                        resultStatus !== "rejected" &&
++                                        resultStatus !== "unsupported"
++                                    )
++                                        throw new Error();
++                                    var data = JSON.stringify(value.data);
++                                    if (typeof data !== "string")
++                                        throw new Error();
++                                    serialized =
++                                        '{"data":' +
++                                        data +
++                                        ',"id":"' +
++                                        item.id +
++                                        '","status":"' +
++                                        resultStatus +
++                                        '"}';
++                                } catch (_error) {
++                                    serialized = "";
++                                }
++                                // Conservative UTF-8 bound, including JSON escaping. Limit
++                                // cached results independently of the number of request IDs.
++                                if (serialized.length * 3 > 2 * 1024 * 1024) {
++                                    serialized = "";
++                                    error =
++                                        "Result is too large. Narrow the search.";
++                                }
++                                if (!serialized)
++                                    serialized = JSON.stringify({
++                                        data: {
++                                            error: error,
++                                        },
++                                        id: item.id,
++                                        status: "rejected",
++                                    });
++                                if (current !== generation || !config.enabled)
++                                    return;
++                                responseHistory[item.id] = serialized;
++                                historySize += serialized.length;
++                                responseOrder.push(item.id);
++                                while (
++                                    responseOrder.length > 50 ||
++                                    historySize > 2 * 1024 * 1024
++                                ) {
++                                    var oldest = responseOrder.shift()!;
++                                    historySize -=
++                                        responseHistory[oldest].length;
++                                    delete responseHistory[oldest];
++                                }
++                                responses.push(serialized);
++                                failures = 0;
++                                schedule(0);
++                            };
++                            try {
++                                var cancelWork = execute(item, finishExecution);
++                                if (current !== generation || !config.enabled) {
++                                    w.clearTimeout(executionTimer);
++                                    if (cancelWork) {
++                                        try {
++                                            cancelWork();
++                                        } catch (_error) {}
++                                    }
++                                } else if (!completed)
++                                    cancelExecution = function () {
++                                        w.clearTimeout(executionTimer);
++                                        if (cancelWork) cancelWork();
++                                    };
++                            } catch (_error) {
++                                finishExecution({
++                                    data: {
++                                        error: "The player could not handle this request.",
++                                    },
++                                    status: "rejected",
++                                });
++                            }
++                            return;
++                        }
++                    }
++                }
++            }
++            failures = 0;
++            update(
++                waiting ? "waiting" : "connected",
++                waiting
++                    ? "Connected. Waiting for the channel list..."
++                    : lastCommandMessage || "Connected"
++            );
++            schedule(
++                pending.length || responses.length || moreRequests ? 0 : 1000
++            );
++        }
++        try {
++            var abort = send(
++                {
++                    body: responseToSend
++                        ? responseToSend
++                        : ids
++                          ? JSON.stringify({ ids: ids })
++                          : undefined,
++                    headers: headers,
++                    method: method,
++                    timeoutMs: 8000,
++                    url: url,
++                },
++                complete
++            );
++            if (!finished && current === generation) cancel = abort;
++        } catch (_error) {
++            complete();
++        }
++    }
++    function poll(): void {
++        if (pending.length) request("POST", pending.slice(0, wire.ackBatchMax));
++        else if (responses.length) request("POST", undefined, responses[0]);
++        else request("GET");
++    }
++    function configure(next: CommandServerConfig): void {
++        stop();
++        config = {
++            address: String(next.address || "").trim(),
++            enabled: false,
++            token: String(next.token || "").trim(),
++        };
++        // Keep completed IDs across reconnects to the same queue. Endpoint or
++        // credential edits retire that private history, including while disabled.
++        var normalizedAddress = "";
++        try {
++            normalizedAddress = normalizeCommandServerAddress(config.address);
++        } catch (_error) {}
++        if (
++            !normalizedAddress ||
++            normalizedAddress !== seenAddress ||
++            config.token !== seenToken
++        ) {
++            seen = Object.create(null);
++            seenOrder = [];
++            responseHistory = Object.create(null);
++            responseOrder = [];
++            historySize = 0;
++        }
++        seenAddress = normalizedAddress;
++        seenToken = config.token;
++        // Revoke locally before validation/storage. Invalid edits cannot retain a live connection.
++        persist(config);
++        if (!next.enabled) {
++            update("disconnected", "Disconnected");
++            return;
++        }
++        try {
++            config.address =
++                normalizedAddress ||
++                normalizeCommandServerAddress(config.address);
++            if (!validDeviceToken(config.token))
++                throw new Error(
++                    "Enter the server's device access code (32–256 letters, digits, _ or -)."
++                );
++            if (!/^https:/.test(config.address))
++                throw new Error("Use an HTTPS command server to protect the device access code.");
++            config.enabled = true;
++            persist(config);
++            update("connecting", "Connecting...");
++            poll();
++        } catch (error) {
++            config.enabled = false;
++            persist(config);
++            update(
++                "error",
++                error instanceof Error
++                    ? error.message
++                    : "Could not connect to the server."
++            );
++        }
++    }
++    return {
++        configure: configure,
++        poll: poll,
++        status: status,
++        subscribe: function (next: (() => void) | null): void {
++            listener = next;
++        },
++    };
++}
++
++/** Redirect-free browser Fetch or native HTTP, with bounded cancellation. */
++export function createCommandServerTransport(
++    w: any,
++    nativeRequest?: (
++        request: CommandServerRequest
++    ) => Promise<CommandServerResponse>
++): any {
++    return function (
++        request: CommandServerRequest,
++        complete: (response?: CommandServerResponse) => void
++    ): () => void {
++        var done = false;
++        var xhr: any = null;
++        var timer = w.setTimeout(function () {
++            finish();
++            if (xhr) xhr.abort();
++        }, request.timeoutMs);
++        function finish(response?: CommandServerResponse): void {
++            if (done) return;
++            done = true;
++            w.clearTimeout(timer);
++            complete(response);
++        }
++        // Reject redirects before another request can carry credentials. Checking
++        // responseURL afterward would be too late to prevent an HTTP downgrade.
++        if (!/^https:\/\//i.test(request.url)) {
++            finish();
++        } else if (nativeRequest) {
++            try {
++                nativeRequest({ ...request, followRedirects: false }).then(finish, function () {
++                    finish();
++                });
++            } catch (_error) {
++                finish();
++            }
++        } else if (typeof w.fetch === "function" && typeof w.AbortController === "function") {
++            try {
++                var controller = new w.AbortController();
++                xhr = { abort: function () { controller.abort(); } };
++                w.fetch(request.url, {
++                    method: request.method, headers: request.headers,
++                    body: request.body, signal: controller.signal,
++                    redirect: "error", credentials: "omit", cache: "no-store",
++                }).then(function (response: any) {
++                    return response.text().then(function (body: string) {
++                        finish({ body: body, status: response.status });
++                    });
++                }).catch(function () { finish(); });
++            } catch (_error) {
++                finish();
++            }
++        } else {
++            // XHR cannot prevent authenticated redirects; fail closed.
++            finish();
++        }
++        return function (): void {
++            if (done) return;
++            done = true;
++            w.clearTimeout(timer);
++            if (xhr) xhr.abort();
++        };
++    };
++}
+--- /dev/null
++++ b/src/commands/remote-requests.ts
+@@ -0,0 +1,144 @@
++// Adapted from upstream a18cd4c for the retained 1.1.42 Capacitor runtime.
++// The transport/protocol is shared; unsupported modern runtime actions are explicit.
++import { arrayProvaiders, isProviderAllowed } from "../provider";
++import { showPopup } from "./index";
++
++function remoteChannelsReady(w: any): boolean {
++    return w.commandChannelsReady === true;
++}
++
++function remoteChannelRows(w: any): any[] {
++    var ids = w.cList || w.curList || [];
++    var seen: Record<string, boolean> = Object.create(null);
++    return ids.filter(function (id: any) {
++        if (seen[String(id)] || !(w.channels || {})[id]) return false;
++        seen[String(id)] = true;
++        return true;
++    }).map(function (id: any, index: number) {
++        return { id: id, name: String(w.channels[id].channel_name || ""), number: index + 1 };
++    });
++}
++
++function remoteVolume(w: any): number | null {
++    var value = typeof w.stbGetVolume === "function" ? w.stbGetVolume() : null;
++    return typeof value === "number" && isFinite(value) && value >= 0 && value <= 100 ? value : null;
++}
++
++/** Apply only supported controls; acceptance never stands in for unknown work. */
++export function dispatchRemoteCommand(command: any): string {
++    var w = window as any;
++    if (!command || typeof command.command !== "string") return "rejected";
++    if (command.command === "popup_message") {
++        var duration = command.popup_duration === undefined ? 5 : command.popup_duration;
++        if (typeof command.message !== "string" || !command.message || command.message.length > 8192 ||
++            typeof duration !== "number" || !isFinite(duration) || duration <= 0 || duration > 3600)
++            return "rejected";
++        if (!document.getElementById("notifications")) return "deferred";
++        showPopup(command.message, duration);
++        return "accepted";
++    }
++    if (command.command === "set_volume") {
++        if (typeof w.stbSetVolume !== "function") return "unsupported";
++        var current = remoteVolume(w);
++        if (current === null) return "deferred";
++        var relative = command.volume === undefined;
++        var value = relative ? command.volume_step : command.volume;
++        if (typeof value !== "number" || !isFinite(value)) return "rejected";
++        var requested = Math.max(0, Math.min(100, relative ? current + value : value));
++        w.stbSetVolume(requested);
++        var actual = remoteVolume(w);
++        return actual !== null && Math.abs(actual - requested) < 0.01 ? "accepted" : "rejected";
++    }
++    if (command.command === "channel_by_number" || command.command === "channel_by_name") {
++        if (!remoteChannelsReady(w)) return "deferred";
++        var query = command.command === "channel_by_number" ? String(command.channel_number) : command.channel_name;
++        var outcome = "rejected";
++        executeRemoteRequest({ action: "play", params: { query: query } }, function (result) {
++            outcome = result.status === "ok" ? "accepted" : result.status;
++        });
++        return outcome;
++    }
++    return "unsupported";
++}
++
++/** Upstream RPC result shape, metadata only: no URLs, credentials or raw settings. */
++export function executeRemoteRequest(request: any, done: (result: any) => void): void {
++    var w = window as any;
++    var params = request && request.params || {};
++    function reply(data: any): void { done({ data: data, status: "ok" }); }
++    function reject(error: string, matches?: any[]): void {
++        done({ data: { error: error, matches: matches || [] }, status: "rejected" });
++    }
++    function unsupported(): void {
++        done({ data: { error: "This retained Capacitor player does not support this request." }, status: "unsupported" });
++    }
++    function includes(value: string, search: any): boolean {
++        return value.toLowerCase().indexOf(String(search || "").toLowerCase()) !== -1;
++    }
++    var provider = String(typeof w.stbGetItem === "function" && w.stbGetItem("ottplayprov") || "");
++    if (request.action === "status") {
++        var media = document.getElementById("video") as HTMLVideoElement | null;
++        var currentId = (w.curList || [])[w.primaryIndex];
++        var current = (w.channels || {})[currentId];
++        reply({
++            channels: remoteChannelRows(w).length,
++            provider: provider,
++            ready: remoteChannelsReady(w),
++            uuid: w.deviceUUID || "",
++            volume: remoteVolume(w),
++            channel: current ? { id: currentId, name: String(current.channel_name || "") } : null,
++            playback: media ? { paused: media.paused, readyState: media.readyState, videoWidth: media.videoWidth, videoHeight: media.videoHeight, currentTime: isFinite(media.currentTime) ? media.currentTime : 0 } : null,
++        });
++        return;
++    }
++    if (request.action === "providers") {
++        reply({ providers: arrayProvaiders.map(function (id, index) {
++            return { active: id === provider, id: id, index: index, name: id };
++        }).filter(function (row) { return row.id && isProviderAllowed(row.id); }) });
++        return;
++    }
++    if (request.action === "command") {
++        var outcome = dispatchRemoteCommand(params);
++        if (outcome === "unsupported") { unsupported(); return; }
++        if (outcome !== "accepted") { reject("Command " + outcome + ". Check the player state."); return; }
++        reply({ dispatched: true, volume: params.command === "set_volume" ? remoteVolume(w) : undefined });
++        return;
++    }
++    if (request.action !== "channels" && request.action !== "play") { unsupported(); return; }
++    if (!remoteChannelsReady(w)) { reject("Channels are still loading. Try again shortly."); return; }
++    var rows = remoteChannelRows(w);
++    if (request.action === "channels") {
++        if (params.search !== undefined && (typeof params.search !== "string" || params.search.length > 1024)) {
++            reject("Invalid channel search."); return;
++        }
++        reply({ channels: rows.filter(function (row) { return includes(row.name, params.search); }) });
++        return;
++    }
++    if (typeof params.query !== "string" || !params.query.trim() || params.query.length > 1024) {
++        reject("Choose a channel name or number."); return;
++    }
++    var text = params.query.trim();
++    var matches = /^\d+$/.test(text) ? rows.filter(function (row) {
++        return row.number === Number(text);
++    }) : rows.filter(function (row) { return row.name.toLowerCase() === text.toLowerCase(); });
++    if (!matches.length && !/^\d+$/.test(text)) matches = rows.filter(function (row) { return includes(row.name, text); });
++    if (matches.length !== 1) {
++        reject(matches.length ? "Several channels match. Use a channel number." : "Channel not found.", matches.slice(0, 100)); return;
++    }
++    // Preserve the existing parental gate without reporting a prompted action as executed.
++    if (!w.parentAccess && w.parentPIN !== "*" && w.sPSchannels && (w.parentalArray || []).some(function (id: any) { return String(id) === String(matches[0].id); })) {
++        reject("Unlock this channel on the player first."); return;
++    }
++    for (var c = 0; c < (w.catsArray || []).length; c++) {
++        var list = (w.cats || {})[w.catsArray[c]] || [];
++        for (var i = 0; i < list.length; i++) {
++            if (String(list[i]) === String(matches[0].id)) {
++                if (typeof w.playChannel !== "function") { reject("Playback is unavailable."); return; }
++                w.playChannel(c, i);
++                reply({ channel: matches[0], dispatched: true });
++                return;
++            }
++        }
++    }
++    reject("Channel is unavailable in the current categories.");
++}
+--- /dev/null
++++ b/src/plugins/command-server-settings.ts
+@@ -0,0 +1,41 @@
++import { createCommandServer, createCommandServerTransport, type CommandServerConfig } from "./command-server";
++import { dispatchRemoteCommand, executeRemoteRequest } from "../commands/remote-requests";
++
++/** Private, installation-scoped values; deliberately outside PlayerSettings. */
++export function isCommandServerPrivateKey(key: string): boolean {
++    return key === "commandServerAddress" || key === "commandServerToken" || key === "commandServerEnabled";
++}
++
++export function readCommandServerConfig(w: any): CommandServerConfig {
++    function get(key: string): string { return typeof w.stbGetItem === "function" ? String(w.stbGetItem(key) || "") : ""; }
++    return { address: get("commandServerAddress"), token: get("commandServerToken"), enabled: get("commandServerEnabled") === "1" };
++}
++
++function persistCommandServerConfig(w: any, config: CommandServerConfig): void {
++    function write(key: string, value: string): void {
++        if (typeof w.stbSetItem !== "function" || typeof w.stbGetItem !== "function") throw new Error("Private command settings are unavailable.");
++        w.stbSetItem(key, value);
++        if (String(w.stbGetItem(key) || "") !== value) throw new Error("Could not save private command settings.");
++    }
++    write("commandServerEnabled", "0");
++    write("commandServerAddress", config.address);
++    write("commandServerToken", config.token);
++    if (config.enabled) write("commandServerEnabled", "1");
++}
++
++/** Import may revoke consent, never import another device's control credentials. */
++export function preserveCommandServerOnImport(w: any, replace: () => void): void {
++    var retained = readCommandServerConfig(w);
++    retained.enabled = false;
++    if (w.__ottCommandServer) w.__ottCommandServer.configure(retained);
++    try { replace(); }
++    finally {
++        if (typeof w.stbSetItem === "function") persistCommandServerConfig(w, retained);
++    }
++}
++
++export function installCommandServer(w: any, nativeRequest?: (request: any) => Promise<any>): any {
++    return createCommandServer(w, createCommandServerTransport(w, nativeRequest), function (config) {
++        persistCommandServerConfig(w, config);
++    }, dispatchRemoteCommand, executeRemoteRequest);
++}
+--- /dev/null
++++ b/tests/test_command_server.cjs
+@@ -0,0 +1,1065 @@
++const assert = require("node:assert/strict");
++const fs = require("node:fs");
++const path = require("node:path");
++const vm = require("node:vm");
++const ts = require("typescript");
++const acorn = require("acorn");
++const source = fs.readFileSync(
++    path.join(__dirname, "../src/plugins/command-server.ts"),
++    "utf8"
++);
++const code = ts.transpileModule(source, {
++    compilerOptions: {
++        module: ts.ModuleKind.CommonJS,
++        target: ts.ScriptTarget.ES5,
++    },
++}).outputText;
++acorn.parse(code, { ecmaVersion: 5 });
++let clock = 1000000;
++const moduleContext = {
++    console,
++    Date: { now: () => clock },
++    exports: {},
++    require(name) {
++        assert.equal(name, "../shared/wire-contracts");
++        return require("./load-wire.cjs")();
++    },
++    URL,
++};
++vm.runInNewContext(code, moduleContext);
++const {
++    createCommandServer,
++    createCommandServerTransport,
++    normalizeCommandServerAddress: normalize,
++} = moduleContext.exports;
++const token = "device_read_code_" + "a".repeat(32);
++for (const [input, expected] of [
++    ["192.168.1.20", "http://192.168.1.20:8081/api/webhook/commands"],
++    ["player.local:9090", "http://player.local:9090/api/webhook/commands"],
++    [
++        "server.local?device_id=lounge",
++        "http://server.local:8081/api/webhook/commands?device_id=lounge",
++    ],
++    [
++        "server.local:8081?device_id=lounge",
++        "http://server.local:8081/api/webhook/commands?device_id=lounge",
++    ],
++    [
++        "server.local:9090?device_id=lounge",
++        "http://server.local:9090/api/webhook/commands?device_id=lounge",
++    ],
++    [
++        "server.local/remote?device_id=lounge:tv",
++        "http://server.local:8081/remote/api/webhook/commands?device_id=lounge%3Atv",
++    ],
++    [
++        "server.local/webhook/poll?device_id=lounge",
++        "http://server.local:8081/api/webhook/commands?device_id=lounge",
++    ],
++    [
++        "[::1]?device_id=lounge",
++        "http://[::1]:8081/api/webhook/commands?device_id=lounge",
++    ],
++    [
++        "2001:db8::1?device_id=lounge",
++        "http://[2001:db8::1]:8081/api/webhook/commands?device_id=lounge",
++    ],
++    [
++        "[2001:db8::1]:9090?device_id=lounge",
++        "http://[2001:db8::1]:9090/api/webhook/commands?device_id=lounge",
++    ],
++    ["[::1]", "http://[::1]:8081/api/webhook/commands"],
++    ["2001:db8::1", "http://[2001:db8::1]:8081/api/webhook/commands"],
++    ["[2001:db8::1]:9090", "http://[2001:db8::1]:9090/api/webhook/commands"],
++    [
++        "https://server.example/remote/",
++        "https://server.example/remote/api/webhook/commands",
++    ],
++    [
++        "http://server.example/webhook/poll?device_id=living-room",
++        "http://server.example/api/webhook/commands?device_id=living-room",
++    ],
++    [
++        "https://server.example/api/webhook/commands",
++        "https://server.example/api/webhook/commands",
++    ],
++])
++    assert.equal(normalize(input), expected, input);
++for (const input of [
++    "",
++    "ftp://host",
++    "javascript:alert(1)",
++    "https://user:pass@host",
++    "https://host#secret",
++    "https://host?token=secret",
++    "https://host?device_id=a&token=b",
++    "host:abc",
++    "http://host\\@evil",
++    "[notipv6]",
++    "http://host:99999",
++    "host?token=secret",
++    "host:8081?token=secret",
++    "host?device_id=lounge&token=secret",
++    "host?device_id=lounge&device_id=other",
++    "host?device_id=",
++    "host?device_id=lounge%26token%3Dsecret",
++    "user:pass@host?device_id=lounge",
++    "host:abc?device_id=lounge",
++    "host:99999?device_id=lounge",
++]) {
++    assert.throws(() => normalize(input), undefined, input);
++}
++function harness(protocol = "http:", execute) {
++    const jobs = new Map();
++    const requests = [];
++    const saved = [];
++    const delivered = [];
++    const behavior = { outcome: undefined };
++    let sequence = 0;
++    const w = {
++        clearTimeout(id) {
++            jobs.delete(id);
++        },
++        location: { protocol },
++        setTimeout(fn, delay) {
++            jobs.set(++sequence, { delay, fn });
++            return sequence;
++        },
++    };
++    const controller = createCommandServer(
++        w,
++        (request, complete) => {
++            const call = { aborted: false, complete, request };
++            requests.push(call);
++            return () => {
++                call.aborted = true;
++            };
++        },
++        (value) => saved.push({ ...value }),
++        (command) => {
++            if (behavior.outcome !== "deferred") delivered.push(command);
++            if (behavior.onDispatch) behavior.onDispatch();
++            return behavior.outcome;
++        },
++        execute
++    );
++    function next() {
++        assert.equal(jobs.size, 1, "only one retry/poll timer is scheduled");
++        const [id, job] = [...jobs][0];
++        jobs.delete(id);
++        job.fn();
++        return job.delay;
++    }
++    function respond(body, status = 200) {
++        requests.at(-1).complete({ body: JSON.stringify(body), status });
++    }
++    function connect(extra = {}) {
++        controller.configure({
++            address: "https://server.local:8081",
++            enabled: true,
++            token,
++            ...extra,
++        });
++    }
++    return {
++        behavior,
++        connect,
++        controller,
++        delivered,
++        jobs,
++        next,
++        requests,
++        respond,
++        saved,
++        w,
++    };
++}
++const bareQuery = harness();
++bareQuery.connect({ address: "https://server.local:8081?device_id=lounge" });
++assert.equal(
++    bareQuery.requests[0].request.url,
++    "https://server.local:8081/api/webhook/commands?device_id=lounge&delivery=ack"
++);
++bareQuery.respond({
++    commands: [{ command: "popup_message", id: "scoped", message: "Fixture" }],
++});
++bareQuery.next();
++assert.equal(
++    bareQuery.requests[1].request.url,
++    "https://server.local:8081/api/webhook/commands/ack?device_id=lounge"
++);
++assert.deepEqual(JSON.parse(bareQuery.requests[1].request.body), {
++    ids: ["scoped"],
++});
++const h = harness();
++assert.equal(h.controller.status().enabled, false);
++assert.equal(h.requests.length, 0);
++h.connect();
++assert.equal(
++    h.requests.length,
++    1,
++    "supplied code works without crypto or a native listener"
++);
++assert.equal(
++    h.saved[0].enabled,
++    false,
++    "persist disabled before granting connection"
++);
++assert.equal(h.saved.at(-1).enabled, true);
++assert.equal(h.requests[0].request.headers.Authorization, "Bearer " + token);
++assert.equal(
++    new URL(h.requests[0].request.url).search,
++    "?delivery=ack",
++    "strict server query contract has no cache-buster"
++);
++assert.ok(!h.requests[0].request.url.includes(token));
++assert.ok(!JSON.stringify(h.controller.status()).includes(token));
++h.controller.poll();
++assert.equal(h.requests.length, 1, "no overlapping request");
++h.respond({
++    commands: [
++        { command: "set_volume", id: "one", volume_step: 5 },
++        { channel_number: 2, command: "channel_by_number", id: "two" },
++    ],
++});
++assert.equal(h.delivered.length, 2);
++assert.equal(h.next(), 0);
++assert.equal(h.requests[1].request.method, "POST");
++assert.equal(
++    h.requests[1].request.url,
++    "https://server.local:8081/api/webhook/commands/ack"
++);
++assert.deepEqual(JSON.parse(h.requests[1].request.body), {
++    ids: ["one", "two"],
++});
++h.respond({ error: "offline" }, 503);
++assert.equal(h.controller.status().state, "error");
++assert.ok(h.next() >= 2000);
++assert.equal(
++    h.requests[2].request.method,
++    "POST",
++    "retry the ACK before polling more commands"
++);
++assert.equal(h.delivered.length, 2, "lost ACK cannot repeat a volume step");
++h.respond({ acknowledged: 2, status: "ok" });
++assert.equal(h.next(), 1000);
++h.respond({
++    commands: [
++        { command: "set_volume", id: "one", volume_step: 5 },
++        { command: "popup_message", id: "three", message: "new" },
++    ],
++});
++assert.deepEqual(
++    h.delivered.map((x) => x.id),
++    ["one", "two", "three"]
++);
++h.next();
++h.respond({ acknowledged: 2, status: "ok" });
++h.next();
++const old = h.requests.at(-1);
++h.connect({ address: "https://other.local", token: "b".repeat(64) });
++assert.equal(old.aborted, true);
++old.complete({
++    body: JSON.stringify({
++        commands: [{ command: "exit_player", id: "stale" }],
++    }),
++    status: 200,
++});
++assert.equal(
++    h.delivered.length,
++    3,
++    "old endpoint/token cannot deliver after reconfiguration"
++);
++const latest = h.requests.at(-1);
++h.controller.configure({
++    address: "https://other.local",
++    enabled: false,
++    token: "b".repeat(64),
++});
++assert.equal(latest.aborted, true);
++latest.complete({
++    body: '{"commands":[{"id":"late","command":"exit_player"}]}',
++    status: 200,
++});
++assert.equal(h.delivered.length, 3);
++assert.equal(h.jobs.size, 0);
++assert.equal(h.controller.status().enabled, false);
++// Reconnecting the same device queue must not repeat a non-idempotent command
++// when delivery succeeded but its ACK did not reach the server.
++const reconnect = harness();
++const volumeStep = { command: "set_volume", id: "reconnect", volume_step: 5 };
++reconnect.connect();
++reconnect.respond({ commands: [volumeStep] });
++reconnect.next();
++reconnect.respond({}, 503);
++reconnect.controller.configure({
++    address: "https://server.local:8081",
++    enabled: false,
++    token,
++});
++assert.equal(reconnect.jobs.size, 0);
++reconnect.connect({ address: "https://server.local:8081/api/webhook/commands" });
++reconnect.respond({ commands: [volumeStep] });
++assert.equal(
++    reconnect.delivered.length,
++    1,
++    "same normalized queue keeps dedupe history"
++);
++reconnect.next();
++assert.deepEqual(JSON.parse(reconnect.requests.at(-1).request.body), {
++    ids: [volumeStep.id],
++});
++const oldAck = reconnect.requests.at(-1);
++reconnect.connect();
++assert.equal(oldAck.aborted, true);
++oldAck.complete({ body: '{"status":"ok"}', status: 200 });
++assert.equal(reconnect.jobs.size, 0, "retired ACK cannot schedule a poll");
++reconnect.respond({ commands: [volumeStep] });
++assert.equal(reconnect.delivered.length, 1);
++reconnect.connect({ token: "b".repeat(64) });
++reconnect.respond({ commands: [volumeStep] });
++assert.equal(
++    reconnect.delivered.length,
++    2,
++    "a different device token has its own queue"
++);
++reconnect.connect({ address: "https://other.local", token: "b".repeat(64) });
++reconnect.respond({ commands: [volumeStep] });
++assert.equal(
++    reconnect.delivered.length,
++    3,
++    "a different endpoint has its own queue"
++);
++reconnect.controller.configure({
++    address: "https://edited.local",
++    enabled: false,
++    token,
++});
++reconnect.connect({ address: "https://other.local", token: "b".repeat(64) });
++reconnect.respond({ commands: [volumeStep] });
++assert.equal(
++    reconnect.delivered.length,
++    4,
++    "disabled identity edits retire previous history"
++);
++assert.ok(!JSON.stringify(reconnect.controller.status()).includes(token));
++
++const reentrant = harness();
++reentrant.behavior.onDispatch = () => {
++    reentrant.behavior.onDispatch = null;
++    reentrant.connect();
++};
++reentrant.connect();
++reentrant.respond({ commands: [volumeStep] });
++reentrant.respond({ commands: [volumeStep] });
++assert.equal(
++    reentrant.delivered.length,
++    1,
++    "dispatch-triggered reconnect retains completed ID"
++);
++
++const bounded = harness();
++bounded.connect();
++for (let batch = 0; batch < 9; batch++) {
++    const start = batch * 256;
++    bounded.respond({
++        commands: Array.from({ length: 256 }, (_, i) => ({
++            command: "popup_message",
++            id: "history-" + (start + i),
++        })),
++    });
++    // Reconnect retires pending requests, not history. Exercise the bound across generations.
++    bounded.connect();
++}
++bounded.respond({
++    commands: [
++        { command: "popup_message", id: "history-0" },
++        { command: "popup_message", id: "history-2303" },
++    ],
++});
++assert.equal(
++    bounded.delivered.length,
++    2305,
++    "bounded history evicts oldest IDs and retains newest"
++);
++assert.equal(bounded.delivered.at(-1).id, "history-0");
++
++const denied = harness();
++denied.connect();
++denied.respond({}, 401);
++assert.match(denied.controller.status().message, /access code/i);
++const invalid = harness();
++invalid.connect({ token: "short" });
++assert.equal(invalid.requests.length, 0);
++assert.equal(invalid.saved.at(-1).enabled, false);
++const secure = harness("https:");
++secure.connect({ address: "http://server.local" });
++assert.equal(secure.requests.length, 0);
++assert.match(secure.controller.status().message, /HTTPS command server/);
++secure.connect({ address: "https://server.local" });
++assert.equal(secure.requests.length, 1);
++const native = harness("https:");
++native.w.__TAURI__ = {};
++native.connect();
++assert.equal(
++    native.requests.length,
++    1,
++    "native HTTPS remains available"
++);
++const cleartextNative = harness();
++cleartextNative.w.Capacitor = { isNativePlatform: () => true };
++cleartextNative.connect({ address: "http://server.local" });
++assert.equal(cleartextNative.requests.length, 0, "native credentials never use HTTP");
++assert.match(cleartextNative.controller.status().message, /HTTPS command server/);
++const oldBareAddress = harness();
++oldBareAddress.connect({ address: "server.local:8081" });
++assert.equal(oldBareAddress.requests.length, 0, "legacy bare addresses require explicit HTTPS");
++
++const malformed = harness();
++malformed.connect();
++malformed.respond([{ command: "exit_player", id: "legacy" }]);
++assert.equal(
++    malformed.delivered.length,
++    0,
++    "a destructive legacy endpoint is never silently accepted in ACK mode"
++);
++assert.equal(malformed.controller.status().state, "error");
++malformed.next();
++malformed.respond({
++    commands: [
++        { command: "exit_player", id: "valid" },
++        { command: "exit_player" },
++    ],
++});
++assert.equal(
++    malformed.delivered.length,
++    0,
++    "validate complete envelope before executing any command"
++);
++const collision = harness();
++collision.connect();
++collision.respond({
++    commands: [
++        { command: "popup_message", id: "__proto__" },
++        { command: "popup_message", id: "constructor" },
++    ],
++});
++assert.equal(
++    collision.delivered.length,
++    2,
++    "IDs cannot collide with Object.prototype"
++);
++const query = harness();
++query.connect({ address: "https://host/webhook/poll?device_id=lounge" });
++query.respond({ commands: [{ command: "exit_player", id: "x" }] });
++query.next();
++assert.equal(
++    query.requests.at(-1).request.url,
++    "https://host/api/webhook/commands/ack?device_id=lounge"
++);
++
++// Keep channel commands on the server while boot is incomplete, then ACK exactly once.
++const boot = harness();
++boot.behavior.outcome = "deferred";
++boot.connect();
++const queued = {
++    commands: [
++        {
++            channel_number: 1,
++            command: "channel_by_number",
++            expires_at: 5010,
++            id: "boot",
++        },
++    ],
++    server_time: 5000,
++};
++boot.respond(queued);
++assert.equal(boot.delivered.length, 0);
++assert.equal(boot.controller.status().state, "waiting");
++boot.next();
++assert.equal(
++    boot.requests.at(-1).request.method,
++    "GET",
++    "unready commands must remain unacknowledged"
++);
++clock += 1000;
++boot.behavior.outcome = undefined;
++boot.respond({ ...queued, server_time: 5001 });
++assert.equal(boot.delivered.length, 1);
++boot.next();
++assert.equal(boot.requests.at(-1).request.method, "POST");
++boot.respond({ status: "ok" });
++boot.next();
++boot.respond({ ...queued, server_time: 5002 });
++assert.equal(boot.delivered.length, 1);
++const expired = harness();
++expired.behavior.outcome = "deferred";
++expired.connect();
++expired.respond(queued);
++expired.next();
++clock += 11000;
++expired.behavior.outcome = undefined;
++expired.respond({ ...queued, server_time: 5011 });
++assert.equal(expired.delivered.length, 0);
++assert.match(expired.controller.status().message, /expired/);
++expired.next();
++assert.equal(
++    expired.requests.at(-1).request.method,
++    "POST",
++    "expired commands are retired without executing"
++);
++const capped = harness();
++capped.behavior.outcome = "deferred";
++capped.connect();
++capped.respond({ commands: [{ command: "random_channel", id: "capped" }] });
++capped.next();
++clock += 60001;
++capped.behavior.outcome = undefined;
++capped.respond({ commands: [{ command: "random_channel", id: "capped" }] });
++assert.equal(
++    capped.delivered.length,
++    0,
++    "old servers without expiry metadata use a bounded60s client wait"
++);
++const rejected = harness();
++rejected.behavior.outcome = "unsupported";
++rejected.connect();
++rejected.respond({
++    commands: [{ command: "change_provider_settings", id: "unsupported" }],
++});
++assert.match(rejected.controller.status().message, /rejected/);
++const batch = harness();
++batch.connect();
++batch.respond({
++    commands: Array.from({ length: 55 }, (_, i) => ({
++        command: "popup_message",
++        id: "batch" + i,
++    })),
++});
++batch.next();
++assert.equal(JSON.parse(batch.requests.at(-1).request.body).ids.length, 50);
++batch.respond({ status: "ok" });
++batch.next();
++assert.equal(JSON.parse(batch.requests.at(-1).request.body).ids.length, 5);
++batch.respond({ status: "ok" });
++assert.equal(batch.next(), 1000);
++assert.equal(batch.requests.at(-1).request.method, "GET");
++
++// Real transport contracts: native promises, timeout/abort, browser headers/body.
++(async () => {
++    const t = harness();
++    let resolveNative;
++    const completed = [];
++    const transport = createCommandServerTransport(
++        t.w,
++        (value) => {
++            assert.equal(value.followRedirects, false);
++            return new Promise((resolve) => { resolveNative = resolve; });
++        }
++    );
++    const request = {
++        body: '{"ids":["one"]}',
++        headers: {
++            Authorization: "Bearer " + token,
++            "Content-Type": "application/json",
++        },
++        method: "POST",
++        timeoutMs: 8000,
++        url: "https://host/api/webhook/commands/ack",
++    };
++    const abort = transport(request, (value) => completed.push(value));
++    abort();
++    resolveNative({ body: "{}", status: 200 });
++    await Promise.resolve();
++    assert.equal(completed.length, 0, "native results after abort are ignored");
++    assert.equal(t.jobs.size, 0);
++    transport(request, (value) => completed.push(value));
++    t.next();
++    assert.equal(completed.length, 1);
++    assert.equal(completed[0], undefined);
++    resolveNative({ body: "{}", status: 200 });
++    await Promise.resolve();
++    assert.equal(completed.length, 1);
++    let browserRequest, resolveBrowser, rejectedBrowser, aborted = false;
++    t.w.AbortController = class { constructor() { this.signal = {}; } abort() { aborted = true; } };
++    t.w.fetch = (url, options) => {
++        browserRequest = { url, options };
++        return new Promise((resolve, reject) => { resolveBrowser = resolve; rejectedBrowser = reject; });
++    };
++    const browserTransport = createCommandServerTransport(t.w);
++    const browserAbort = browserTransport(request, (value) => completed.push(value));
++    assert.equal(browserRequest.options.method, "POST");
++    assert.equal(browserRequest.options.body, request.body);
++    assert.equal(browserRequest.options.headers.Authorization, "Bearer " + token);
++    assert.equal(browserRequest.options.redirect, "error");
++    assert.equal(browserRequest.options.credentials, "omit");
++    browserAbort();
++    assert.equal(aborted, true);
++    assert.equal(completed.length, 1);
++    browserTransport(request, (value) => completed.push(value));
++    resolveBrowser({ status: 403, text: () => Promise.resolve("denied") });
++    await new Promise(resolve => setImmediate(resolve));
++    assert.deepEqual({ ...completed[1] }, { body: "denied", status: 403 });
++    browserTransport(request, (value) => completed.push(value));
++    rejectedBrowser(new TypeError("redirect rejected"));
++    await new Promise(resolve => setImmediate(resolve));
++    assert.equal(completed[2], undefined);
++    const before = browserRequest;
++    browserTransport({ ...request, url: "http://host/api/webhook/commands" }, value => completed.push(value));
++    assert.equal(browserRequest, before, "HTTP is rejected before sending credentials");
++    assert.equal(completed[3], undefined);
++    assert.equal(t.jobs.size, 0);
++    console.log(
++        "PASS command server: ES5, address/auth policy, independent consent, ACK retry/dedup, revocation, backoff, native/Fetch cancellation and timeouts"
++    );
++})().catch((error) => {
++    console.error(error);
++    process.exitCode = 1;
++});
++
++// Request execution is invalidated by reconnects, and network delay cannot
++// revive a request whose server deadline has already passed.
++{
++    let completeWork;
++    let cancellations = 0;
++    let executions = 0;
++    const rpc = harness("http:", (_request, done) => {
++        executions++;
++        completeWork = done;
++        return () => cancellations++;
++    });
++    const id = "a".repeat(32);
++    rpc.connect({ address: "https://server.example/base" });
++    rpc.respond({
++        commands: [],
++        requests: [
++            { action: "status", expires_at: clock / 1000 + 5, id, params: {} },
++        ],
++        server_time: clock / 1000,
++    });
++    assert.equal(executions, 1);
++    rpc.controller.configure({
++        address: "https://server.example/base",
++        enabled: false,
++        token,
++    });
++    assert.equal(cancellations, 1);
++    completeWork({ data: { volume: 22 }, status: "ok" });
++    assert.equal(rpc.jobs.size, 0, "revoked work cannot enqueue a response");
++    rpc.connect();
++    const serverTime = clock / 1000;
++    clock += 3000;
++    rpc.respond({
++        commands: [],
++        requests: [
++            { action: "status", expires_at: serverTime + 1, id, params: {} },
++        ],
++        server_time: serverTime,
++    });
++    assert.equal(executions, 1, "expired request is never dispatched");
++    rpc.next();
++    rpc.respond({
++        commands: [],
++        requests: [
++            { action: "status", expires_at: clock / 1000 + 30, id, params: {} },
++        ],
++        server_time: clock / 1000,
++    });
++    completeWork({ data: { volume: 22 }, status: "ok" });
++    rpc.next();
++    assert.equal(
++        rpc.requests.at(-1).request.url,
++        "https://server.local:8081/api/responses"
++    );
++    rpc.respond({ error: "expired" }, 404);
++    rpc.next();
++    assert.match(rpc.requests.at(-1).request.url, /delivery=ack$/);
++    console.log(
++        "PASS RPC transport cancellation, server-relative expiry and expired-result recovery"
++    );
++}
++
++// A malformed result must become an explicit rejection, not strand the poller
++// after its execution timer was already cleared.
++for (const value of [
++    null,
++    { data: undefined, status: "ok" },
++    { data: { value: 1 }, status: "unknown" },
++    {
++        data: (() => {
++            const cyclic = {};
++            cyclic.self = cyclic;
++            return cyclic;
++        })(),
++        status: "ok",
++    },
++]) {
++    const rpc = harness("http:", (_request, done) => done(value));
++    rpc.connect();
++    rpc.respond({
++        commands: [],
++        requests: [
++            {
++                action: "status",
++                expires_at: 5030,
++                id: "b".repeat(32),
++                params: {},
++            },
++        ],
++        server_time: 5000,
++    });
++    assert.equal(
++        rpc.next(),
++        0,
++        "malformed completion still schedules a response"
++    );
++    const result = JSON.parse(rpc.requests.at(-1).request.body);
++    assert.equal(result.status, "rejected");
++    assert.match(result.data.error, /result/i);
++    rpc.respond({ status: "ok" });
++    rpc.next();
++    assert.equal(rpc.requests.at(-1).request.method, "GET");
++}
++
++// Cache the serialized snapshot. Native/provider code can retain and mutate
++// its result object after calling done; a lost ACK must retry the same bytes.
++{
++    const result = { data: { volume: 35 }, status: "ok" };
++    let executions = 0;
++    const rpc = harness("http:", (_request, done) => {
++        executions++;
++        done(result);
++    });
++    const envelope = {
++        commands: [],
++        requests: [
++            {
++                action: "status",
++                expires_at: 5030,
++                id: "c".repeat(32),
++                params: {},
++            },
++        ],
++        server_time: 5000,
++    };
++    rpc.connect();
++    rpc.respond(envelope);
++    result.data.volume = 70;
++    rpc.next();
++    const body = rpc.requests.at(-1).request.body;
++    assert.equal(JSON.parse(body).data.volume, 35);
++    rpc.respond({}, 503);
++    result.data.volume = 90;
++    rpc.next();
++    assert.equal(rpc.requests.at(-1).request.body, body);
++    rpc.respond({ status: "ok" });
++    rpc.next();
++    rpc.respond(envelope);
++    rpc.next();
++    assert.equal(rpc.requests.at(-1).request.body, body);
++    assert.equal(executions, 1, "replayed request uses its immutable result");
++}
++
++// Known queued work is fetched as soon as the prior result is acknowledged.
++// Eight quick requests previously accumulated seven seconds of idle delay.
++{
++    const rpc = harness("http:", (_request, done) =>
++        done({ data: {}, status: "ok" })
++    );
++    const requests = Array.from({ length: 8 }, (_, i) => ({
++        action: "status",
++        expires_at: 5030,
++        id: i.toString(16).padStart(32, "0"),
++        params: {},
++    }));
++    rpc.connect();
++    let idleDelay = 0;
++    while (requests.length) {
++        rpc.respond({
++            commands: [],
++            requests: requests.slice(),
++            server_time: 5000,
++        });
++        assert.equal(rpc.next(), 0);
++        rpc.respond({ status: "ok" });
++        requests.shift();
++        const delay = rpc.next();
++        if (requests.length) idleDelay += delay;
++        else
++            assert.equal(
++                delay,
++                1000,
++                "empty queues keep the normal poll interval"
++            );
++    }
++    assert.equal(
++        idleDelay,
++        0,
++        "known work never waits for the idle poll interval"
++    );
++}
++console.log(
++    "PASS RPC malformed results, immutable retries and burst drain latency"
++);
++
++// A queue can expire or become invalid between draining polls. Its old backlog
++// hint must not turn an empty/malformed response into a zero-delay polling loop.
++for (const pending of [[], [{ expires_at: 5030, id: "invalid" }]]) {
++    const rpc = harness("http:", (_request, done) =>
++        done({ data: {}, status: "ok" })
++    );
++    rpc.connect();
++    rpc.respond({
++        commands: [],
++        requests: ["d", "e"].map((id) => ({
++            action: "status",
++            expires_at: 5030,
++            id: id.repeat(32),
++            params: {},
++        })),
++        server_time: 5000,
++    });
++    rpc.next();
++    rpc.respond({ status: "ok" });
++    assert.equal(rpc.next(), 0);
++    rpc.respond({ commands: [], requests: pending, server_time: 5000 });
++    assert.equal(
++        rpc.next(),
++        1000,
++        "stale backlog does not cause a busy poll loop"
++    );
++}
++
++// Native/provider cancellation must not block revocation or prevent the timeout
++// rejection from being delivered. A late success cannot replace that rejection.
++for (const revoke of [false, true]) {
++    let done;
++    let cancellations = 0;
++    const rpc = harness("http:", (_request, complete) => {
++        done = complete;
++        return () => {
++            cancellations++;
++            throw new Error("native cancellation failed");
++        };
++    });
++    rpc.connect();
++    rpc.respond({
++        commands: [],
++        requests: [
++            {
++                action: "status",
++                expires_at: 5030,
++                id: "f".repeat(32),
++                params: {},
++            },
++        ],
++        server_time: 5000,
++    });
++    if (revoke) {
++        rpc.controller.configure({
++            address: "https://server.local:8081",
++            enabled: false,
++            token,
++        });
++        done({ data: {}, status: "ok" });
++        assert.equal(rpc.jobs.size, 0);
++        assert.equal(rpc.controller.status().enabled, false);
++    } else {
++        assert.equal(rpc.next(), 30000);
++        done({ data: {}, status: "ok" });
++        rpc.next();
++        const result = JSON.parse(rpc.requests.at(-1).request.body);
++        assert.equal(result.status, "rejected");
++        assert.match(result.data.error, /timed out/);
++    }
++    assert.equal(cancellations, 1);
++}
++
++// Some commands can synchronously reload/reconfigure the player. The old
++// execution must not install a cancellation callback onto the new generation.
++{
++    let executions = 0;
++    let oldCancellations = 0;
++    let newCancellations = 0;
++    let oldDone;
++    const rpc = harness("http:", (_request, done) => {
++        executions++;
++        if (executions === 1) {
++            oldDone = done;
++            rpc.connect();
++            return () => oldCancellations++;
++        }
++        return () => newCancellations++;
++    });
++    const envelope = {
++        commands: [],
++        requests: [
++            {
++                action: "status",
++                expires_at: 5030,
++                id: "a".repeat(32),
++                params: {},
++            },
++        ],
++        server_time: 5000,
++    };
++    rpc.connect();
++    rpc.respond(envelope);
++    assert.equal(oldCancellations, 1);
++    assert.equal(rpc.jobs.size, 0, "old execution timer is retired");
++    rpc.respond(envelope);
++    oldDone({ data: {}, status: "ok" });
++    rpc.controller.configure({
++        address: "https://server.local:8081",
++        enabled: false,
++        token,
++    });
++    assert.equal(oldCancellations, 1);
++    assert.equal(newCancellations, 1);
++    assert.equal(rpc.jobs.size, 0);
++}
++console.log(
++    "PASS RPC backlog expiry and exception-safe cancellation/reconfiguration"
++);
++
++// Even if a stale intermediary repeats an acknowledged batch, cached work is
++// not executed again and the retry cadence falls back to the idle interval.
++{
++    let executions = 0;
++    const rpc = harness("http:", (_request, done) => {
++        executions++;
++        done({ data: {}, status: "ok" });
++    });
++    const envelope = {
++        commands: [],
++        requests: ["1", "2"].map((id) => ({
++            action: "status",
++            expires_at: 5030,
++            id: id.repeat(32),
++            params: {},
++        })),
++        server_time: 5000,
++    };
++    rpc.connect();
++    rpc.respond(envelope);
++    rpc.next();
++    rpc.respond({ status: "ok" });
++    assert.equal(rpc.next(), 0);
++    for (let i = 0; i < 3; i++) {
++        rpc.respond(envelope);
++        rpc.next();
++        rpc.respond({ status: "ok" });
++        assert.equal(
++            rpc.next(),
++            1000,
++            "cached replay is not evidence of progress"
++        );
++    }
++    assert.equal(executions, 1);
++}
++
++// Result byte limits survive non-ASCII data and JSON escaping; cache eviction
++// is bounded by both retained characters and IDs, independently of reconnects.
++{
++    let executions = 0;
++    let payload = "";
++    const rpc = harness("http:", (_request, done) => {
++        executions++;
++        done({ data: { payload }, status: "ok" });
++    });
++    const ask = (id) => {
++        rpc.connect();
++        rpc.respond({
++            commands: [],
++            requests: [
++                {
++                    action: "channels",
++                    expires_at: 5030,
++                    id: id.toString(16).padStart(32, "0"),
++                    params: {},
++                },
++            ],
++            server_time: 5000,
++        });
++        rpc.next();
++        return rpc.requests.at(-1).request.body;
++    };
++    for (const text of ["я".repeat(800000), "\\".repeat(400000)]) {
++        payload = text;
++        const body = ask(executions + 1);
++        assert.ok(Buffer.byteLength(body) < 2 * 1024 * 1024);
++        assert.equal(JSON.parse(body).status, "rejected");
++        assert.match(JSON.parse(body).data.error, /too large/);
++    }
++    payload = "x".repeat(600000);
++    for (let id = 10; id < 14; id++)
++        assert.equal(JSON.parse(ask(id)).status, "ok");
++    let before = executions;
++    ask(13);
++    assert.equal(executions, before, "newest large response is retained");
++    ask(10);
++    assert.equal(
++        executions,
++        before + 1,
++        "character budget evicts oldest response before 50 IDs"
++    );
++    payload = "small";
++    for (let id = 100; id < 151; id++) ask(id);
++    before = executions;
++    ask(150);
++    assert.equal(executions, before, "newest small response is retained");
++    ask(100);
++    assert.equal(
++        executions,
++        before + 1,
++        "ID budget evicts the oldest small response"
++    );
++}
++
++// A result serializer can re-enter configuration just like a native callback.
++// Nothing from the retired identity may be queued or cached in the new one.
++{
++    let executions = 0;
++    const rpc = harness("http:", (_request, done) => {
++        executions++;
++        done({
++            data:
++                executions === 1
++                    ? {
++                          toJSON() {
++                              rpc.connect({ address: "https://other.local" });
++                              return { volume: 1 };
++                          },
++                      }
++                    : { volume: 2 },
++            status: "ok",
++        });
++    });
++    const envelope = {
++        commands: [],
++        requests: [
++            {
++                action: "status",
++                expires_at: 5030,
++                id: "3".repeat(32),
++                params: {},
++            },
++        ],
++        server_time: 5000,
++    };
++    rpc.connect();
++    rpc.respond(envelope);
++    assert.equal(rpc.jobs.size, 0);
++    rpc.respond(envelope);
++    assert.equal(
++        executions,
++        2,
++        "new identity cannot see the retired result cache"
++    );
++    rpc.next();
++    assert.match(rpc.requests.at(-1).request.url, /other\.local/);
++    assert.equal(JSON.parse(rpc.requests.at(-1).request.body).data.volume, 2);
++}
++console.log(
++    "PASS RPC cached-replay cadence, response/cache bounds and identity isolation"
++);
+--- /dev/null
++++ b/tests/load-wire.cjs
+@@ -0,0 +1,22 @@
++/* Load the shipped generated policy in the same ES5 VM used by host tests. */
++const fs = require("node:fs");
++const path = require("node:path");
++const vm = require("node:vm");
++const ts = require("typescript");
++const acorn = require("acorn");
++module.exports = function loadWire() {
++    const source = fs.readFileSync(
++        path.join(__dirname, "../src/shared/wire-contracts.ts"),
++        "utf8"
++    );
++    const code = ts.transpileModule(source, {
++        compilerOptions: {
++            module: ts.ModuleKind.CommonJS,
++            target: ts.ScriptTarget.ES5,
++        },
++    }).outputText;
++    acorn.parse(code, { ecmaVersion: 5 });
++    const context = { exports: {} };
++    vm.runInNewContext(code, context);
++    return context.exports;
++};
+--- /dev/null
++++ b/tests/test_show5_remote.cjs
+@@ -0,0 +1,119 @@
++const assert = require("node:assert/strict");
++const fs = require("node:fs");
++const path = require("node:path");
++const vm = require("node:vm");
++const ts = require("typescript");
++const { JSDOM } = require("jsdom");
++const root = path.resolve(__dirname, "..");
++function source(file) { return fs.readFileSync(path.join(root, file), "utf8"); }
++function load(file, context, dependencies = {}) {
++    const code = ts.transpileModule(source(file), { compilerOptions: { target: ts.ScriptTarget.ES5, module: ts.ModuleKind.CommonJS } }).outputText;
++    const exports = {};
++    vm.runInNewContext(code, { ...context, exports, require(name) { assert.ok(name in dependencies, name); return dependencies[name]; } });
++    return exports;
++}
++function fn(file, name) {
++    const ast = ts.createSourceFile(file, source(file), ts.ScriptTarget.Latest, true);
++    const node = ast.statements.find(n => ts.isFunctionDeclaration(n) && n.name?.text === name);
++    assert.ok(node, name);
++    return ts.transpileModule(node.getText(ast).replace(/^export /, ""), { compilerOptions: { target: ts.ScriptTarget.ES5, module: ts.ModuleKind.None } }).outputText;
++}
++const dom = new JSDOM('<div id="notifications"></div><video id="video"></video><div id="listAbout"></div>', { url: "https://localhost", runScripts: "dangerously" });
++const w = dom.window;
++let volume = 12;
++const played = [];
++const stored = new Map([
++    ["ottplayprov", "m3u"], ["sPlayers", "1"], ["ott_device_uuid", "fixture-uuid"],
++    ["commandServerAddress", "https://control.invalid/api/webhook/commands"],
++    ["commandServerToken", "local_device_secret_" + "a".repeat(40)], ["commandServerEnabled", "0"],
++]);
++Object.assign(w, {
++    cList: ["alpha", "beta", "alpha"], curList: ["alpha", "beta"], primaryIndex: 0,
++    catsArray: ["All"], cats: { All: ["alpha", "beta"] },
++    channels: { alpha: { channel_name: "News HD", url: "http://credentials.invalid/?key=secret" }, beta: { channel_name: "Radio" } },
++    commandChannelsReady: true, parentPIN: "*", deviceUUID: "fixture-uuid",
++    stbGetItem: key => stored.get(key) ?? null,
++    stbSetItem: (key, value) => stored.set(key, value),
++    stbGetVolume: () => volume, stbSetVolume: value => { volume = value; },
++    playChannel: (c, i) => { played.push([c, i]); },
++});
++const ctx = { window: w, document: w.document, console, URL, setTimeout: () => 1, clearTimeout() {} };
++const commands = load("src/commands/index.ts", ctx);
++const remote = load("src/commands/remote-requests.ts", ctx, {
++    "../provider": { arrayProvaiders: ["m3u", "demo", ""], isProviderAllowed: id => id !== "" },
++    "./index": commands,
++});
++function query(action, params = {}) { let result; remote.executeRemoteRequest({ action, params }, value => { result = JSON.parse(JSON.stringify(value)); }); assert.ok(result); return result; }
++assert.equal(query("status").data.volume, 12);
++assert.equal(query("status").data.ready, true);
++assert.ok(!JSON.stringify(query("status")).includes("credentials.invalid"));
++assert.deepEqual(query("channels", { search: "hd" }).data.channels, [{ id: "alpha", name: "News HD", number: 1 }]);
++assert.deepEqual(query("play", { query: "1" }).data, { channel: { id: "alpha", name: "News HD", number: 1 }, dispatched: true });
++assert.deepEqual(played, [[0, 0]]);
++assert.equal(query("provider_settings", { provider: "m3u", settings: { playlist: "malicious" } }).status, "unsupported");
++assert.equal(query("programs").status, "unsupported");
++assert.equal(query("command", { command: "unknown" }).status, "unsupported");
++assert.equal(query("command", { command: "set_volume", volume_step: 5 }).data.volume, 17);
++assert.equal(query("command", { command: "set_volume", volume: 0 }).data.volume, 0);
++w.stbSetVolume = () => {};
++assert.equal(query("command", { command: "set_volume", volume: 37 }).status, "rejected", "no false volume success when setter has no effect");
++w.stbSetVolume = value => { volume = value; };
++assert.equal(query("command", { command: "popup_message", message: "Test message" }).status, "ok");
++assert.equal(w.document.querySelector(".notify").textContent, "Test message");
++w.commandChannelsReady = false;
++assert.equal(query("channels").status, "rejected");
++assert.equal(remote.dispatchRemoteCommand({ command: "channel_by_number", channel_number: 1 }), "deferred");
++w.commandChannelsReady = true;
++w.parentPIN = "1234"; w.sPSchannels = 1; w.parentalArray = ["alpha"];
++assert.equal(query("play", { query: "1" }).status, "rejected");
++assert.equal(played.length, 1);
++w.parentPIN = "*";
++console.log("PASS retained player RPC status/channel identity/play/control readback/unsupported/parental gates");
++
++const wire = load("src/shared/wire-contracts.ts", ctx);
++const transport = load("src/plugins/command-server.ts", ctx, { "../shared/wire-contracts": wire });
++const config = load("src/plugins/command-server-settings.ts", ctx, { "./command-server": transport, "../commands/remote-requests": remote });
++let sent;
++const client = config.installCommandServer(w, request => { sent = request; return new Promise(() => {}); });
++w.__ottCommandServer = client;
++const ownToken = stored.get("commandServerToken");
++client.configure({ address: "https://control.invalid", token: ownToken, enabled: true });
++assert.equal(stored.get("commandServerEnabled"), "1");
++assert.equal(sent.headers.Authorization, "Bearer " + ownToken);
++assert.equal(sent.method, "GET");
++assert.equal(sent.followRedirects, false);
++assert.match(sent.url, /delivery=ack$/);
++assert.ok(!JSON.stringify(client.status()).includes(ownToken));
++assert.equal(stored.has("sLocalHttpEnabled"), false, "outbound client does not enable the listener");
++const ownAddress = stored.get("commandServerAddress");
++config.preserveCommandServerOnImport(w, () => { stored.clear(); stored.set("ordinary", "restored"); stored.set("commandServerToken", "injected"); stored.set("commandServerEnabled", "1"); });
++assert.equal(stored.get("commandServerEnabled"), "0");
++assert.equal(stored.get("commandServerToken"), ownToken);
++assert.equal(stored.get("commandServerAddress"), ownAddress);
++assert.equal(client.status().enabled, false);
++console.log("PASS private config persistence/native transport/listener separation/import revocation");
++
++w.settings = { localHttpEnabled: 0, localHttpDeviceCode: "old", commandServerToken: ownToken, commandServerAddress: ownAddress, commandServerEnabled: 1, players: 1 };
++w.isCommandServerPrivateKey = config.isCommandServerPrivateKey;
++w.preserveCommandServerOnImport = config.preserveCommandServerOnImport;
++w.eval(fn("src/settings/index.ts", "exportSettings"));
++const json = w.exportSettings();
++assert.ok(!json.includes(ownToken) && !json.includes(ownAddress) && !json.includes("commandServer"));
++let saved;
++w.saveSettings = values => { saved = values; }; w.loadSettings = () => {};
++w.eval(fn("src/settings/index.ts", "applyImport"));
++w.applyImport({ settings: { players: 1, commandServerAddress: "https://injected.invalid", commandServerToken: "injected", commandServerEnabled: 1 }, version: 1 });
++assert.ok(!JSON.stringify(saved).includes("injected"));
++assert.equal(stored.get("commandServerToken"), ownToken);
++assert.equal(stored.get("commandServerEnabled"), "0");
++w.eval(source("js/jquery-1.11.1.min.js"));
++Object.assign(w, { _: text => text, host_ott: "fixture.invalid", host_ott_proto: "https://", curColor: "gold", keys: { EXIT: 27, RETURN: 8 }, setTimeout: () => 1, clearTimeout() {}, stbGetAllItems: () => Object.fromEntries(stored) });
++w.eval(fn("src/settings/cloud.ts", "cloudSendSettings"));
++let post;
++w.$.ajax = options => { post = options; };
++w.cloudSendSettings();
++assert.ok(post.data.d.includes("ordinary"));
++assert.ok(!post.data.d.includes(ownToken) && !post.data.d.includes(ownAddress) && !post.data.d.includes("commandServer"));
++assert.equal(stored.get("ordinary"), "restored");
++console.log("PASS actual JSON and legacy raw-cloud exports exclude command server secrets; JSON imports cannot grant consent");
++w.close();
+--- a/android/app/src/main/java/play/ott/foss/StalkerPortalPlugin.kt
++++ b/android/app/src/main/java/play/ott/foss/StalkerPortalPlugin.kt
+@@ -70,7 +70,7 @@
+                 val timeout = (call.getInt("timeoutMs") ?: 15000).coerceAtLeast(1)
+                 conn.connectTimeout = timeout
+                 conn.readTimeout = timeout
+-                conn.instanceFollowRedirects = true
++                conn.instanceFollowRedirects = call.getBoolean("followRedirects", true) ?: true
+ 
+                 var contentTypeFromHeaders = false
+                 if (headersObj != null) {
+--- a/src-tauri/src/commands/http.rs
++++ b/src-tauri/src/commands/http.rs
+@@ -38,6 +38,7 @@
+     body: Option<String>,
+     headers: Option<HashMap<String, String>>,
+     timeout_ms: Option<u64>,
++    follow_redirects: Option<bool>,
+ ) -> Result<HttpResponse, HttpError> {
+     let url =
+         reqwest::Url::parse(url.strip_prefix('@').unwrap_or(&url)).map_err(|error| HttpError {
+@@ -55,6 +56,11 @@
+         timeout: false,
+     })?;
+     let client = reqwest::Client::builder()
++        .redirect(if follow_redirects == Some(false) {
++            reqwest::redirect::Policy::none()
++        } else {
++            reqwest::redirect::Policy::limited(10)
++        })
+         .timeout(Duration::from_millis(timeout_ms.unwrap_or(30000).max(1)))
+         .user_agent("OTT-play-FOSS/1.0")
+         .build()?;
+@@ -130,6 +136,7 @@
+                 ("Content-Type".into(), "text/plain".into()),
+             ])),
+             Some(2000),
++            None,
+         )
+         .await
+         .unwrap();
+@@ -146,10 +153,54 @@
+     }
+ 
+     #[tokio::test]
++    async fn explicit_no_redirect_does_not_forward_authorization() {
++        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
++        let target = TcpListener::bind("127.0.0.1:0").unwrap();
++        target.set_nonblocking(true).unwrap();
++        let url = format!("http://{}/commands", listener.local_addr().unwrap());
++        let redirect = format!("HTTP/1.1 302 Found\r\nLocation: http://{}/capture\r\nContent-Length: 0\r\nConnection: close\r\n\r\n", target.local_addr().unwrap());
++        let server = std::thread::spawn(move || {
++            let (mut stream, _) = listener.accept().unwrap();
++            stream
++                .set_read_timeout(Some(Duration::from_secs(2)))
++                .unwrap();
++            let mut reader = BufReader::new(&mut stream);
++            loop {
++                let mut line = String::new();
++                reader.read_line(&mut line).unwrap();
++                if line == "\r\n" || line.is_empty() {
++                    break;
++                }
++            }
++            stream.write_all(redirect.as_bytes()).unwrap();
++        });
++        let response = proxy_http(
++            url,
++            "GET".into(),
++            None,
++            Some(HashMap::from([(
++                "Authorization".into(),
++                "Bearer synthetic-test".into(),
++            )])),
++            Some(2000),
++            Some(false),
++        )
++        .await
++        .unwrap();
++        assert_eq!(response.status, 302);
++        server.join().unwrap();
++        assert_eq!(
++            target.accept().unwrap_err().kind(),
++            std::io::ErrorKind::WouldBlock
++        );
++    }
++
++    #[tokio::test]
+     async fn rejects_non_http_schemes() {
+         let error = proxy_http(
+             "file:///tmp/playlist".into(),
+             "GET".into(),
++            None,
+             None,
+             None,
+             None,
+--- a/src/plugins/stalker-portal.ts
++++ b/src/plugins/stalker-portal.ts
+@@ -36,6 +36,7 @@
+         body?: string;
+         headers?: Record<string, string>;
+         timeoutMs?: number;
++        followRedirects?: boolean;
+     }): Promise<NativeHttpResponse>;
+     portalRequest(opts: {
+         url: string;
