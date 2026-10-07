@@ -1,0 +1,21 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: daily
+
+  - package-ecosystem: docker
+    directory: /host/synology
+    schedule:
+      interval: daily
+
+  - package-ecosystem: docker
+    directory: /integrations/fcc-voice-backup
+    schedule:
+      interval: daily
+
+  - package-ecosystem: pip
+    directory: /integrations/fcc-voice-backup
+    schedule:
+      interval: daily
