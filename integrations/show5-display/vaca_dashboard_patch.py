@@ -13,6 +13,8 @@ backup and currently installed patched hashes. Restart Core afterward to load
 restored Python. It does not remove an already saved config-entry option.
 
 Supported source: ViewAssist_Companion_App 0.13.4, reviewed installed snapshot.
+Embedded upstream fragments and their local per-entry dashboard modifications
+retain Apache-2.0 terms; see ../../THIRD_PARTY_NOTICES.md and ../../licenses/.
 An upstream/HACS update requires another review; unknown files fail closed.
 """
 
