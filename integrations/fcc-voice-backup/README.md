@@ -23,3 +23,14 @@ The conversation bridge uses `FCC_BASE_URL`, `FCC_API_KEY_FILE`, an explicit fre
 The cloud adapter uses `NVIDIA_API_KEY_FILE` and `NVIDIA_RPC_TIMEOUT_SECONDS` (1–30; default 30), listening on TCP 10500. It fixes its TLS provider target, model routes and Russian voice; it does not load a local model or enable arbitrary URLs/SSML. One shared audio operation, bounded input/output, real RPC deadlines and cancellation protect the service.
 
 Keep both unauthenticated Wyoming listeners inside trusted infrastructure. Provider keys, filled manifests and raw evidence stay outside Git. The images and Kubernetes manifests are separate so cloud-audio rollout does not restart the conversation path or Homeway.
+
+## Dependency compatibility
+
+The cloud adapter installs `cloud-requirements.txt` as one environment. Riva
+2.27 requires protobuf **6.33.5** and websockets **>=15.0.1,<16**. The compatible
+gRPC tools line is **1.82**: 1.83 and later require protobuf 7.35.1 or newer.
+Dependabot groups this runtime and excludes those incompatible ranges while
+leaving compatible updates eligible. Revisit the bounds when Riva changes its
+requirements, including for a security-driven migration; resolve the complete
+environment and run `test_cloud_speech.py` before merging. Updating these files
+does not deploy an image or change a device.
