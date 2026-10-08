@@ -102,7 +102,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install bridge dependencies
-        run: python -m pip install -r integrations/fcc-voice-backup/requirements.txt
+        run: python -m pip install --require-hashes -r integrations/fcc-voice-backup/requirements.txt
       - name: Test synthetic protocol exchanges without HA or provider access
         run: python -m unittest discover -s integrations/fcc-voice-backup/tests -p test_bridge.py -v
 
@@ -122,7 +122,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install cloud adapter dependencies
-        run: python -m pip install -r integrations/fcc-voice-backup/cloud-requirements.txt
+        run: python -m pip install --require-hashes -r integrations/fcc-voice-backup/cloud-requirements.txt
       - name: Test Wyoming and local fake gRPC without provider access
         run: python -m unittest discover -s integrations/fcc-voice-backup/tests -p test_cloud_speech.py -v
 
@@ -142,7 +142,7 @@ jobs:
         with:
           python-version: "3.14"
       - name: Install isolated conversation runtime
-        run: python -m pip install -r tests/requirements-voice.txt
+        run: python -m pip install --require-hashes -r tests/requirements-voice.txt
       - name: Test native script routing without devices or provider access
         run: |
           PYTHONPATH=tests python -c 'import test_voice_controls; assert test_voice_controls.HA_AVAILABLE, "HA runtime dependencies must be available"'

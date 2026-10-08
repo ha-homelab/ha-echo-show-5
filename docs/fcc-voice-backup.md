@@ -104,7 +104,7 @@ For repeatable switching use [`scripts/voice_pipeline.py`](../scripts/voice_pipe
 
 ```bash
 python3.11 -m venv private/voice-tools
-private/voice-tools/bin/pip install -r integrations/fcc-voice-backup/requirements.txt
+private/voice-tools/bin/pip install --require-hashes -r integrations/fcc-voice-backup/requirements.txt
 cp templates/home-assistant/voice-backends.example.json private/voice-backends.json
 chmod 600 private/voice-backends.json
 ```
