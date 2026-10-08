@@ -1,6 +1,6 @@
 wyoming==1.10.2
-nvidia-riva-client==2.26.0
-grpcio==1.83.0
+nvidia-riva-client==2.27.0
+grpcio==1.84.0
 grpcio-tools==1.82.0
 protobuf==6.33.5
 websockets==15.0.1
