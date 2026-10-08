@@ -19,3 +19,21 @@ updates:
     directory: /integrations/fcc-voice-backup
     schedule:
       interval: daily
+    # Riva 2.27 requires protobuf==6.33.5 and websockets>=15.0.1,<16.
+    # grpcio-tools >=1.83 requires protobuf>=7.35.1, so it cannot share that env.
+    # Revisit with Riva metadata + the cloud protocol tests; keep compatible patches.
+    ignore:
+      - dependency-name: protobuf
+        versions: [">6.33.5"]
+      - dependency-name: websockets
+        versions: [">=16"]
+      - dependency-name: grpcio-tools
+        versions: [">=1.83"]
+    groups:
+      riva-cloud-runtime:
+        patterns:
+          - nvidia-riva-client
+          - grpcio
+          - grpcio-tools
+          - protobuf
+          - websockets
