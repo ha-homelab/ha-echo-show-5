@@ -126,6 +126,41 @@ jobs:
       - name: Test Wyoming and local fake gRPC without provider access
         run: python -m unittest discover -s integrations/fcc-voice-backup/tests -p test_cloud_speech.py -v
 
+  fcc-container-tests:
+    name: Locked FCC image (${{ matrix.service }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: conversation
+            dockerfile: Dockerfile
+            test-pattern: test_bridge.py
+          - service: cloud-audio
+            dockerfile: Dockerfile.cloud
+            test-pattern: test_cloud_speech.py
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build and test the pinned image without devices or providers
+        working-directory: integrations/fcc-voice-backup
+        env:
+          DOCKERFILE: ${{ matrix.dockerfile }}
+          TEST_PATTERN: ${{ matrix.test-pattern }}
+        run: |
+          docker build --file "$DOCKERFILE" --tag fcc-runtime-check .
+          docker run --rm --network none --entrypoint python fcc-runtime-check -m pip check
+          docker run --rm --network none --read-only --tmpfs /tmp \
+            --mount "type=bind,source=$PWD/tests,target=/app/tests,readonly" \
+            --entrypoint python fcc-runtime-check \
+            -m unittest discover -s /app/tests -p "$TEST_PATTERN" -v
+
   voice-runtime-tests:
     name: Native voice routing and explicit target responses
     runs-on: ubuntu-24.04
@@ -147,3 +182,37 @@ jobs:
         run: |
           PYTHONPATH=tests python -c 'import test_voice_controls; assert test_voice_controls.HA_AVAILABLE, "HA runtime dependencies must be available"'
           python -m unittest discover -s tests -p test_voice_controls.py -v
+
+  ci-gate:
+    name: CI gate
+    if: ${{ always() }}
+    needs:
+      - unit-tests
+      - intercom-tests
+      - display-tests
+      - fcc-voice-tests
+      - fcc-cloud-speech-tests
+      - fcc-container-tests
+      - voice-runtime-tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
+        with:
+          egress-policy: audit
+      - name: Require every test job to pass
+        env:
+          JOB_RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          results = json.loads(os.environ["JOB_RESULTS"])
+          failures = {name: job["result"] for name, job in results.items()
+                      if job["result"] != "success"}
+          if failures:
+              raise SystemExit(f"Required tests did not pass: {failures}")
+          print("All test jobs passed.")
+          PY
