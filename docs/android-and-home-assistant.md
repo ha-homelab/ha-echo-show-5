@@ -107,7 +107,10 @@ is the operator's declaration of stopped writers, not a live-state check or a
 lock. The final byte comparison only detects some source changes; it does not
 coordinate writers or provide compare-and-swap protection.
 
-Record the patched `select.py` SHA-256 while the writers are still stopped.
+Record the patched `select.py` SHA-256, numeric owner/group IDs and permission
+mode while the writers are still stopped. Also record the actual HA service
+UID/GID from this deployment; it is not the Android shell identity and is not
+assumed to be root.
 Restart HA normally after the patch completes, then select the new timeout on
 each intended device. Verify the Android value after a VACA Refresh/settings
 reconnect, as well as actual display brightness in another app. Unknown source
@@ -119,7 +122,26 @@ Restore the saved `select.py` only if the integration is still VACA 0.13.4 and
 its current file matches the recorded patched SHA-256. If the version or source
 has changed, do not overwrite it with the old backup: restore the appropriate
 upstream source for the current version and review any remaining timeout change
-there instead. Restart HA after completing that version-appropriate rollback.
+there instead.
+
+For the unchanged VACA 0.13.4 case, verify that the backup SHA-256 equals
+`fa05133394828d16fa92cab8f5db4cb3b3b0218a06b364a75129d1058ac71517`.
+With `backup` and `integration` set to the verified local paths, and both the
+backup and `select.py` confirmed to be regular files rather than symlinks,
+copy the saved bytes into the existing file:
+
+```sh
+cat -- "$backup" > "$integration/select.py"
+```
+
+This keeps the existing file's owner, group and permissions instead of moving
+the private `0600` backup into place. The content copy is not atomic: keep HA
+and every source updater stopped until it completes and the restored SHA-256
+matches the backup. If interrupted, keep them stopped and repeat from the
+verified backup. Confirm the numeric owner/group IDs and mode still match the
+record, and that the recorded HA service identity can read the restored file.
+Restart HA only after completing these checks for the version-appropriate
+rollback.
 
 **Observed acceptance, 2026-10-08:** both devices retained manual 80% brightness
 after the HA restart and VACA settings reconnect. A repeat 70-second test without
