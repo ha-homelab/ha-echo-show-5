@@ -55,6 +55,111 @@ settings delete secure doze_always_on
 
 If the original was an explicit `0` or `1`, restore that value with `settings put secure doze_always_on ORIGINAL_VALUE`. VACA's Screen control remains an optional supported route when its force-lock device-admin permission is active; the Screensaver control only darkens/overlays the screen. Keep the independent wake command available and verify actual display state with either route.
 
+## Fixed display brightness
+
+VACA's **Screen brightness** value is not the effective brightness while
+**Auto brightness** is enabled. On 2026-10-08, HA displayed values of
+50 and 100 while Android's automatic controller reported effective brightness
+of roughly 4–6%. The display remained awake; this was not a screen-sleep event.
+
+For a fixed, manually adjustable level, turn **Auto brightness** off, set
+**Screen brightness** to the desired percentage, leave **Screen always on**
+enabled, and turn VACA's **Screen saver** off. Set these through each device's
+HA entities so the integration does not resend a conflicting automatic policy.
+The recorded baseline on 2026-10-08 was 80% on both Shows; verify each device
+before changing its settings.
+
+In an authorized Android shell, verify `screen_brightness_mode=0` and the
+corresponding brightness value. On this build, 80% is `screen_brightness=204`.
+`dumpsys display` should report `mBrightnessReason=manual`,
+`mAppliedAutoBrightness=false`, and `mAppliedDimming=false`.
+Keep the AC stay-awake policy described in this guide. Android's separate Daydream
+screen saver can be disabled with `screensaver_enabled=0` and
+`screensaver_activate_on_dock=0` in secure settings; record their prior values
+before changing them. These controls do not disable deliberate screen-off actions.
+
+The dashboard observed on 2026-10-08 had a **Screens** view with individual
+brightness controls and **Both 80%** / **Both 100%** buttons. No timer or
+automation repeatedly reset the chosen brightness in that configuration.
+For rollback, restore the recorded VACA and Android settings together.
+
+### Prevent idle dimming outside VACA
+
+On 2026-10-08, AC stay-awake alone did not keep Android Settings bright: a
+70-second test showed `mAppliedDimming=true` and effective brightness 0.05 even with manual
+brightness set to 80%. VACA's camera stayed bright because its window holds a
+keep-screen-on flag. VACA also reapplies its configured system screen timeout,
+so changing only the Android timeout is not persistent across VACA settings
+updates.
+
+The guarded [timeout patch](../integrations/show5-display/vaca_timeout_patch.py)
+adds `2147483` seconds to the reviewed [VACA 0.13.4 timeout selector](https://github.com/msp1974/ViewAssist_Companion_App/blob/v0.13.4/custom_components/vaca/select.py).
+The [pinned Android settings code](https://github.com/msp1974/ViewAssistCompanionApp/blob/65906aebffd2f39772773b44729b22fd022a1f3c/app/src/main/java/com/msp1974/vacompanion/settings/Settings.kt)
+multiplies seconds by 1000 using a signed 32-bit integer; this value stays
+within that bound and sets `screen_off_timeout=2147483000`. It is the practical
+maximum of about 24.8 days, not an infinite timeout. VACA's own always-on window
+continues to suppress idle dimming while its clock or camera is visible.
+
+Run the patch against a copy first, then apply it to the integration with a new
+private `--backup` path. Restart HA normally to load the source change and select
+the new timeout on each intended device. Verify the Android value after a VACA
+Refresh/settings reconnect, as well as actual display brightness in another
+app. Unknown source versions are rejected; review and reapply the change after
+an upstream integration update if it is still needed. To revert, select a
+normal timeout, restore the saved `select.py`, and restart HA.
+
+**Observed acceptance, 2026-10-08:** both devices retained manual 80% brightness
+after the HA restart and VACA settings reconnect. A repeat 70-second test without
+touch input kept the first Show's camera view and the second Show's
+Android Display settings at effective brightness `0.79921263`, with automatic
+brightness and idle dimming both false. The same values remained after
+returning to the clock. A separate playback check confirmed the Front stream
+at 854×480 with decoded frames advancing from 39 to 90 in five seconds while
+brightness remained unchanged. This verifies the previously reproduced one-minute
+dimming problem; it is not a long-term endurance or physical backlight test.
+
+### Neutral colors instead of the LiveDisplay night filter
+
+LineageOS has a separate **LiveDisplay** color-temperature controller. On this
+ROM, `dumpsys color_display` reports Android Night Display as unavailable, but
+`dumpsys lineagelivedisplay` can still show an active warm filter. Check both
+services before concluding that night filtering is disabled.
+
+On 2026-10-08, both Shows used LiveDisplay's automatic mode (`mMode=2`) and
+reported a night temperature of 4800 K. The RGB adjustment was
+`[1.0, 0.88933593, 0.78475237]`, with hardware values `[2000, 1778, 1569]`.
+These matching settings confirmed a warm filter on both devices, but did not
+by themselves explain the perceived difference between their physical screens.
+
+For a neutral baseline, open **Settings → Display → LiveDisplay**, scroll past
+the large preview image, then select **Display mode → Off**. On the five-inch
+landscape screen, the preview initially fills the entire page; the controls
+are below it. This is the [LiveDisplay off mode](https://github.com/LineageOS/android_lineage-sdk/blob/lineage-18.1/sdk/src/java/lineageos/hardware/LiveDisplayManager.java),
+which disables its adaptive features. It does not turn off the screen.
+
+Read back the result in an authorized Android shell:
+
+```sh
+settings get --lineage system display_temperature_mode
+dumpsys lineagelivedisplay
+```
+
+After the change on 2026-10-08, both devices reported mode `0`, current color
+temperature `6500`, `mAdditionalAdjustment=[1.0, 1.0, 1.0]`, and hardware values
+`[2000, 2000, 2000]`, including after returning to VACA. Manual brightness
+remained at 80%. The setting is saved in Lineage's own settings provider.
+Computed text colors, backgrounds and CSS filters also matched between the
+two deployed clock pages; no web-page warming filter was present.
+An ordinary shell write to this provider was denied for lack of
+`lineageos.permission.WRITE_SETTINGS`; use the existing settings UI instead
+of granting extra permissions or changing ADB security. To restore the prior
+behavior, select **Automatic** in that same menu.
+
+Those observations validate software color settings at that checkpoint, not a
+measured panel white point or the devices' current state.
+If a visible difference remains, compare the same image at the same viewing
+angle before adjusting the per-device **Color calibration** controls.
+
 ## Complete initial Android setup and enable USB debugging
 
 Finish the Lineage welcome/setup flow. If it offers **Update Lineage Recovery alongside the OS**, leave that option unchecked for this TWRP-based workflow. This is the project's recommendation to retain the existing TWRP recovery, not a stated requirement from the ROM maintainer.
@@ -87,6 +192,11 @@ This step required no root, authentication change, ROM edit or SELinux change. I
 **Reboot acceptance passed, 2026-10-03:** after one ordinary Android reboot, TCP5555 and `sys.boot_completed=1` returned in about 46 seconds. A changed boot ID and the complete device serial/`cronos` checks confirmed the same device had rebooted. Both port properties read `5555`; the authorized shell remained UID 2000 with `ro.adb.secure=1` and `ro.secure=1`. A fresh unauthenticated connection received an ADB AUTH challenge. The USB cable was physically present, but no USB commands were used during the test. HA ADB commands also worked after boot without USB intervention. VACA autostarted with one unsilenced recorder. Camera Start on Boot remains off: its process existed, but HTTPS stayed unavailable until its activity was opened manually; Companion home was then launched. Subsequent checks confirmed different fresh camera frames, denied camera microphone permission and idle intercom status without recovery pending. This validates ADB auto-return and the restored baseline, not unattended camera/dashboard startup or recovery after power loss.
 
 Keep the authorized ADB host key and TCP5555 on trusted private networks. Reconnect the existing HA Android Debug Bridge integration and verify device identity before sending commands. If network access fails, retain the [guarded USB fallback](camera-and-intercom.md#manual-recovery-after-an-android-reboot).
+
+Reserve each Show's DHCP address and keep both its VACA and Android Debug
+Bridge entries aligned with that address. See [stable network addresses](stable-network-addresses.md)
+for identity checks, safe migration and rollback. A stale address can make
+remote control unavailable even while the Show opens HA successfully.
 
 **A second unit exposed a separate Wi-Fi recovery limitation.** On the same ROM, the ADB port properties and trusted host authorization survived reboot, but network access missed a 150-second recovery deadline. Its Wi-Fi log recorded `PnoScanListener onFailure: reason: -3 description: not supported` after the screen turned off while disconnected. Waking the screen restarted normal scanning; association and DHCP completed about five seconds later. A later Wi-Fi restart while the screen was off reproduced the unsupported scan errors, and waking it again restored connectivity. The initial failed association remains unexplained. This evidence concerns reconnection while disconnected, not loss of an established connection whenever the screen sleeps.
 
