@@ -78,11 +78,10 @@ class ContentTests(unittest.TestCase):
         with self.assertRaises(cloud.SpeechError):
             cloud.transcript_text(response("x" * (cloud.MAX_TEXT_CHARACTERS + 1)))
 
-    def test_runtime_channel_is_fixed_and_tls(self):
+    def test_no_connection_is_retained_at_startup(self):
         with patch.object(cloud.grpc.aio, "secure_channel") as factory:
             cloud.NvidiaSpeechProvider(cloud.Config("synthetic-key-12345"))
-        self.assertEqual(factory.call_args.args[0], "grpc.nvcf.nvidia.com:443")
-        self.assertIsInstance(factory.call_args.args[1], grpc.ChannelCredentials)
+        factory.assert_not_called()
 
     def test_plaintext_segmentation_keeps_all_words_and_limits(self):
         text = "Первая фраза. " * 65
@@ -346,6 +345,7 @@ class GrpcTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.requests = []
         self.tts_requests = []
+        self.channels = []
         self.delay = 0
         self.failure = None
         self.tts_audio = b"\0" * 22050
@@ -371,12 +371,15 @@ class GrpcTests(unittest.IsolatedAsyncioTestCase):
         cloud.rasr_grpc.add_RivaSpeechRecognitionServicer_to_server(Servicer(), self.server)
         cloud.rtts_grpc.add_RivaSpeechSynthesisServicer_to_server(TtsServicer(), self.server)
         port = self.server.add_insecure_port("127.0.0.1:0")
+        self.port = port
         await self.server.start()
         channel = grpc.aio.insecure_channel(f"127.0.0.1:{port}")
         self.provider = cloud.NvidiaSpeechProvider(cloud.Config("synthetic-key-12345", 1), channel=channel)
 
     async def asyncTearDown(self):
         await self.provider.close()
+        for channel in self.channels:
+            await channel.close()
         await self.server.stop(0)
 
     async def test_real_grpc_request_deadline_metadata_and_all_segments(self):
@@ -390,6 +393,54 @@ class GrpcTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(metadata["authorization"], "Bearer synthetic-key-12345")
         self.assertGreater(remaining, 0)
         self.assertLessEqual(remaining, 1.1)
+
+    def runtime_channel(self, target, credentials, **kwargs):
+        self.assertEqual(target, "grpc.nvcf.nvidia.com:443")
+        self.assertIsInstance(credentials, grpc.ChannelCredentials)
+        self.assertEqual(dict(kwargs["options"]).get("grpc.use_local_subchannel_pool"), 1)
+        channel = grpc.aio.insecure_channel(f"127.0.0.1:{self.port}")
+        self.channels.append(channel)
+        return channel
+
+    async def test_each_operation_gets_a_new_connection_and_closes_it(self):
+        with patch.object(cloud.grpc.aio, "secure_channel", side_effect=self.runtime_channel):
+            provider = cloud.NvidiaSpeechProvider(cloud.Config("synthetic-key-12345", 1))
+            await provider.transcribe(b"\0" * 320)
+            await provider.synthesize("Проверка. " * 30)
+            await provider.transcribe(b"\0" * 320)
+        self.assertEqual(len(self.channels), 3)
+        self.assertGreater(len(self.tts_requests), 1)
+        self.assertTrue(all(c.get_state() == grpc.ChannelConnectivity.SHUTDOWN for c in self.channels))
+        await provider.close()
+
+    async def test_failed_operation_is_closed_and_next_request_can_succeed(self):
+        with patch.object(cloud.grpc.aio, "secure_channel", side_effect=self.runtime_channel):
+            provider = cloud.NvidiaSpeechProvider(cloud.Config("synthetic-key-12345", 1))
+            self.delay = 10
+            with self.assertRaises(cloud.SpeechError) as caught:
+                await provider.transcribe(b"\0" * 320)
+            self.assertEqual(caught.exception.code, "timeout")
+            self.delay = 0
+            self.assertEqual(await provider.transcribe(b"\0" * 320), "Один. Два.")
+        self.assertEqual(len(self.requests), 2)  # no replay of the timed-out request
+        self.assertEqual(len(self.channels), 2)
+        self.assertTrue(all(c.get_state() == grpc.ChannelConnectivity.SHUTDOWN for c in self.channels))
+
+    async def test_cancelled_operation_closes_its_connection(self):
+        self.delay = 10
+        with patch.object(cloud.grpc.aio, "secure_channel", side_effect=self.runtime_channel):
+            provider = cloud.NvidiaSpeechProvider(cloud.Config("synthetic-key-12345", 1))
+            task = asyncio.create_task(provider.synthesize("Проверка."))
+            for _ in range(100):
+                if self.tts_requests:
+                    break
+                await asyncio.sleep(0.01)
+            self.assertTrue(self.tts_requests)
+            task.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await task
+        self.assertEqual(len(self.channels), 1)
+        self.assertEqual(self.channels[0].get_state(), grpc.ChannelConnectivity.SHUTDOWN)
 
     async def test_actual_grpc_deadline_cancels_slow_rpc(self):
         self.delay = 10

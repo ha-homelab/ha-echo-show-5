@@ -26,7 +26,7 @@ from wyoming.error import Error
 from wyoming.event import Event, async_write_event
 from wyoming.info import AsrModel, AsrProgram, Attribution, Info, TtsProgram, TtsVoice
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 RIVA_TARGET = "grpc.nvcf.nvidia.com:443"
 ASR_FUNCTION_ID = "71203149-d3b7-4460-8231-1be2543a1fca"
 TTS_FUNCTION_ID = "ddacc747-1269-4fab-bfd9-8f593dead106"
@@ -135,13 +135,26 @@ class NvidiaSpeechProvider:
     def __init__(self, config: Config, channel=None):
         self.config = config
         # Injected channels are only for offline tests; runtime target/TLS fixed.
-        self.channel = channel or grpc.aio.secure_channel(
+        self.channel = channel
+
+    @contextlib.asynccontextmanager
+    async def connection(self):
+        if self.channel is not None:
+            yield self.channel
+            return
+        # NVCF binds sessions to a TCP connection. Do not retain a stale session
+        # between utterances or share one between the ASR and TTS functions.
+        # Closing after each operation also releases its cloud worker promptly.
+        channel = grpc.aio.secure_channel(
             RIVA_TARGET, grpc.ssl_channel_credentials(),
             options=[("grpc.max_receive_message_length", MAX_TTS_AUDIO_BYTES + 8192),
-                     ("grpc.max_send_message_length", MAX_AUDIO_BYTES + 8192)],
+                     ("grpc.max_send_message_length", MAX_AUDIO_BYTES + 8192),
+                     ("grpc.use_local_subchannel_pool", 1)],
         )
-        self.stub = rasr_grpc.RivaSpeechRecognitionStub(self.channel)
-        self.tts_stub = rtts_grpc.RivaSpeechSynthesisStub(self.channel)
+        try:
+            yield channel
+        finally:
+            await channel.close()
 
     async def transcribe(self, pcm: bytes) -> str:
         request = rasr.RecognizeRequest(
@@ -153,11 +166,12 @@ class NvidiaSpeechProvider:
             ), audio=pcm,
         )
         try:
-            response = await self.stub.Recognize(
-                request, timeout=self.config.rpc_timeout,
-                metadata=(("function-id", ASR_FUNCTION_ID),
-                          ("authorization", "Bearer " + self.config.api_key)),
-            )
+            async with self.connection() as channel:
+                response = await rasr_grpc.RivaSpeechRecognitionStub(channel).Recognize(
+                    request, timeout=self.config.rpc_timeout,
+                    metadata=(("function-id", ASR_FUNCTION_ID),
+                              ("authorization", "Bearer " + self.config.api_key)),
+                )
         except grpc.aio.AioRpcError as exc:
             raise rpc_error(exc) from None
         return transcript_text(response)
@@ -167,29 +181,32 @@ class NvidiaSpeechProvider:
         audio = bytearray()
         deadline = asyncio.get_running_loop().time() + self.config.rpc_timeout
         try:
-            for segment in segments:
-                remaining = deadline - asyncio.get_running_loop().time()
-                if remaining <= 0:
-                    raise SpeechError("timeout")
-                request = rtts.SynthesizeSpeechRequest(
-                    text=segment, language_code="ru-RU", voice_name=TTS_VOICE,
-                    encoding=raudio.LINEAR_PCM, sample_rate_hz=TTS_RATE,
-                )
-                result = await self.tts_stub.Synthesize(
-                    request, timeout=remaining,
-                    metadata=(("function-id", TTS_FUNCTION_ID),
-                              ("authorization", "Bearer " + self.config.api_key)),
-                )
-                if not result.audio or len(result.audio) % 2 or len(audio) + len(result.audio) > MAX_TTS_AUDIO_BYTES:
-                    raise SpeechError("provider-unavailable")
-                audio.extend(result.audio)
+            async with self.connection() as channel:
+                stub = rtts_grpc.RivaSpeechSynthesisStub(channel)
+                for segment in segments:
+                    remaining = deadline - asyncio.get_running_loop().time()
+                    if remaining <= 0:
+                        raise SpeechError("timeout")
+                    request = rtts.SynthesizeSpeechRequest(
+                        text=segment, language_code="ru-RU", voice_name=TTS_VOICE,
+                        encoding=raudio.LINEAR_PCM, sample_rate_hz=TTS_RATE,
+                    )
+                    result = await stub.Synthesize(
+                        request, timeout=remaining,
+                        metadata=(("function-id", TTS_FUNCTION_ID),
+                                  ("authorization", "Bearer " + self.config.api_key)),
+                    )
+                    if not result.audio or len(result.audio) % 2 or len(audio) + len(result.audio) > MAX_TTS_AUDIO_BYTES:
+                        raise SpeechError("provider-unavailable")
+                    audio.extend(result.audio)
         except grpc.aio.AioRpcError as exc:
             raise rpc_error(exc) from None
         # Do not emit partial speech if a later segment failed.
         return bytes(audio)
 
     async def close(self):
-        await self.channel.close()
+        if self.channel is not None:
+            await self.channel.close()
 
 
 def service_info() -> Info:
@@ -310,6 +327,7 @@ class SpeechService:
                     if self.owner is not None:
                         raise SpeechError("busy")
                     self.owner = token
+                    state = "synthesizing"
                     pcm = await self._request(reader, self.provider.synthesize(text))
                     if not pcm or len(pcm) % 2 or len(pcm) > MAX_TTS_AUDIO_BYTES:
                         raise SpeechError("provider-unavailable")
@@ -320,6 +338,7 @@ class SpeechService:
                         await async_write_event(AudioStop().event(), writer)
                     del pcm
                     self.owner = None
+                    state = "idle"
                 elif event.type == "transcribe" and state == "idle":
                     if event.data.get("language") not in (None, "", "ru", "ru-RU") or event.data.get("name") not in (None, "", MODEL_NAME):
                         raise SpeechError("invalid-event")
@@ -341,6 +360,7 @@ class SpeechService:
                 elif event.type == "audio-stop" and state == "audio":
                     if not audio:
                         raise SpeechError("invalid-audio")
+                    state = "transcribing"
                     text = await self._request(reader, self.provider.transcribe(bytes(audio)))
                     await asyncio.wait_for(async_write_event(Transcript(text=text, language="ru").event(), writer), 5)
                     audio.clear()
@@ -351,7 +371,7 @@ class SpeechService:
         except (SpeechError, TimeoutError) as exc:
             code = exc.code if isinstance(exc, SpeechError) else "timeout"
             # Only fixed category codes; never audio, transcript, key, or exceptions.
-            logging.warning("FCC_CLOUD_SPEECH_FAILURE %s", code)
+            logging.warning("FCC_CLOUD_SPEECH_FAILURE %s stage=%s", code, state)
             with contextlib.suppress(ConnectionError, TimeoutError):
                 await asyncio.wait_for(async_write_event(Error(text=ERRORS[code], code=code).event(), writer), 2)
         except (ConnectionError, asyncio.IncompleteReadError):
