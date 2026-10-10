@@ -107,13 +107,19 @@ is the operator's declaration of stopped writers, not a live-state check or a
 lock. The final byte comparison only detects some source changes; it does not
 coordinate writers or provide compare-and-swap protection.
 
+Record the patched `select.py` SHA-256 while the writers are still stopped.
 Restart HA normally after the patch completes, then select the new timeout on
 each intended device. Verify the Android value after a VACA Refresh/settings
 reconnect, as well as actual display brightness in another app. Unknown source
 versions are rejected; review and reapply the change after an upstream
-integration update if it is still needed. To revert, select a normal timeout,
-stop HA and the source updaters again, restore the saved `select.py`, and then
-restart HA.
+integration update if it is still needed.
+
+To revert, select a normal timeout and stop HA and the source updaters again.
+Restore the saved `select.py` only if the integration is still VACA 0.13.4 and
+its current file matches the recorded patched SHA-256. If the version or source
+has changed, do not overwrite it with the old backup: restore the appropriate
+upstream source for the current version and review any remaining timeout change
+there instead. Restart HA after completing that version-appropriate rollback.
 
 **Observed acceptance, 2026-10-08:** both devices retained manual 80% brightness
 after the HA restart and VACA settings reconnect. A repeat 70-second test without
