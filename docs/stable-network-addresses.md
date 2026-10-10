@@ -32,7 +32,8 @@ verify the previous configuration before continuing.
 A reservation does not immediately replace an active lease. With USB recovery
 available, reconnect Wi-Fi on the selected Show, then verify the new address
 both on Android and in the router's lease table. Check ADB identity again at
-the new address and test VACA's TCP 10800 listener from the HA host.
+the new address and test VACA's configured TCP port (10800 by default) from the
+HA host.
 
 ## Rebind Home Assistant
 

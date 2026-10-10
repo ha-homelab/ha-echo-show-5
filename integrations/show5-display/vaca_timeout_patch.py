@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Add the Android-safe maximum timeout to reviewed VACA 0.13.4.
 
-Default: validate only. Apply while keeping a private backup, restart HA, then
-select 2147483 seconds on the intended satellites. This prevents VACA from
-restoring a short Android timeout when its settings reconnect. It is a bounded
+Default: validate only. Before applying, stop HA and every integration/source
+updater, and keep them stopped until the patch completes. --writers-stopped is
+your declaration of that prerequisite, not a live-state check or a lock. Keep a
+private backup, then restart HA and select 2147483 seconds on the intended
+satellites. This prevents VACA from restoring a short Android timeout when its
+settings reconnect. It is a bounded
 24.8-day timeout, not an infinite wake lock. Ordinary VACA always-on behavior
 and deliberate screen-off controls remain unchanged.
 """
@@ -38,15 +41,22 @@ def main():
     parser.add_argument("integration", type=Path)
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--backup", type=Path)
+    parser.add_argument(
+        "--writers-stopped", action="store_true",
+        help="declare HA and all source updaters stopped until completion; not a lock",
+    )
     args = parser.parse_args()
+    if args.apply:
+        if not args.writers_stopped:
+            parser.error("--apply requires --writers-stopped; stop HA and all source updaters first")
+        if args.backup is None:
+            parser.error("--apply requires a new private --backup path")
     target = args.integration / "select.py"
     if target.is_symlink() or not target.is_file():
         raise ValueError("Expected a regular select.py")
     original = target.read_bytes()
     updated = patched(original)
     if args.apply:
-        if args.backup is None:
-            parser.error("--apply requires a new private --backup path")
         # Existing backups must never be overwritten.
         with args.backup.open("xb") as handle:
             os.chmod(args.backup, 0o600)
@@ -61,6 +71,8 @@ def main():
                 os.fsync(handle.fileno())
             os.chmod(temporary, target.stat().st_mode & 0o777)
             os.chown(temporary, target.stat().st_uid, target.stat().st_gid)
+            # This detects some prior changes, not writes after the comparison.
+            # All source writers must remain stopped through the replacement.
             if target.read_bytes() != original:
                 raise ValueError("select.py changed during deployment")
             os.replace(temporary, target)

@@ -87,7 +87,7 @@ class TimeoutPatchTests(unittest.TestCase):
         self.target.write_bytes(changed)
         backup = self.root / "original.py"
         with self.assertRaisesRegex(ValueError, "Unreviewed"):
-            self.run_cli("--apply", "--backup", backup)
+            self.run_cli("--apply", "--writers-stopped", "--backup", backup)
         self.assertEqual(self.target.read_bytes(), changed)
         self.assertFalse(backup.exists())
 
@@ -104,7 +104,7 @@ class TimeoutPatchTests(unittest.TestCase):
 
     def test_apply_preserves_original_backup_and_source_permissions(self):
         backup = self.root / "original.py"
-        self.assertIn("Applied", self.run_cli("--apply", "--backup", backup))
+        self.assertIn("Applied", self.run_cli("--apply", "--writers-stopped", "--backup", backup))
         self.assertEqual(backup.read_bytes(), SOURCE)
         self.assertEqual(stat.S_IMODE(backup.stat().st_mode), 0o600)
         self.assertEqual(stat.S_IMODE(self.target.stat().st_mode), 0o640)
@@ -112,11 +112,11 @@ class TimeoutPatchTests(unittest.TestCase):
         self.assertFalse((self.root / "select.py.timeout-patch.tmp").exists())
 
     def test_repeated_apply_rejects_patched_source_without_second_backup(self):
-        self.run_cli("--apply", "--backup", self.root / "original.py")
+        self.run_cli("--apply", "--writers-stopped", "--backup", self.root / "original.py")
         updated = self.target.read_bytes()
         second = self.root / "second.py"
         with self.assertRaisesRegex(ValueError, "Unreviewed"):
-            self.run_cli("--apply", "--backup", second)
+            self.run_cli("--apply", "--writers-stopped", "--backup", second)
         self.assertEqual(self.target.read_bytes(), updated)
         self.assertFalse(second.exists())
 
@@ -124,13 +124,20 @@ class TimeoutPatchTests(unittest.TestCase):
         backup = self.root / "original.py"
         backup.write_bytes(b"keep")
         with self.assertRaises(FileExistsError):
-            self.run_cli("--apply", "--backup", backup)
+            self.run_cli("--apply", "--writers-stopped", "--backup", backup)
         self.assertEqual(backup.read_bytes(), b"keep")
         self.assertEqual(self.target.read_bytes(), SOURCE)
 
+    def test_apply_requires_stopped_writers_declaration_before_any_write(self):
+        backup = self.root / "original.py"
+        with self.assertRaises(SystemExit), patch("sys.stderr", io.StringIO()):
+            self.run_cli("--apply", "--backup", backup)
+        self.assertEqual(self.target.read_bytes(), SOURCE)
+        self.assertEqual(sorted(p.name for p in self.root.iterdir()), ["select.py"])
+
     def test_apply_requires_backup(self):
         with self.assertRaises(SystemExit), patch("sys.stderr", io.StringIO()):
-            self.run_cli("--apply")
+            self.run_cli("--apply", "--writers-stopped")
         self.assertEqual(self.target.read_bytes(), SOURCE)
         self.assertEqual(sorted(p.name for p in self.root.iterdir()), ["select.py"])
 
@@ -139,7 +146,7 @@ class TimeoutPatchTests(unittest.TestCase):
         self.target.rename(other)
         self.target.symlink_to(other)
         with self.assertRaisesRegex(ValueError, "regular"):
-            self.run_cli("--apply", "--backup", self.root / "original.py")
+            self.run_cli("--apply", "--writers-stopped", "--backup", self.root / "original.py")
         self.assertTrue(self.target.is_symlink())
         self.assertEqual(other.read_bytes(), SOURCE)
         self.assertFalse((self.root / "original.py").exists())
@@ -148,11 +155,11 @@ class TimeoutPatchTests(unittest.TestCase):
         temporary = self.root / "select.py.timeout-patch.tmp"
         temporary.write_bytes(b"keep")
         with self.assertRaises(FileExistsError):
-            self.run_cli("--apply", "--backup", self.root / "original.py")
+            self.run_cli("--apply", "--writers-stopped", "--backup", self.root / "original.py")
         self.assertEqual(self.target.read_bytes(), SOURCE)
         self.assertEqual(temporary.read_bytes(), b"keep")
 
-    def test_source_changed_during_apply_is_preserved_and_temporary_removed(self):
+    def test_change_before_final_comparison_is_preserved_and_temporary_removed(self):
         read_bytes = Path.read_bytes
         reads = 0
         changed = SOURCE + b"\n# changed by another writer\n"
@@ -168,7 +175,7 @@ class TimeoutPatchTests(unittest.TestCase):
         backup = self.root / "original.py"
         with patch.object(Path, "read_bytes", concurrent_read):
             with self.assertRaisesRegex(ValueError, "changed during deployment"):
-                self.run_cli("--apply", "--backup", backup)
+                self.run_cli("--apply", "--writers-stopped", "--backup", backup)
         self.assertEqual(self.target.read_bytes(), changed)
         self.assertEqual(backup.read_bytes(), SOURCE)
         self.assertFalse((self.root / "select.py.timeout-patch.tmp").exists())

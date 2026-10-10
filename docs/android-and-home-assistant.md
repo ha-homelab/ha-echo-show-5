@@ -100,13 +100,20 @@ within that bound and sets `screen_off_timeout=2147483000`. It is the practical
 maximum of about 24.8 days, not an infinite timeout. VACA's own always-on window
 continues to suppress idle dimming while its clock or camera is visible.
 
-Run the patch against a copy first, then apply it to the integration with a new
-private `--backup` path. Restart HA normally to load the source change and select
-the new timeout on each intended device. Verify the Android value after a VACA
-Refresh/settings reconnect, as well as actual display brightness in another
-app. Unknown source versions are rejected; review and reapply the change after
-an upstream integration update if it is still needed. To revert, select a
-normal timeout, restore the saved `select.py`, and restart HA.
+Validate the patch against a copy first. Before applying, stop HA and every
+integration/source updater, and keep them stopped until the patch completes.
+Run with `--apply --writers-stopped` and a new private `--backup` path. The flag
+is the operator's declaration of stopped writers, not a live-state check or a
+lock. The final byte comparison only detects some source changes; it does not
+coordinate writers or provide compare-and-swap protection.
+
+Restart HA normally after the patch completes, then select the new timeout on
+each intended device. Verify the Android value after a VACA Refresh/settings
+reconnect, as well as actual display brightness in another app. Unknown source
+versions are rejected; review and reapply the change after an upstream
+integration update if it is still needed. To revert, select a normal timeout,
+stop HA and the source updaters again, restore the saved `select.py`, and then
+restart HA.
 
 **Observed acceptance, 2026-10-08:** both devices retained manual 80% brightness
 after the HA restart and VACA settings reconnect. A repeat 70-second test without
