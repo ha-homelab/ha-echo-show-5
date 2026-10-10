@@ -52,7 +52,7 @@ provider terms and data handling apply. No paid fallback is configured.
 
 ```bash
 docker build -f integrations/fcc-voice-backup/Dockerfile.cloud \
-  -t fcc-cloud-speech:0.1.0 integrations/fcc-voice-backup
+  -t fcc-cloud-speech:0.1.1 integrations/fcc-voice-backup
 ```
 
 Import this image into the selected node's k3s/containerd store before applying
@@ -93,6 +93,9 @@ The accepted gateway policy does not isolate the separate audio listener.
 - ASR accepts only mono PCM16 at 16 kHz, up to 30 seconds. Capture has a 45-second
   total deadline and 10-second idle deadline. Frames, connections and allocations
   are bounded before payload reads.
+- Each ASR request and complete TTS operation opens a dedicated TLS gRPC
+  connection and closes it on completion, error or cancellation. TTS segments
+  share that operation's connection; ASR and TTS never share one.
 - Every ASR RPC has a real gRPC deadline. TTS shares one deadline across all
   chunks, so splitting a response cannot multiply the configured timeout.
 - TTS accepts at most 1,000 plain-text characters, splits at sentence/word
@@ -135,7 +138,16 @@ the unavailable satellite was excluded. No audio was played on a household devic
 Offline tests use real loopback Wyoming framing and local fake gRPC services.
 They exercise metadata, Russian configuration, multi-segment transcription,
 chunked synthesis, total deadlines, malformed/oversized input, busy behavior,
-disconnect cancellation and recovery without provider credentials.
+disconnect cancellation and recovery without provider credentials. The connection
+regressions also check that each operation owns a new channel, every channel
+closes after completion or cancellation, and the next request succeeds after a
+timeout without replaying the failed request. Run them with the hashed cloud
+dependencies on Python 3.11; CI also runs them inside the pinned Python 3.14 image:
+
+```bash
+python -m pip install --require-hashes -r integrations/fcc-voice-backup/cloud-requirements.txt
+python -m unittest discover -s integrations/fcc-voice-backup/tests -p test_cloud_speech.py -v
+```
 
 Live tests must use generated phrases, fetch answer audio without playing it on a
 household device, and record STT, conversation and first-answer-audio timings
@@ -143,3 +155,28 @@ separately. Run the FCC and Homeway pipelines concurrently to verify coexistence
 `Ready`, entity availability and a TTS URL are not proof of completed audio. Physical
 wake-word accuracy, microphone/speaker quality and long-term availability need an
 attended device check.
+
+## Recovery from stale cloud connections (2026-10-06)
+
+Version 0.1.0 kept one gRPC connection for the process lifetime and used it for
+both cloud functions. During an incident affecting two Echo Dots, four synthetic
+requests through that process timed out after about 30 seconds, including both
+ASR and TTS. A fresh client in the same Pod, with the same credential and routes,
+recognized the fixture in 2.566 seconds and synthesized speech in 2.369 seconds.
+The original process still timed out immediately after the fresh-client test.
+This isolates a stale connection/session from microphone or wake-word behavior;
+it does not prove the initial cause of the stale session.
+
+Version 0.1.1 opens an isolated connection per operation and closes it in a
+`finally` block. NVIDIA documents that its proxy binds sessions to TCP
+connections and recommends closing a connection after use; see
+[gRPC function invocation](https://docs.nvidia.com/nvcf/overview/g-rpc-function-invocation).
+The change preserves the 30-second deadline, credentials, models, one-operation
+limit and no-retry policy. Failure logs now include a fixed stage name, without
+transcripts, audio or raw provider error messages.
+
+An independent FCC conversation timeout also occurred in the incident. A later
+synthetic text request completed in 2.111 seconds. This transport fix is for
+cloud speech; it does not guarantee the availability or latency of the external
+text model. Diagnose `no-speech`, a busy service and conversation timeouts
+separately. Do not retune wake thresholds to compensate for a cloud timeout.
