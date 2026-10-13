@@ -94,3 +94,8 @@ Any code, dependency, policy or workflow correction requires a new candidate.
 Never replace an existing release asset or edit accepted evidence. Rollback
 means reinstalling previously accepted immutable source plus compatible private
 configuration; it does not reset the release allocator or overwrite old tags.
+
+Dependency review compares proposed changes on pull requests and merge groups.
+Push, scheduled, and manually requested candidates have no PR comparison refs,
+so that step is limited to those two comparison events; all source, runtime,
+package, and candidate acceptance checks still run for the release.
