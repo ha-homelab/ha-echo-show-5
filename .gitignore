@@ -100,3 +100,7 @@ build/
 ._*
 .idea/
 .vscode/
+
+# Local bounded fuzz runner
+.fuzz-venv/
+fuzz-results/

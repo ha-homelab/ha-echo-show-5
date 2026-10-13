@@ -105,3 +105,8 @@ and the [OpenSSF evidence and remaining criteria](docs/openssf-evidence.md).
 
 Included upstream patch fragments retain their original licenses; see
 [third-party notices](THIRD_PARTY_NOTICES.md).
+
+## Candidate validation preparation
+
+The [bounded fuzzing preparation](docs/fuzzing.md) documents synthetic targets,
+local replay, acceptance limits and the planned source-release boundary.
