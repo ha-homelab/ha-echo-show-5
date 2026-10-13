@@ -1,17 +1,8 @@
 name: Tests
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-
+'on':
+  workflow_call: {}
 permissions:
   contents: read
-
-concurrency:
-  group: tests-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   unit-tests:
     name: Python ${{ matrix.python }}
@@ -19,113 +10,119 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.8", "3.11"]
+        python:
+        - '3.8'
+        - '3.11'
     steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: ${{ matrix.python }}
-      - name: Run synthetic tests without firmware or device access
-        run: python -m unittest discover -s tests -v
-
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25
+      with:
+        egress-policy: audit
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+    - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+      with:
+        python-version: ${{ matrix.python }}
+    - name: Run synthetic tests without firmware or device access
+      run: python -m unittest discover -s tests -v
+    timeout-minutes: 30
   intercom-tests:
     name: Intercom lifecycle and browser cancellation
     runs-on: ubuntu-22.04
     steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
-        with:
-          egress-policy: audit
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25
+      with:
+        egress-policy: audit
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+    - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+      with:
+        python-version: '3.11'
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+      with:
+        node-version: '22'
+    - name: Check intercom without HA, network or real media
+      run: 'python -m unittest discover -s integrations/show5-intercom/tests -v
 
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.11"
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: "22"
-      - name: Check intercom without HA, network or real media
-        run: |
-          python -m unittest discover -s integrations/show5-intercom/tests -v
-          node --check integrations/show5-intercom/www/show5-intercom-card.js
-          node --input-type=module --check < integrations/show5-intercom/www/show5-call-panel.js
-          node integrations/show5-intercom/tests/test_frontend.cjs
-          node integrations/show5-intercom/tests/test_readiness.cjs
-          node integrations/show5-intercom/tests/test_duplicate_import.cjs
-          node integrations/show5-intercom/tests/test_call_panel.cjs
+        node --check integrations/show5-intercom/www/show5-intercom-card.js
 
+        node --input-type=module --check < integrations/show5-intercom/www/show5-call-panel.js
+
+        node integrations/show5-intercom/tests/test_frontend.cjs
+
+        node integrations/show5-intercom/tests/test_readiness.cjs
+
+        node integrations/show5-intercom/tests/test_duplicate_import.cjs
+
+        node integrations/show5-intercom/tests/test_call_panel.cjs
+
+        '
+    timeout-minutes: 30
   display-tests:
     name: Clock, motion and native authentication
     runs-on: ubuntu-22.04
     steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
-        with:
-          egress-policy: audit
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25
+      with:
+        egress-policy: audit
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+    - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+      with:
+        python-version: '3.11'
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+      with:
+        node-version: '22'
+    - name: Test synthetic display lifecycle without HA or cameras
+      run: 'node --test integrations/show5-display/tests/*.cjs
 
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.11"
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: "22"
-      - name: Test synthetic display lifecycle without HA or cameras
-        run: |
-          node --test integrations/show5-display/tests/*.cjs
-          python -m unittest discover -s integrations/show5-display/tests -p 'test_*.py' -v
+        python -m unittest discover -s integrations/show5-display/tests -p ''test_*.py'' -v
 
+        '
+    timeout-minutes: 30
   fcc-voice-tests:
     name: FCC voice protocol and failure handling
     runs-on: ubuntu-22.04
     steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.11"
-      - name: Install bridge dependencies
-        run: python -m pip install --require-hashes -r integrations/fcc-voice-backup/requirements.txt
-      - name: Test synthetic protocol exchanges without HA or provider access
-        run: python -m unittest discover -s integrations/fcc-voice-backup/tests -p test_bridge.py -v
-
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25
+      with:
+        egress-policy: audit
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+    - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+      with:
+        python-version: '3.11'
+    - name: Install bridge dependencies
+      run: python -m pip install --require-hashes -r integrations/fcc-voice-backup/requirements.txt
+    - name: Test synthetic protocol exchanges without HA or provider access
+      run: python -m unittest discover -s integrations/fcc-voice-backup/tests -p test_bridge.py -v
+    timeout-minutes: 30
   fcc-cloud-speech-tests:
     name: FCC cloud audio protocol and failure handling
     runs-on: ubuntu-22.04
     steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.11"
-      - name: Install cloud adapter dependencies
-        run: python -m pip install --require-hashes -r integrations/fcc-voice-backup/cloud-requirements.txt
-      - name: Test Wyoming and local fake gRPC without provider access
-        run: python -m unittest discover -s integrations/fcc-voice-backup/tests -p test_cloud_speech.py -v
-
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25
+      with:
+        egress-policy: audit
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+    - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+      with:
+        python-version: '3.11'
+    - name: Install cloud adapter dependencies
+      run: python -m pip install --require-hashes -r integrations/fcc-voice-backup/cloud-requirements.txt
+    - name: Test Wyoming and local fake gRPC without provider access
+      run: python -m unittest discover -s integrations/fcc-voice-backup/tests -p test_cloud_speech.py -v
+    timeout-minutes: 30
   fcc-container-tests:
     name: Locked FCC image (${{ matrix.service }})
     runs-on: ubuntu-24.04
@@ -134,85 +131,73 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - service: conversation
-            dockerfile: Dockerfile
-            test-pattern: test_bridge.py
-          - service: cloud-audio
-            dockerfile: Dockerfile.cloud
-            test-pattern: test_cloud_speech.py
+        - service: conversation
+          dockerfile: Dockerfile
+          test-pattern: test_bridge.py
+        - service: cloud-audio
+          dockerfile: Dockerfile.cloud
+          test-pattern: test_cloud_speech.py
     steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
-        with:
-          egress-policy: audit
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Build and test the pinned image without devices or providers
-        working-directory: integrations/fcc-voice-backup
-        env:
-          DOCKERFILE: ${{ matrix.dockerfile }}
-          TEST_PATTERN: ${{ matrix.test-pattern }}
-        run: |
-          docker build --file "$DOCKERFILE" --tag fcc-runtime-check .
-          docker run --rm --network none --entrypoint python fcc-runtime-check -m pip check
-          docker run --rm --network none --read-only --tmpfs /tmp \
-            --mount "type=bind,source=$PWD/tests,target=/app/tests,readonly" \
-            --entrypoint python fcc-runtime-check \
-            -m unittest discover -s /app/tests -p "$TEST_PATTERN" -v
-
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25
+      with:
+        egress-policy: audit
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+    - name: Build and test the pinned image without devices or providers
+      working-directory: integrations/fcc-voice-backup
+      env:
+        DOCKERFILE: ${{ matrix.dockerfile }}
+        TEST_PATTERN: ${{ matrix.test-pattern }}
+      run: "docker build --file \"$DOCKERFILE\" --tag fcc-runtime-check .\ndocker run --rm --network none --entrypoint python\
+        \ fcc-runtime-check -m pip check\ndocker run --rm --network none --read-only --tmpfs /tmp \\\n  --mount \"type=bind,source=$PWD/tests,target=/app/tests,readonly\"\
+        \ \\\n  --entrypoint python fcc-runtime-check \\\n  -m unittest discover -s /app/tests -p \"$TEST_PATTERN\" -v\n"
   voice-runtime-tests:
     name: Native voice routing and explicit target responses
     runs-on: ubuntu-24.04
     steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
-        with:
-          egress-policy: audit
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25
+      with:
+        egress-policy: audit
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+    - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+      with:
+        python-version: '3.14'
+    - name: Install isolated conversation runtime
+      run: python -m pip install --require-hashes -r tests/requirements-voice.txt
+    - name: Test native script routing without devices or provider access
+      run: 'PYTHONPATH=tests python -c ''import test_voice_controls; assert test_voice_controls.HA_AVAILABLE, "HA runtime
+        dependencies must be available"''
 
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.14"
-      - name: Install isolated conversation runtime
-        run: python -m pip install --require-hashes -r tests/requirements-voice.txt
-      - name: Test native script routing without devices or provider access
-        run: |
-          PYTHONPATH=tests python -c 'import test_voice_controls; assert test_voice_controls.HA_AVAILABLE, "HA runtime dependencies must be available"'
-          python -m unittest discover -s tests -p test_voice_controls.py -v
+        python -m unittest discover -s tests -p test_voice_controls.py -v
 
+        '
+    timeout-minutes: 30
   ci-gate:
     name: CI gate
     if: ${{ always() }}
     needs:
-      - unit-tests
-      - intercom-tests
-      - display-tests
-      - fcc-voice-tests
-      - fcc-cloud-speech-tests
-      - fcc-container-tests
-      - voice-runtime-tests
+    - unit-tests
+    - intercom-tests
+    - display-tests
+    - fcc-voice-tests
+    - fcc-cloud-speech-tests
+    - fcc-container-tests
+    - voice-runtime-tests
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
-        with:
-          egress-policy: audit
-      - name: Require every test job to pass
-        env:
-          JOB_RESULTS: ${{ toJSON(needs) }}
-        run: |
-          python3 - <<'PY'
-          import json
-          import os
-
-          results = json.loads(os.environ["JOB_RESULTS"])
-          failures = {name: job["result"] for name, job in results.items()
-                      if job["result"] != "success"}
-          if failures:
-              raise SystemExit(f"Required tests did not pass: {failures}")
-          print("All test jobs passed.")
-          PY
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25
+      with:
+        egress-policy: audit
+    - name: Require every test job to pass
+      env:
+        JOB_RESULTS: ${{ toJSON(needs) }}
+      run: "python3 - <<'PY'\nimport json\nimport os\n\nresults = json.loads(os.environ[\"JOB_RESULTS\"])\nfailures = {name:\
+        \ job[\"result\"] for name, job in results.items()\n            if job[\"result\"] != \"success\"}\nif failures:\n\
+        \    raise SystemExit(f\"Required tests did not pass: {failures}\")\nprint(\"All test jobs passed.\")\nPY\n"

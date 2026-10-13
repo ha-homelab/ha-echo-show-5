@@ -105,3 +105,15 @@ and the [OpenSSF evidence and remaining criteria](docs/openssf-evidence.md).
 
 Included upstream patch fragments retain their original licenses; see
 [third-party notices](THIRD_PARTY_NOTICES.md).
+
+## Candidate validation preparation
+
+The [bounded fuzzing preparation](docs/fuzzing.md) documents synthetic targets,
+local replay, acceptance limits and the planned source-release boundary.
+
+## Integration-source releases
+
+The versioned beta/RC asset is the reviewed source suite described in
+[release packaging and acceptance](docs/release-packaging.md). It includes the
+owned integration code and portable templates; no firmware or APK is bundled.
+Use its saved plan, manifest and checksums when testing the exact candidate.

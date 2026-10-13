@@ -100,3 +100,14 @@ build/
 ._*
 .idea/
 .vscode/
+
+# Local bounded fuzz runner
+.fuzz-venv/
+fuzz-results/
+
+# Frozen release overlays and verified build outputs
+.release-plan.json
+.release-inputs.json
+release-dist/
+release-assets/
+.releases/

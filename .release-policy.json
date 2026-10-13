@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "repository": "ha-homelab/ha-echo-show-5",
+  "visibility": "public",
+  "mode": "release",
+  "default_branch": "main",
+  "version_file": "SOURCE_VERSION",
+  "validation_workflows": [
+    "tests.yml",
+    "codeql.yml",
+    "dependency-review.yml"
+  ],
+  "artifact_pattern": "release-assets*",
+  "local_checks": [
+    "python3 -m unittest discover -s tests",
+    "python3 -m unittest discover -s integrations/show5-intercom/tests",
+    "python3 -m unittest discover -s integrations/show5-display/tests"
+  ],
+  "single_entry_ci": true,
+  "release_notes": "CHANGELOG.md",
+  "container_assets": {},
+  "notes": [
+    "This release is the reviewed integration-source suite, not firmware, an APK, a boot image or a prebuilt container. The explicit source inventory excludes downloaded binaries and operator state.",
+    "SOURCE_VERSION versions the suite. FCC bridge, cloud adapter, intercom manifest and external artifact pins retain their independent versions.",
+    "Every existing synthetic Python, JavaScript, FCC container and isolated HA runtime test remains required. Physical audio, firmware and installation acceptance are separate."
+  ],
+  "versioning": {
+    "schema": 1,
+    "promotion": "promote-bytes",
+    "toolkit_revision": "5e413f80a4353d328b4529eae57992ac3987e2dd",
+    "files": [
+      {
+        "path": "SOURCE_VERSION",
+        "format": "text",
+        "value": "package"
+      }
+    ],
+    "artifacts": [
+      {
+        "path": "ha-echo-show-5-*.tar.gz",
+        "format": "tar-text",
+        "member": "ha-echo-show-5/SOURCE_VERSION",
+        "value": "package"
+      }
+    ]
+  },
+  "fuzzing": {
+    "toolkit_ref": "5e413f80a4353d328b4529eae57992ac3987e2dd"
+  }
+}
