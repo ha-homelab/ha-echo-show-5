@@ -255,6 +255,7 @@ class VoiceRuntimeTest(unittest.IsolatedAsyncioTestCase):
         intents = Intents.from_dict({"language": "ru", "lists": {"level": {"wildcard": True}}, "intents": {
             t["id"]: {"data": [{"sentences": t["command"]}]} for t in triggers}})
         for phrase, intent in (("включи музыку", "play:origin"), ("играй музыку на втором шоу", "play:show"),
+                               ("Играем музыку", "play:origin"), ("играем музыку на втором шоу", "play:show"),
                                ("останови музыку", "pause:origin"), ("покажи часы", "home:origin"),
                                ("установи громкость 35 процентов", "volume:origin"),
                                ("show front camera on the second show", "camera_front:show")):
