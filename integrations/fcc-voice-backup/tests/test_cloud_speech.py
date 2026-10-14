@@ -52,10 +52,14 @@ class FakeProvider:
     async def synthesize(self, text):
         self.tts_calls.append(text)
         self.started.set()
-        await asyncio.sleep(self.delay)
-        if self.error:
-            raise self.error
-        return self.tts_audio
+        try:
+            await asyncio.sleep(self.delay)
+            if self.error:
+                raise self.error
+            return self.tts_audio
+        except asyncio.CancelledError:
+            self.cancelled.set()
+            raise
 
 
 class ContentTests(unittest.TestCase):
@@ -68,6 +72,16 @@ class ContentTests(unittest.TestCase):
         for timeout in [0, 31, float("nan"), float("inf")]:
             with self.assertRaises(ValueError):
                 cloud.Config("synthetic-key-12345", timeout)
+
+    def test_independent_capacity_is_bounded(self):
+        self.assertEqual(cloud.Config("synthetic-key-12345").asr_concurrency, 2)
+        for invalid in [0, 5, True, 1.5, "2"]:
+            for field in ["asr_concurrency", "tts_concurrency"]:
+                with self.subTest(field=field, invalid=invalid):
+                    with self.assertRaises(ValueError):
+                        cloud.Config("synthetic-key-12345", **{field: invalid})
+                    with self.assertRaises(ValueError):
+                        cloud.SpeechService(FakeProvider(), **{field: invalid})
 
     def test_all_final_segments_are_assembled(self):
         self.assertEqual(cloud.transcript_text(response(" Первая часть. ", "", "Вторая часть.")), "Первая часть. Вторая часть.")
@@ -105,7 +119,7 @@ class ContentTests(unittest.TestCase):
 class WireTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.provider = FakeProvider()
-        self.service = cloud.SpeechService(self.provider, rpc_timeout=1)
+        self.service = cloud.SpeechService(self.provider, rpc_timeout=1, asr_concurrency=1, tts_concurrency=1)
         self.server = await asyncio.start_server(self.service.handle_client, "127.0.0.1", 0, limit=cloud.MAX_HEADER_BYTES)
         self.port = self.server.sockets[0].getsockname()[1]
         self.writers = []
@@ -124,7 +138,7 @@ class WireTests(unittest.IsolatedAsyncioTestCase):
                 break
             await asyncio.sleep(0.01)
         self.assertEqual(self.service.connections, 0)
-        self.assertIsNone(self.service.owner)
+        self.assertFalse(any(self.service.owners.values()))
 
     async def connect(self):
         reader, writer = await asyncio.open_connection("127.0.0.1", self.port)
@@ -235,7 +249,7 @@ class WireTests(unittest.IsolatedAsyncioTestCase):
             await writer.drain()
             self.assertEqual((await self.event(reader)).data["code"], "invalid-event")
 
-    async def test_one_global_capture_and_inference_lease(self):
+    async def test_asr_capacity_is_held_through_capture_and_inference(self):
         reader, writer = await self.connect()
         await self.start(writer)
         other, other_writer = await self.connect()
@@ -262,7 +276,7 @@ class WireTests(unittest.IsolatedAsyncioTestCase):
         await writer.wait_closed()
         await asyncio.wait_for(self.provider.cancelled.wait(), 1)
         await asyncio.sleep(0.02)
-        self.assertIsNone(self.service.owner)
+        self.assertFalse(any(self.service.owners.values()))
 
     async def test_error_details_are_not_logged_or_returned(self):
         self.provider.error = RuntimeError("synthetic-secret-do-not-log")
@@ -316,20 +330,89 @@ class WireTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await self.event(reader)).data["code"], "invalid-text")
         self.assertFalse(self.provider.tts_calls)
 
-    async def test_tts_and_asr_share_busy_lease(self):
+    async def test_tts_does_not_block_asr_but_second_tts_exceeds_its_limit(self):
         self.provider.delay = 0.1
         reader, writer = await self.connect()
         await async_write_event(Synthesize(text="Тест.").event(), writer)
         await asyncio.wait_for(self.provider.started.wait(), 1)
-        for event in [Transcribe(language="ru").event(), Synthesize(text="Другой.").event()]:
-            other, other_writer = await self.connect()
-            await async_write_event(event, other_writer)
-            self.assertEqual((await self.event(other)).data["code"], "busy")
+        other, other_writer = await self.connect()
+        await self.start(other_writer)
+        await self.audio(other_writer)
+        await async_write_event(AudioStop().event(), other_writer)
+        third, third_writer = await self.connect()
+        await async_write_event(Synthesize(text="Другой.").event(), third_writer)
+        self.assertEqual((await self.event(third)).data["code"], "busy")
+        self.assertEqual((await self.event(other)).type, "transcript")
         self.assertEqual((await self.event(reader)).type, "audio-start")
         while (await self.event(reader)).type != "audio-stop":
             pass
-        self.assertFalse(self.provider.calls)
+        self.assertEqual(len(self.provider.calls), 1)
         self.assertEqual(len(self.provider.tts_calls), 1)
+
+    async def test_default_capacity_accepts_two_captures_and_tts_without_crosstalk(self):
+        self.service.limits = {"asr": 2, "tts": 2}
+        first, w1 = await self.connect()
+        second, w2 = await self.connect()
+        await self.start(w1)
+        await self.audio(w1, b"\x01\x00" * 10)
+        await self.start(w2)
+        await self.audio(w2, b"\x02\x00" * 10)
+        # Synchronize with the server after both captures, without finishing either.
+        for _ in range(100):
+            if len(self.service.owners["asr"]) == 2:
+                break
+            await asyncio.sleep(0.005)
+        third, w3 = await self.connect()
+        await async_write_event(Transcribe(language="ru").event(), w3)
+        self.assertEqual((await self.event(third)).data["code"], "busy")
+        speech, ws = await self.connect()
+        await async_write_event(Synthesize(text="Во время записи.").event(), ws)
+        self.assertEqual((await self.event(speech)).type, "audio-start")
+        while (await self.event(speech)).type != "audio-stop":
+            pass
+        # Disconnect only the first capture; the second must retain its own bytes.
+        w1.close()
+        await w1.wait_closed()
+        await async_write_event(AudioStop().event(), w2)
+        self.assertEqual((await self.event(second)).type, "transcript")
+        self.assertEqual(self.provider.calls, [b"\x02\x00" * 10])
+
+    async def test_tts_disconnect_cancels_rpc_and_capacity_can_be_reused(self):
+        self.provider.delay = 10
+        reader, writer = await self.connect()
+        await async_write_event(Synthesize(text="Тест.").event(), writer)
+        await asyncio.wait_for(self.provider.started.wait(), 1)
+        writer.close()
+        await writer.wait_closed()
+        await asyncio.wait_for(self.provider.cancelled.wait(), 1)
+        for _ in range(100):
+            if not self.service.owners["tts"]:
+                break
+            await asyncio.sleep(0.005)
+        self.assertFalse(self.service.owners["tts"])
+        self.provider.delay = 0
+        next_reader, next_writer = await self.connect()
+        await async_write_event(Synthesize(text="Следующий.").event(), next_writer)
+        self.assertEqual((await self.event(next_reader)).type, "audio-start")
+        while (await self.event(next_reader)).type != "audio-stop":
+            pass
+
+    async def test_stage_telemetry_is_content_free_and_reports_success_and_failure(self):
+        reader, writer = await self.connect()
+        with self.assertLogs(level="INFO") as captured:
+            await self.start(writer)
+            await self.audio(writer)
+            await async_write_event(AudioStop().event(), writer)
+            self.assertEqual((await self.event(reader)).type, "transcript")
+            self.provider.error = RuntimeError("private-provider-secret")
+            await async_write_event(Synthesize(text="private-household-speech").event(), writer)
+            self.assertEqual((await self.event(reader)).type, "error")
+        logs = "\n".join(captured.output)
+        self.assertRegex(logs, r"stage=capture outcome=ok elapsed_ms=\d+")
+        self.assertRegex(logs, r"stage=asr outcome=ok elapsed_ms=\d+")
+        self.assertRegex(logs, r"stage=tts outcome=provider-unavailable elapsed_ms=\d+")
+        self.assertNotIn("private-", logs)
+        self.assertNotIn("Синтетическая", logs)
 
     async def test_invalid_provider_pcm_fails_before_audio_start(self):
         for pcm in [b"", b"x", b"\0" * (cloud.MAX_TTS_AUDIO_BYTES + 2)]:

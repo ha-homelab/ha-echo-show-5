@@ -6,6 +6,7 @@ has no Home Assistant token, device tools, CLI execution, or shared chat memory.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import re
@@ -20,8 +21,9 @@ from wyoming.event import Event
 from wyoming.handle import Handled
 from wyoming.info import Attribution, Describe, Info, HandleModel, HandleProgram
 from wyoming.server import AsyncEventHandler, AsyncServer
+import energy_context
 
-VERSION = "0.1.3"
+VERSION = "0.1.4"
 MAX_INPUT_CHARACTERS = 2000
 MAX_RESPONSE_BYTES = 256 * 1024
 MAX_GENERATED_CHARACTERS = 4000
@@ -45,7 +47,7 @@ REQUEST_PREFIX = re.compile(
 SYSTEM = f"""You process one isolated transcript for a Russian voice assistant. First decide whether the speaker is asking YOU a question, making a request, or clearly addressing you.
 If the text is only third-person narration, quoted conversation, an unrelated monologue or a disconnected fragment with no request to you, output exactly {NO_SPEECH_SENTINEL} and stop. Do not continue the story, offer sympathy or ask a follow-up question about background speech. A lone function word such as "can" is a fragment.
 For an actual question, request, greeting or an ambiguous possible request, answer briefly in Russian: usually one or two sentences, at most 700 characters, plain text. Do not introduce yourself, list capabilities, offer Home Assistant setup, or refuse an entire subject merely because of its name. Give useful general information and mention specific uncertainty only when relevant.
-You have no device tools, device states, live search or clock. Never claim an action happened or invent current facts. Local Home Assistant handles device commands before this fallback. If a device request reaches you, say briefly that it was not performed and ask for the missing device or action.
+You have no device tools, live search or clock. The only current household facts you may use are an explicitly attached, typed IGW energy snapshot, if present; otherwise you have no device states. Never claim an action happened or invent current facts. Local Home Assistant handles device commands before this fallback. If a device request reaches you, say briefly that it was not performed and ask for the missing device or action.
 Examples:
 Input: Вчера он зашёл в магазин, потом они пошли гулять.
 Output: {NO_SPEECH_SENTINEL}
@@ -66,6 +68,13 @@ Output only the final response or the exact silence marker, never your reasoning
 class BridgeError(Exception):
     """Fixed public message; upstream payloads and credentials stay private."""
 
+    def __init__(self, text, category="invalid-response"):
+        super().__init__(text)
+        self.category = category if category in {
+            "invalid-request", "invalid-response", "busy", "rate-limit",
+            "provider-unavailable", "timeout", "transport",
+        } else "invalid-response"
+
 
 @dataclass(frozen=True)
 class Config:
@@ -73,6 +82,7 @@ class Config:
     model: str
     token: str = ""
     timeout: float = 30.0
+    energy: energy_context.EnergyConfig | None = None
 
     def __post_init__(self):
         parsed = urlsplit(self.base_url)
@@ -100,20 +110,21 @@ class Config:
             model=os.environ.get("FCC_MODEL", "anthropic/open_router/liquid/lfm-2.5-2.6b:free"),
             token=token,
             timeout=float(os.environ.get("FCC_TIMEOUT_SECONDS", "30")),
+            energy=energy_context.EnergyConfig.from_env(),
         )
 
 
-def request_body(text: str, model: str) -> dict:
+def request_body(text: str, model: str, facts=None) -> dict:
     text = text.strip()
     if not text:
-        raise BridgeError("Пустой запрос.")
+        raise BridgeError("Пустой запрос.", "invalid-request")
     if len(text) > MAX_INPUT_CHARACTERS:
-        raise BridgeError("Запрос слишком длинный. Скажите короче.")
+        raise BridgeError("Запрос слишком длинный. Скажите короче.", "invalid-request")
     return {
         "model": model,
         "max_tokens": 1024,
         "stream": False,
-        "system": SYSTEM,
+        "system": SYSTEM if facts is None else SYSTEM + "\n" + energy_context.INSTRUCTIONS + json.dumps(facts, ensure_ascii=False, allow_nan=False),
         "messages": [{"role": "user", "content": text}],
     }
 
@@ -179,38 +190,78 @@ class FCCClient:
         self._busy = False
 
     async def ask(self, text: str) -> str:
+        started = asyncio.get_running_loop().time()
+        outcome = "provider-unavailable"
+        try:
+            answer = await self._ask(text)
+            outcome = "context-unavailable" if answer == energy_context.UNAVAILABLE else "ok"
+            return answer
+        except asyncio.CancelledError:
+            outcome = "cancelled"
+            raise
+        except BridgeError as exc:
+            outcome = exc.category
+            raise
+        finally:
+            # Only bounded categories and elapsed time, never messages or text.
+            logging.info("FCC_CONVERSATION_STAGE stage=conversation outcome=%s elapsed_ms=%d",
+                         outcome, round((asyncio.get_running_loop().time() - started) * 1000))
+
+    async def _ask(self, text: str) -> str:
+        started = asyncio.get_running_loop().time()
         payload = request_body(text, self.config.model)
         # Reject overlapping requests; do not queue stale spoken commands.
         if self._busy:
-            raise BridgeError("Резервный собеседник занят. Повторите через несколько секунд.")
+            raise BridgeError("Резервный собеседник занят. Повторите через несколько секунд.", "busy")
         self._busy = True
         headers = {"anthropic-version": "2023-06-01"}
         if self.config.token:
             headers["Authorization"] = "Bearer " + self.config.token
         try:
+            if self.config.energy is not None and energy_context.ENERGY_TERMS.search(text):
+                context_started = asyncio.get_running_loop().time()
+                context_outcome = "cancelled"
+                try:
+                    facts = await asyncio.wait_for(
+                        energy_context.fetch_facts(self.session, self.config.energy),
+                        timeout=min(3, self.config.timeout),
+                    )
+                    context_outcome = "ok"
+                    if not any(item["status"] == "fresh" for item in facts["metrics"].values()):
+                        context_outcome = "no-fresh-data"
+                        return energy_context.UNAVAILABLE
+                    payload = request_body(text, self.config.model, facts)
+                except (energy_context.EnergyError, TimeoutError):
+                    context_outcome = "unavailable"
+                    return energy_context.UNAVAILABLE
+                finally:
+                    logging.info("FCC_ENERGY_STAGE stage=context outcome=%s elapsed_ms=%d",
+                                 context_outcome, round((asyncio.get_running_loop().time() - context_started) * 1000))
+            remaining = self.config.timeout - (asyncio.get_running_loop().time() - started)
+            if remaining <= 0:
+                raise asyncio.TimeoutError
             async with self.session.post(
                 self.config.base_url.rstrip("/") + "/v1/messages",
                 json=payload, headers=headers, allow_redirects=False,
-                timeout=aiohttp.ClientTimeout(total=self.config.timeout),
+                timeout=aiohttp.ClientTimeout(total=remaining),
             ) as response:
                 if response.status == 429:
-                    raise BridgeError("Достигнут лимит резервного сервиса. Попробуйте позже.")
+                    raise BridgeError("Достигнут лимит резервного сервиса. Попробуйте позже.", "rate-limit")
                 if response.status != 200:
-                    raise BridgeError("Резервный сервис FCC сейчас недоступен.")
+                    raise BridgeError("Резервный сервис FCC сейчас недоступен.", "provider-unavailable")
                 raw = bytearray()
                 async for chunk in response.content.iter_chunked(8192):
                     raw.extend(chunk)
                     if len(raw) > MAX_RESPONSE_BYTES:
                         raise BridgeError("FCC вернул слишком большой ответ.")
-                import json
                 try:
                     return response_text(json.loads(raw), request_text=text)
                 except (ValueError, UnicodeError):
                     raise BridgeError("FCC вернул некорректный ответ.") from None
         except asyncio.TimeoutError:
-            raise BridgeError("FCC не успел ответить. Попробуйте позже.") from None
+            raise BridgeError("FCC не успел ответить. Попробуйте позже.", "timeout") from None
         except aiohttp.ClientError:
-            raise BridgeError("Соединение с резервным сервисом FCC недоступно.") from None
+            raise BridgeError("Соединение с резервным сервисом FCC недоступно.", "transport") from None
         finally:
             self._busy = False
 

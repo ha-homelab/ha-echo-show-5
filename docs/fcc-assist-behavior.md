@@ -4,8 +4,9 @@ The FCC assistant combines HA's local intent handling with a separate text
 fallback. Selecting FCC retains HA's local intent handling, but does not give
 the FCC model Homeway's device-control capabilities. Its independent NVIDIA
 speech recognition and synthesis providers are separate from Homeway. The Wyoming
-bridge has no HA token, device tools, device-state catalogue or shared chat
-history. Keep **Prefer handling commands locally** enabled on the FCC pipeline.
+bridge has no HA token, device tools, general device-state catalogue or shared chat
+history. An optional read-only IGW snapshot can ground energy explanations as
+described below. Keep **Prefer handling commands locally** enabled on the FCC pipeline.
 
 Use HA's built-in intents and reviewed sentence automations for device actions.
 For example, resuming an existing music queue and starting a particular radio
@@ -14,7 +15,7 @@ or a media catalogue with working search support. A model claiming that music
 has started is not evidence that a player received or executed a command.
 See HA's [custom sentence guide](https://www.home-assistant.io/voice_control/custom_sentences/).
 
-## Conversation bridge 0.1.3
+## Conversation bridge 0.1.4
 
 The system prompt now asks for direct, concise Russian answers to general
 questions. It avoids unsolicited introductions, lists of capabilities and offers
@@ -67,7 +68,7 @@ Run from the reviewed source checkout with the pinned Python dependencies:
 
 ```bash
 python -m unittest discover -s integrations/fcc-voice-backup/tests -v
-docker build --platform linux/amd64 -t fcc-voice-bridge:0.1.3 \
+docker build --platform linux/amd64 -t fcc-voice-bridge:0.1.4 \
   integrations/fcc-voice-backup
 ```
 
@@ -136,3 +137,62 @@ request exceeded the 30-second deadline (30.931 seconds observed). The compariso
 stopped after that one request; neither answer quality nor suitability was
 established, and the deployed model was not changed. Provider privacy terms also
 need review before a different upstream receives household conversations.
+
+
+## Optional read-only energy context
+
+Bridge 0.1.4 can ground freeform energy questions in six typed IGW measurements.
+It remains off by default. Configure `IGW_ENERGY_URL` as the exact
+`https://gateway.example.org/v1/energy` endpoint, without query or credentials,
+and exactly one of `IGW_ENERGY_TOKEN_FILE` or `IGW_ENERGY_TOKEN`. Prefer a mounted
+file containing a scoped, read-only IGW token. No HA token or control tool is
+needed. HTTPS is required except for exact loopback hosts and trusted
+`*.svc.cluster.local` endpoints. Internal HTTP is plaintext, not TLS.
+
+For a Russian or English energy-related question, the bridge makes one bounded
+GET with `locale=ru`. The server must support that locale and return schema 1.
+Redirects are rejected. The request accepts at most 64 KiB and takes at most
+three seconds, within the existing total FCC question deadline. There are no
+retries or retained snapshots. Other questions make no IGW request and receive
+no prior energy context.
+
+Only `generated_at`, `mqtt_connected`, and the typed measurements `battery_soc`,
+`solar_power`, `solar_today`, `load_power`, `grid_power`, and `battery_power` reach
+the model. Each measurement carries value, unit, status, and age in seconds.
+The envelope must be at most 30 seconds old and at most five seconds in the
+future. Fresh values must be finite numbers within bounds, never booleans;
+non-fresh values must be null. Fresh data while MQTT is disconnected is rejected.
+Source identifiers, alarms, report text, arbitrary fields and instructions in
+the response are never forwarded. Missing optional flow measurements become
+explicitly unconfigured, not zero.
+
+If the snapshot fails validation, cannot be fetched, or has no fresh metrics,
+the bridge returns a fixed Russian message that current energy data is
+unavailable, without asking the model to fill gaps. A valid snapshot is attached
+as data with instructions to retain units and distinguish power from energy.
+It does not provide historical consumption, tariffs, cost, forecasts, battery
+runtime, or whole-house coverage beyond the configured measurements. The model
+can still make mistakes: exact number reports should use the deterministic HA
+energy intents; this optional path is for explanations.
+
+The feature sends the projected measurements to the configured external text
+provider when an energy question is asked. Keep it disabled unless that privacy
+boundary is accepted. Deploying the default manifest does not enable it.
+
+Build/load `fcc-voice-bridge:0.1.4` and apply the reviewed private bridge overlay.
+The image now includes `energy_context.py`; an old cached-image code overlay
+must include that module too or be removed when selecting the new image.
+Preserve the original Deployment and ConfigMap for rollback. Disable optional
+context by removing all three IGW environment settings; restore the saved
+Deployment to roll the full bridge back. No new Python dependency is added.
+
+## Content-free conversation timings
+
+`FCC_CONVERSATION_STAGE` records a fixed outcome and monotonic `elapsed_ms` for
+each question, including busy rejection, cancellation, rate limit and timeout.
+`FCC_ENERGY_STAGE` separately measures optional context retrieval. Neither log
+contains the question, answer, measurements, provider payload, device identity,
+URL or credentials. A successful conversation timing includes optional context
+lookup and the complete final text, not TTS or audible playback. The bridge
+still allows one LLM request at a time and rejects overlaps without queuing;
+the separate speech service has independent ASR/TTS pools.

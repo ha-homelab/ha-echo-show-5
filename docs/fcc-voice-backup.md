@@ -70,7 +70,7 @@ This route is text-only and currently has zero prompt/completion price. Its prov
 Implementation lives in [`integrations/fcc-voice-backup/`](../integrations/fcc-voice-backup/): the conversation bridge, cloud-audio adapter, pinned dependencies/images, `k8s/gateway.yaml`, `k8s/bridge.yaml`, `k8s/cloud-speech.yaml` and optional network policies. No speech model download, local Whisper/Piper deployment or model PVC is required for this active scope. The operator maintains the reviewed placement and recovery copy with the deployment configuration.
 
 ```bash
-docker build -t fcc-voice-bridge:0.1.1 integrations/fcc-voice-backup
+docker build -t fcc-voice-bridge:0.1.4 integrations/fcc-voice-backup
 ```
 
 The bridge manifest uses `imagePullPolicy: Never`. Import the image into the selected node's Kubernetes/containerd image store, or deliberately use a private-registry immutable digest and corresponding pull policy. Workstation/NAS Docker storage is separate from k3s/containerd. Keep scheduling pinned to the node with the imported image.

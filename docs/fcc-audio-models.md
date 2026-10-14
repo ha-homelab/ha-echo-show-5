@@ -47,3 +47,31 @@ Speech recognition produces words, not a reliable description of non-speech soun
 ## Recheck before changing the model
 
 Consult [live OpenRouter model metadata](https://openrouter.ai/api/v1/models), the route's provider conditions and [account limits](https://openrouter.ai/docs/api-reference/limits). Check exact input modalities, prompt/completion/audio pricing, actual provider availability and a bounded synthetic Russian request. Record the resolved route and full-answer latency. Never upload household recordings merely to benchmark a model. The catalog's listed Qwen routes are not assumed free; a similarly named current `:free` variant must be audited separately.
+
+
+## Bounded conversation comparison: 2026-10-14
+
+A synthetic comparison used the running FCC gateway with its fallback list
+confirmed empty, the existing bridge prompt, and a 30-second request deadline.
+Both Gemma endpoint listings advertised zero prompt/completion prices at the
+check. Each candidate stopped after its first failed request; no household
+transcript or energy values were sent and no model setting was changed.
+
+- LFM2.5-2.6B completed the baseline in 1.065 seconds, but answered “Пять” to
+  “Сколько будет три плюс три? Ответь одним словом.” This is a correctness
+  failure despite successful transport.
+- `anthropic/open_router/google/gemma-4-26b-a4b-it:free` timed out on the same
+  question after 30.754 seconds.
+- `anthropic/open_router/google/gemma-4-31b-it:free` timed out after 31.027 seconds.
+
+The small overshoot reflects the client's scheduling/timeout rounding, not a
+longer configured budget. These are individual observations, not latency
+percentiles. The planned energy explanation and missing-data cases were not
+sent after those failures. There is no evidence here to promote either Gemma
+route, and the working deployment model remains unchanged. A paid fallback was
+not introduced. Future candidates must pass answer correctness and bounded
+latency checks, not just appear in the catalogue.
+
+Endpoint metadata:
+[Gemma 26B](https://openrouter.ai/api/v1/models/google/gemma-4-26b-a4b-it:free/endpoints),
+[Gemma 31B](https://openrouter.ai/api/v1/models/google/gemma-4-31b-it:free/endpoints).
