@@ -277,6 +277,12 @@ class WireTests(unittest.IsolatedAsyncioTestCase):
         await self.client.ask("Что такое электрическая энергия?")
         self.assertEqual(len(self.calls), 1)
 
+    async def test_explicit_unit_conversion_is_not_household_measurement(self):
+        for question in ("Сколько ватт в одном киловатте?", "How many watts are in one kilowatt?"):
+            await self.client.ask(question)
+        self.assertEqual(len(self.calls), 2)
+        self.assertFalse(self.energy_calls)
+
     async def test_energy_failures_return_unavailable_without_model_fabrication(self):
         self.enable_energy()
         for kind in ("redirect", "stale", "oversize", "disconnected", "timeout"):

@@ -108,7 +108,7 @@ alias. Arithmetic completed correctly in 1.204 seconds, a short Russian science
 explanation in 3.819 seconds, background-speech suppression in 12.329 seconds,
 and an unhandled device command without a success claim in 3.887 seconds.
 Missing household measurements were reported unavailable in 1.497 seconds.
-With synthetic typed measurements, the answer preserved the six relevant
+With synthetic typed measurements, the answer preserved the supplied
 power/charge figures and signs in 4.713 seconds but described the configured
 load as whole-house consumption and omitted the available daily generation.
 This supports a limited general-Russian conversation pilot, **not** promotion
