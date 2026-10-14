@@ -154,3 +154,10 @@ A separate direct synthetic FCC request returned the same exact model alias in
 `response.model` and answered correctly. FCC did not expose an upstream provider
 or a separate resolved-model field. This confirms the configured and reported
 route, not an independent inspection of the provider's model weights.
+
+Subsequent synthetic text requests through Home Assistant also passed: seven
+plus five returned “Двенадцать” in **3.513 seconds**; an ice-density explanation
+completed in **1.629 seconds**; one kilowatt was converted to 1,000 watts in
+**2.350 seconds**; and unavailable household history was rejected in **0.110
+seconds**. These include the HA conversation path, but no microphone, wake-word
+or speaker-acoustics test.
