@@ -110,6 +110,9 @@ Included upstream patch fragments retain their original licenses; see
 
 ## RC fuzz qualification
 
+The published [v0.1.0-rc.1 release](https://github.com/ha-homelab/ha-echo-show-5/releases/tag/v0.1.0-rc.1)
+contains the qualification report for that tag's exact source commit.
+
 [Bounded Linux fuzzing](docs/fuzzing.md) qualifies release candidates with synthetic
 inputs and a source-bound report. The guide documents targets, local replay and
 acceptance limits. The badge identifies RC-only capability; beta publication and
