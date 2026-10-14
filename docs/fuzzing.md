@@ -22,6 +22,12 @@ remain necessary; this bounded target adds coverage for the pure boundaries.
 Live audio quality, physical controls, firmware compatibility, cloud-provider
 behavior and installation acceptance are outside this target.
 
+The positive `pcm.txt` corpus fixture is strict Base64 without a trailing line
+ending. Its unit test checks that the exact committed bytes decode to 1,764 zero
+PCM bytes, so a text edit cannot silently convert this accepted case into a
+rejected-input test. The other corpus cases exercise lease ownership; the oracle
+also generates valid PCM from each input to check round-trip behavior.
+
 ## Release integration
 
 The shared release pipeline runs this Linux target for RC candidates and binds
