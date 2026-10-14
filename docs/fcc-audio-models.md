@@ -132,3 +132,20 @@ household-energy guard is not a general personal-data detector: it cannot make
 arbitrary dictation suitable for the provider. Keep personal or confidential
 questions out of this route, including details embedded in otherwise ordinary
 requests. Use a separately approved provider or local model for that scope.
+
+### Deployed general-conversation pilot: 2026-10-14
+
+After the independent cloud-audio concurrency check passed, the bridge's
+`FCC_MODEL` was changed to the exact Ultra 550B no-thinking free alias above.
+The gateway fallback list remained empty and no IGW context credential or URL
+was configured. Runtime environment and source hashes were read back from the
+ready Pod; the portable manifest still retains its earlier default so adopting
+this provider remains deliberate.
+
+Synthetic requests through the running Wyoming bridge returned **“Шесть”** for
+three plus three in **5.693 seconds**, suppressed an unrelated narrative in
+**2.786 seconds**, and returned the fixed missing-energy response in **0.063
+seconds**. The last case is handled before any provider request. These checks
+cover the deployed route and guards, not arbitrary factual accuracy or
+unrestricted personal conversation. The prior LFM route and full Deployment
+snapshot were retained for rollback.

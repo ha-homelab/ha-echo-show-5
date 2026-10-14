@@ -222,3 +222,33 @@ The adapter uses the Riva package's shipped protobuf classes and does not invoke
 this rollout, including protobuf 6.33.5. This is a recorded dependency-refresh
 follow-up, not a claim that the dependency set is warning-free or that code
 generation with this combination is supported.
+
+### Deployed checkpoint: 2026-10-14
+
+The reviewed source at `be6b0a6df29dc2153577a11748149d662277b514`
+was built into complete Linux/amd64 images: bridge **0.1.4** and cloud speech
+**0.1.2**. Both were imported into the selected worker's containerd store before
+changing the two Deployments. The old bridge source overlay was removed;
+credentials, gateway, HA pipeline IDs and satellite selections were preserved.
+Ready Pod file hashes matched the source, and both Wyoming `Describe` replies
+reported the expected versions. ASR and TTS capacity each read back as **2**.
+
+Two synthetic recordings were held concurrently while two independent synthesis
+requests started. Both recognitions completed in **2.404 / 2.535 seconds** after
+`audio-stop`; both synthesis requests produced complete PCM responses in
+**4.206 / 4.055 seconds** (88,642 / 86,878 bytes). The fixture asked why ice floats
+in water. Both transcripts retained that question, with a spelling error in
+the final word; this is not a claim of perfect recognition. No microphone was
+recorded and the generated audio was not played on a household device.
+
+These are one paired trial's service timings, not latency percentiles or a
+physical-device acceptance test. The worker was busy, and shell/exec startup
+was independently slow. Read-only checks found no CPU quota on the worker's
+k3s service or the `kubepods` ancestors; the existing 500m Pod limits did throttle
+some startup work. No host resources or unrelated workloads were changed.
+
+Full pre-change Deployment specs were saved privately before either patch.
+Rollback must restore the previous model first if it was subsequently changed,
+then restore those specs, including the former bridge source mount/annotations
+and the cloud adapter's old environment. Retain the old images and ConfigMap
+until acceptance is complete; selecting an old bridge image alone is insufficient.
