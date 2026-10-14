@@ -213,3 +213,12 @@ needed. To roll back, restore the saved Deployment (including its image and env)
 or select the retained `fcc-cloud-speech:0.1.1` image. An in-flight request can
 fail during a rollout; do it when the satellites are idle. This source change
 alone does not deploy the service.
+
+The 2026-10-14 image build reported that the existing pinned `grpcio-tools`
+1.82.0 release was yanked because of its
+[protobuf dependency metadata](https://github.com/grpc/grpc/issues/42906).
+The adapter uses the Riva package's shipped protobuf classes and does not invoke
+`protoc`; the pinned-image gRPC tests passed. The tested lock was retained for
+this rollout, including protobuf 6.33.5. This is a recorded dependency-refresh
+follow-up, not a claim that the dependency set is warning-free or that code
+generation with this combination is supported.

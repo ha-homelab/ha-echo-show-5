@@ -153,6 +153,9 @@ never reach the model with missing measurements. General educational energy
 questions remain eligible for conversation. The guard uses conservative Russian
 and English energy/household terms and is not a universal intent classifier.
 The six deterministic HA energy intents remain the preferred measurement path.
+An explicit watts-per-kilowatt conversion remains a general question. This guard
+is not a general personal-data detector: it cannot make arbitrary dictation safe
+for a provider that excludes personal or confidential information.
 
 Configure `IGW_ENERGY_URL` as the exact
 `https://gateway.example.org/v1/energy` endpoint, without query or credentials,

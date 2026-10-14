@@ -68,7 +68,7 @@ The small overshoot reflects the client's scheduling/timeout rounding, not a
 longer configured budget. These are individual observations, not latency
 percentiles. The planned energy explanation and missing-data cases were not
 sent after those failures. There is no evidence here to promote either Gemma
-route, and the working deployment model remains unchanged. A paid fallback was
+route, and the deployment model was unchanged during these probes. A paid fallback was
 not introduced. Future candidates must pass answer correctness and bounded
 latency checks, not just appear in the catalogue.
 
@@ -126,3 +126,9 @@ tests do not establish suitability for unrestricted household conversation.
 Keep the explicit free alias and an empty fallback list. The prior route for
 rollback is `anthropic/open_router/liquid/lfm-2.5-2.6b:free`; model selection is a
 separate deployment operation from the concurrency and telemetry fixes.
+
+The operator explicitly accepted this restricted general-question scope. The
+household-energy guard is not a general personal-data detector: it cannot make
+arbitrary dictation suitable for the provider. Keep personal or confidential
+questions out of this route, including details embedded in otherwise ordinary
+requests. Use a separately approved provider or local model for that scope.
