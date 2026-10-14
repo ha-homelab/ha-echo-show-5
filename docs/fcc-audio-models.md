@@ -75,3 +75,29 @@ latency checks, not just appear in the catalogue.
 Endpoint metadata:
 [Gemma 26B](https://openrouter.ai/api/v1/models/google/gemma-4-26b-a4b-it:free/endpoints),
 [Gemma 31B](https://openrouter.ai/api/v1/models/google/gemma-4-31b-it:free/endpoints).
+
+
+A second bounded comparison found no Qwen or Llama `:free` alias in the running
+FCC catalogue. NVIDIA Nemotron 3 Super 120B A12B and 3.5 Lightning were available.
+Their normal reasoning aliases produced incomplete answers within the existing
+1,024-token budget (Super's missing-data case in 22.107 seconds; Lightning's
+arithmetic case in 15.652 seconds), which the bridge correctly rejected.
+
+The explicit `claude-3-freecc-no-thinking/open_router/nvidia/nemotron-3-super-120b-a12b:free`
+alias completed short Russian arithmetic, explanation, background-speech and
+negative-control probes in 1.446–5.003 seconds. However, its missing-data reply
+promised a future HA query it cannot perform. A stronger prompt was checked with
+synthetic typed IGW values: current values and missing historical data were
+handled, but a subsequent missing-snapshot reply fabricated zero consumption.
+This is a failed correctness gate despite good latency. The no-thinking
+Lightning alias also failed: it described a 68-percent battery as fully charged,
+returned multilingual gibberish for a background narrative and confused an air
+conditioner command with music. Neither is promoted by these experiments.
+
+NVIDIA's exact
+[Super post-trained model card at revision 2dc98e2afe4face0e4ce40972a915c45368bd34a](https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16/blob/2dc98e2afe4face0e4ce40972a915c45368bd34a/README.md)
+includes Russian in its post-training data description but **not** in its seven
+supported languages. The broader base-model language list must not be presented
+as Russian support for this post-trained route. Observed Russian output is
+experimental capability, not an official support guarantee. Endpoint prices
+were zero at inspection; quotas and provider availability still apply.

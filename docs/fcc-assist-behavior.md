@@ -50,6 +50,11 @@ English question, command and greeting prefixes. Isolated function-word
 fragments such as “can” may still be silent; standalone greetings and “stop”
 remain requests.
 
+For explicit question, command and greeting prefixes, the same conservative
+guard now supplies a pre-generation hint that a response is required. The
+post-generation guard remains enforced; the hint does not make malformed or
+suppressed answers valid.
+
 The deployed HA pipeline source was checked before introducing this protocol:
 the Wyoming integration accepts empty handled speech, and Assist skips TTS for
 an empty answer when there is no local action acknowledgement. Confirm this
@@ -170,6 +175,7 @@ If the snapshot fails validation, cannot be fetched, or has no fresh metrics,
 the bridge returns a fixed Russian message that current energy data is
 unavailable, without asking the model to fill gaps. A valid snapshot is attached
 as data with instructions to retain units and distinguish power from energy.
+Solar generation covers configured sources and need not cover the whole site.
 It does not provide historical consumption, tariffs, cost, forecasts, battery
 runtime, or whole-house coverage beyond the configured measurements. The model
 can still make mistakes: exact number reports should use the deterministic HA

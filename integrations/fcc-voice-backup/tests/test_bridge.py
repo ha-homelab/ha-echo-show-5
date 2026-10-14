@@ -155,6 +155,14 @@ class ContentTests(unittest.TestCase):
                 with self.assertRaises(bridge.BridgeError):
                     bridge.response_text(message(bridge.NO_SPEECH_SENTINEL), request_text=request)
 
+    def test_explicit_request_hint_uses_same_rule_as_silence_guard(self):
+        for request in ("Включи кондиционер", "Почему лёд плавает?", "Привет", "Stop"):
+            self.assertIn("do not return the silence marker", bridge.request_body(request, MODEL)["system"])
+            self.assertTrue(bridge.explicit_request(request))
+        for request in ("can", "Вчера он зашёл в магазин, потом они пошли гулять."):
+            self.assertNotIn("do not return the silence marker", bridge.request_body(request, MODEL)["system"])
+            self.assertFalse(bridge.explicit_request(request))
+
     def test_isolated_function_word_fragments_can_be_silent(self):
         for request in ("can", "could", "Can.", "who", "и", "как", "можно"):
             with self.subTest(request=request):

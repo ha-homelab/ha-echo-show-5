@@ -47,7 +47,7 @@ REQUEST_PREFIX = re.compile(
 SYSTEM = f"""You process one isolated transcript for a Russian voice assistant. First decide whether the speaker is asking YOU a question, making a request, or clearly addressing you.
 If the text is only third-person narration, quoted conversation, an unrelated monologue or a disconnected fragment with no request to you, output exactly {NO_SPEECH_SENTINEL} and stop. Do not continue the story, offer sympathy or ask a follow-up question about background speech. A lone function word such as "can" is a fragment.
 For an actual question, request, greeting or an ambiguous possible request, answer briefly in Russian: usually one or two sentences, at most 700 characters, plain text. Do not introduce yourself, list capabilities, offer Home Assistant setup, or refuse an entire subject merely because of its name. Give useful general information and mention specific uncertainty only when relevant.
-You have no device tools, live search or clock. The only current household facts you may use are an explicitly attached, typed IGW energy snapshot, if present; otherwise you have no device states. Never claim an action happened or invent current facts. Local Home Assistant handles device commands before this fallback. If a device request reaches you, say briefly that it was not performed and ask for the missing device or action.
+You have no device tools, live search or clock. The only current household facts you may use are an explicitly attached, typed IGW energy snapshot, if present; otherwise you have no device states. You cannot query Home Assistant, request more measurements, connect an account or gain access after the user replies. For missing data, say it is unavailable; do not promise to retrieve it later or offer setup. Never claim an action happened or invent current facts. Local Home Assistant handles device commands before this fallback. If a device request reaches you, say briefly that it was not performed and ask for the missing device or action.
 Examples:
 Input: Вчера он зашёл в магазин, потом они пошли гулять.
 Output: {NO_SPEECH_SENTINEL}
@@ -114,17 +114,31 @@ class Config:
         )
 
 
+def explicit_request(text: str) -> bool:
+    words = re.findall(r"\w+", text.casefold())
+    standalone = len(words) == 1 and words[0] in {
+        "привет", "здравствуй", "здравствуйте", "мышка", "котик", "стоп",
+        "hello", "hi", "hey", "stop",
+    }
+    return bool("?" in text or standalone or (len(words) > 1 and REQUEST_PREFIX.match(text.strip())))
+
+
 def request_body(text: str, model: str, facts=None) -> dict:
     text = text.strip()
     if not text:
         raise BridgeError("Пустой запрос.", "invalid-request")
     if len(text) > MAX_INPUT_CHARACTERS:
         raise BridgeError("Запрос слишком длинный. Скажите короче.", "invalid-request")
+    system = SYSTEM
+    if explicit_request(text):
+        system += "\nThis transcript is an explicit question, request or greeting. Answer it; do not return the silence marker. An unavailable action must be acknowledged as not performed."
+    if facts is not None:
+        system += "\n" + energy_context.INSTRUCTIONS + json.dumps(facts, ensure_ascii=False, allow_nan=False)
     return {
         "model": model,
         "max_tokens": 1024,
         "stream": False,
-        "system": SYSTEM if facts is None else SYSTEM + "\n" + energy_context.INSTRUCTIONS + json.dumps(facts, ensure_ascii=False, allow_nan=False),
+        "system": system,
         "messages": [{"role": "user", "content": text}],
     }
 
@@ -168,13 +182,7 @@ def response_text(payload: dict, *, request_text: str = "") -> str:
     # Only an exact final-text sentinel means silence; empty, malformed or
     # incomplete provider responses remain errors. HA skips TTS for empty speech.
     if answer == NO_SPEECH_SENTINEL:
-        words = re.findall(r"\w+", request_text.casefold())
-        standalone_request = len(words) == 1 and words[0] in {
-            "привет", "здравствуй", "здравствуйте", "мышка", "котик", "стоп",
-            "hello", "hi", "hey", "stop",
-        }
-        if "?" in request_text or standalone_request or (
-                len(words) > 1 and REQUEST_PREFIX.match(request_text.strip())):
+        if explicit_request(request_text):
             raise BridgeError("Не удалось понять запрос. Повторите, пожалуйста.")
         return ""
     if "<" in answer or ">" in answer or any(
