@@ -29,7 +29,21 @@
         "-max_len=4096"
       ],
       "seconds": 60,
-      "corpus": "fuzz/corpus/intercom-boundaries"
+      "corpus": "fuzz/corpus/intercom-boundaries",
+      "instrumentation": [
+        {
+          "module": "lease",
+          "functions": [
+            "decode_pcm",
+            "LeaseGuard.require"
+          ]
+        }
+      ]
     }
+  ],
+  "preflight-paths": [
+    ".github/requirements-fuzz.in",
+    "fuzz",
+    "integrations"
   ]
 }
