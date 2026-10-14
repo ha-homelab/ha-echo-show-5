@@ -218,6 +218,8 @@ class FCCClient:
     async def _ask(self, text: str) -> str:
         started = asyncio.get_running_loop().time()
         payload = request_body(text, self.config.model)
+        if self.config.energy is None and energy_context.personal_energy_query(text):
+            return energy_context.UNAVAILABLE
         # Reject overlapping requests; do not queue stale spoken commands.
         if self._busy:
             raise BridgeError("Резервный собеседник занят. Повторите через несколько секунд.", "busy")

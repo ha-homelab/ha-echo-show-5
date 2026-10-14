@@ -101,3 +101,28 @@ supported languages. The broader base-model language list must not be presented
 as Russian support for this post-trained route. Observed Russian output is
 experimental capability, not an official support guarantee. Endpoint prices
 were zero at inspection; quotas and provider availability still apply.
+
+The final bounded candidate was the exact
+`claude-3-freecc-no-thinking/open_router/nvidia/nemotron-3-ultra-550b-a55b:free`
+alias. Arithmetic completed correctly in 1.204 seconds, a short Russian science
+explanation in 3.819 seconds, background-speech suppression in 12.329 seconds,
+and an unhandled device command without a success claim in 3.887 seconds.
+Missing household measurements were reported unavailable in 1.497 seconds.
+With synthetic typed measurements, the answer preserved the six relevant
+power/charge figures and signs in 4.713 seconds but described the configured
+load as whole-house consumption and omitted the available daily generation.
+This supports a limited general-Russian conversation pilot, **not** promotion
+of freeform energy narration. IGW model context remains disabled; deterministic
+HA energy intents and the bridge's missing-measurement guard handle that scope.
+These six observations are not reliability percentages or a language-support
+guarantee.
+
+The [Ultra free endpoint listing](https://openrouter.ai/nvidia/nemotron-3-ultra-550b-a55b:free)
+and [endpoint metadata](https://openrouter.ai/api/v1/models/nvidia/nemotron-3-ultra-550b-a55b:free/endpoints)
+showed zero prompt/completion prices. Its provider notice excludes confidential
+information and personal data and describes logging for security and product
+improvement. That restriction applies to text as well as raw audio; synthetic
+tests do not establish suitability for unrestricted household conversation.
+Keep the explicit free alias and an empty fallback list. The prior route for
+rollback is `anthropic/open_router/liquid/lfm-2.5-2.6b:free`; model selection is a
+separate deployment operation from the concurrency and telemetry fixes.

@@ -267,6 +267,16 @@ class WireTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("IGW_SNAPSHOT_JSON:", self.calls[-1]["body"]["system"])
         self.assertEqual(len(self.energy_calls), 1)
 
+    async def test_personal_energy_without_configured_source_never_reaches_model(self):
+        for question in ("Сколько электроэнергии мой дом потратил вчера?",
+                         "Какой сейчас заряд батареи?", "What is my solar generation today?"):
+            self.assertEqual(await self.client.ask(question), energy_context.UNAVAILABLE)
+        self.assertFalse(self.calls)
+        self.assertFalse(self.energy_calls)
+        # A general educational question remains a normal conversation.
+        await self.client.ask("Что такое электрическая энергия?")
+        self.assertEqual(len(self.calls), 1)
+
     async def test_energy_failures_return_unavailable_without_model_fabrication(self):
         self.enable_energy()
         for kind in ("redirect", "stale", "oversize", "disconnected", "timeout"):

@@ -147,7 +147,14 @@ need review before a different upstream receives household conversations.
 ## Optional read-only energy context
 
 Bridge 0.1.4 can ground freeform energy questions in six typed IGW measurements.
-It remains off by default. Configure `IGW_ENERGY_URL` as the exact
+It remains off by default. Personal household energy questions are answered
+with a fixed unavailable-data response when no IGW source is configured; they
+never reach the model with missing measurements. General educational energy
+questions remain eligible for conversation. The guard uses conservative Russian
+and English energy/household terms and is not a universal intent classifier.
+The six deterministic HA energy intents remain the preferred measurement path.
+
+Configure `IGW_ENERGY_URL` as the exact
 `https://gateway.example.org/v1/energy` endpoint, without query or credentials,
 and exactly one of `IGW_ENERGY_TOKEN_FILE` or `IGW_ENERGY_TOKEN`. Prefer a mounted
 file containing a scoped, read-only IGW token. No HA token or control tool is
