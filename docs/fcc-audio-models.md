@@ -149,3 +149,8 @@ seconds**. The last case is handled before any provider request. These checks
 cover the deployed route and guards, not arbitrary factual accuracy or
 unrestricted personal conversation. The prior LFM route and full Deployment
 snapshot were retained for rollback.
+
+A separate direct synthetic FCC request returned the same exact model alias in
+`response.model` and answered correctly. FCC did not expose an upstream provider
+or a separate resolved-model field. This confirms the configured and reported
+route, not an independent inspection of the provider's model weights.
