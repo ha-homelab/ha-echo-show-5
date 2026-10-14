@@ -1,5 +1,7 @@
 # Echo Show 5 Gen2 → Android → Home Assistant
 
+[![Fuzzing: RC only](https://img.shields.io/badge/fuzzing-RC_only-blue)](docs/fuzzing.md)
+
 Tools and an attended runbook for reusing an **Amazon Echo Show 5, second generation (2021), codename `cronos`**, as an Android Home Assistant display and voice client. This project targets a physical **x86_64 Synology NAS** as the USB host, controlled over SSH from a separate computer.
 
 **Validation status, 2026-10-02:** a physical cronos device has completed the guarded TWRP conversion and first **Android 11 / LineageOS 18.1** boot. The raw backups passed validation on both NAS and workstation, and the pinned **Home Assistant Companion minimal APK installed successfully**. Companion is authenticated to HA and renders the existing dashboard. Optional **VACA 0.13.4** is installed with a local custom model, a running wake-word engine and an idle HA satellite connection. After settling onboarding permissions, VACA restarted unattended through one normal Android reboot, reconnected to HA and kept capture active with Companion back in the foreground. Controlled physical voice, power-cycle and multi-day reliability tests remain pending. See [validation status](docs/preparation-status.md) for the evidence and remaining checks.
@@ -106,10 +108,12 @@ and the [OpenSSF evidence and remaining criteria](docs/openssf-evidence.md).
 Included upstream patch fragments retain their original licenses; see
 [third-party notices](THIRD_PARTY_NOTICES.md).
 
-## Candidate validation preparation
+## RC fuzz qualification
 
-The [bounded fuzzing preparation](docs/fuzzing.md) documents synthetic targets,
-local replay, acceptance limits and the planned source-release boundary.
+[Bounded Linux fuzzing](docs/fuzzing.md) qualifies release candidates with synthetic
+inputs and a source-bound report. The guide documents targets, local replay and
+acceptance limits. The badge identifies RC-only capability; beta publication and
+hardware acceptance remain separate.
 
 ## Integration-source releases
 
