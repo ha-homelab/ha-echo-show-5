@@ -1,14 +1,22 @@
 # Changelog
 
-## 0.1.0
+## [0.1.0]
+
+### Added
 
 - Introduce versioned integration-source beta/RC archives with an explicit file
   inventory, isolated archive checks, frozen version plans and Linux intercom
   fuzz evidence. Component and external artifact versions remain independent.
-- Upgrade: extract the source suite separately, preserve private configuration,
+
+### Upgrade
+
+extract the source suite separately, preserve private configuration,
   and follow each integration’s installation steps. This does not flash devices,
   install APKs, update Home Assistant or deploy containers.
-- Security: publication binds checked bytes and source identity; synthetic
+
+### Security
+
+publication binds checked bytes and source identity; synthetic
   validation does not establish physical audio or installation acceptance.
 
 - Lock Python dependencies and verify downloaded archive SHA-256 hashes in CI and
