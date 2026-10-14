@@ -14,7 +14,7 @@ from render_remote_endpoint import write_private
 
 ROOT = Path(__file__).resolve().parents[1]
 COMMANDS = {
-    "play": (["[пожалуйста] (включи|играй|поставь) музыку [из (плекса|plex)]"],
+    "play": (["[пожалуйста] (включи|играй|играем|поставь) музыку [из (плекса|plex)]"],
              ["[please] play [some] music [from plex]"]),
     "pause": (["[пожалуйста] (останови|выключи|поставь на паузу) музыку"],
               ["[please] (stop|pause) [the] music"]),
