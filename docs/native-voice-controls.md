@@ -80,6 +80,14 @@ sentences and test both languages. Do not run two handlers for the same phrase.
 - Append a configured name, for example `на втором шоу`. Equivalent English
   commands and explicit names are included; spoken confirmations are Russian.
 
+The English play grammar also accepts `play something`, optionally with
+`please`, `from plex`, or a configured device name. This exact transcript was
+observed on a Russian EchoMuse pipeline even though the ASR request selected
+Russian. It means the same bounded Plex queue action as `play music`; it does
+not enable arbitrary providers, titles or unregistered destinations. Missing
+this phrase previously sent the request to the conversation model, which
+replied that it could not play music without calling the native music route.
+
 Commands without a name operate only on their registered origin. A Dot responds
 that it has no screen for screen commands. A Show returns from its previous
 owned app session before music starts/resumes. Switching to the clock, OTT or a

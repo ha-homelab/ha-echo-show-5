@@ -256,6 +256,10 @@ class VoiceRuntimeTest(unittest.IsolatedAsyncioTestCase):
             t["id"]: {"data": [{"sentences": t["command"]}]} for t in triggers}})
         for phrase, intent in (("включи музыку", "play:origin"), ("играй музыку на втором шоу", "play:show"),
                                ("Играем музыку", "play:origin"), ("играем музыку на втором шоу", "play:show"),
+                               ("play music", "play:origin"), ("play some music from plex", "play:origin"),
+                               ("play something", "play:origin"), ("please play something", "play:origin"),
+                               ("play something on the first echo", "play:dot"),
+                               ("play something from plex on the second show", "play:show"),
                                ("останови музыку", "pause:origin"), ("покажи часы", "home:origin"),
                                ("установи громкость 35 процентов", "volume:origin"),
                                ("show front camera on the second show", "camera_front:show")):
@@ -267,7 +271,9 @@ class VoiceRuntimeTest(unittest.IsolatedAsyncioTestCase):
         explicit_volume = recognize("установи громкость 35 процентов на втором шоу", intents)
         self.assertEqual(explicit_volume.intent.name, "volume:show")
         self.assertEqual(explicit_volume.entities["level"].value.strip(), "35")
-        for phrase in ("включи свет", "играй Кукутики", "какая погода", "включи канал новости", "расскажи о музыке"):
+        for phrase in ("включи свет", "играй Кукутики", "какая погода", "включи канал новости", "расскажи о музыке",
+                       "play", "play something on youtube", "play something on the unknown speaker",
+                       "tell me something", "do not play something"):
             self.assertIsNone(recognize(phrase, intents))
 
 
