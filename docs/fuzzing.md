@@ -1,5 +1,9 @@
 # Bounded intercom validation
 
+See the [illustrated RC fuzzing process and verified rollout results](https://github.com/victron-venus/venus-os-ci-toolkit/blob/main/docs/rc-fuzzing-results.md)
+for the shared release flow, evidence requirements and a dated cross-project
+snapshot. The project-specific scope and reproduction guidance below still apply.
+
 The `intercom-boundaries` target calls the actual `decode_pcm` and
 `LeaseGuard.require` implementations. Arbitrary input exercises strict base64
 and PCM16 bounds; independently generated synthetic PCM must round-trip. Typed
