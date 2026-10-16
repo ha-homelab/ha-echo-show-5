@@ -30,10 +30,11 @@ analyzed.
 
 Original project code and documentation use [MIT](../LICENSE). The [third-party notices](../THIRD_PARTY_NOTICES.md) preserve separate conversion-artifact and patch-fragment terms. Preserve pending physical voice/power-cycle acceptance from the existing runbook.
 
-The project maintainer must confirm secure-design/common-error knowledge for
-this project and supply the history of bug, enhancement and vulnerability
-reports across all channels. Confirm actual private-reporting availability and
-review/branch settings. Verify releases have meaningful change/security notes;
+On 2026-10-16, the maintainer personally confirmed secure-design/common-error
+knowledge and no bug, enhancement or vulnerability reports outside GitHub in
+the preceding twelve months. GitHub private reporting is enabled. See
+[quality evidence and limitations](quality.md); public issue history and actual
+review/branch settings still require their own current evidence. Verify releases have meaningful change/security notes;
 measure test coverage and map static/dynamic analysis to every project-owned
 language. Review each cryptographic criterion individually. Do not transfer
 another repository's attestations, badge identifier or test results here.
