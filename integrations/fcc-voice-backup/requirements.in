@@ -1,2 +1,4 @@
-aiohttp==3.14.4
+aiohttp==3.14.5
 wyoming==1.10.2
+# Keep Python 3.11's aiohttp/aiosignal dependency in locks resolved on newer Python.
+typing-extensions==4.16.0
