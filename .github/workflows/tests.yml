@@ -4,6 +4,18 @@ name: Tests
 permissions:
   contents: read
 jobs:
+  browser-compatibility:
+    name: Clock and authentication browser acceptance
+    uses: victron-venus/venus-os-ci-toolkit/.github/workflows/typescript-ci.yml@eb1ec3a1b978923955c77b478c9a2530846d6bae
+    permissions:
+      contents: read
+    with:
+      node-version: '22'
+      run-node-ci: false
+      browser-matrix-file: .github/browser-compatibility.json
+      browser-prepare-command: node --check scripts/browser-acceptance.cjs
+      browser-test-command: node scripts/browser-acceptance.cjs
+      browser-extended: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.channel == '') }}
   unit-tests:
     name: Python ${{ matrix.python }}
     runs-on: ubuntu-22.04
@@ -183,8 +195,9 @@ jobs:
     timeout-minutes: 30
   ci-gate:
     name: CI gate
-    if: ${{ always() }}
+    if: ${{ !cancelled() }}
     needs:
+    - browser-compatibility
     - unit-tests
     - intercom-tests
     - display-tests
