@@ -15,9 +15,11 @@ from render_remote_endpoint import write_private
 ROOT = Path(__file__).resolve().parents[1]
 COMMANDS = {
     "play": (["[пожалуйста] (включи|играй|играем|поставь) музыку [из (плекса|plex)]"],
-             ["[please] play [some] music [from plex]"]),
-    "pause": (["[пожалуйста] (останови|выключи|поставь на паузу) музыку"],
-              ["[please] (stop|pause) [the] music"]),
+             ["[please] play ([some] music|something) [from plex]"]),
+    "stop": (["[пожалуйста] (стоп|останови) [музыку]", "[пожалуйста] выключи музыку"],
+             ["[please] stop [[the] music]"]),
+    "pause": (["[пожалуйста] поставь на паузу музыку", "[пожалуйста] пауза"],
+              ["[please] pause [[the] music]"]),
     "resume": (["[пожалуйста] (продолжи|возобнови) (музыку|воспроизведение музыки)"],
                ["[please] resume [the] music"]),
     "next": (["[пожалуйста] [включи] (следующий трек|следующую песню)"],
@@ -33,7 +35,7 @@ COMMANDS = {
     "camera_porch": (["[пожалуйста] (покажи|включи) (камеру порч|порч камеру|камеру крыльца)"],
                      ["[please] show [the] porch camera"]),
 }
-MUSIC_COMMANDS = ("play", "pause", "resume", "next", "volume")
+MUSIC_COMMANDS = ("play", "stop", "pause", "resume", "next", "volume")
 
 
 def _matches(pattern, value):
@@ -138,6 +140,10 @@ def endpoint_script(c, key, e):
         _if("{{ plex_queue }}", [_if("{{ " + state + " != 'playing' }}", [_service("media_player.media_play", player)])],
             [_service("music_assistant.play_media", player, media_id=c["default_tracks"], media_type="track", enqueue="replace")])]
     branches = [{"conditions": "{{ command == 'play' }}", "sequence": play + _result("Включаю музыку из Плекса.", True)}]
+    branches.append({"conditions": "{{ command == 'stop' }}", "sequence": [
+        _if("{{ " + state + " in ['playing', 'buffering', 'paused'] }}",
+            [_service("media_player.media_stop", player)] + _result("Музыка остановлена.", True),
+            _result("Музыка уже остановлена.", True))]})
     for command, service, message in (("pause", "media_pause", "Музыка на паузе."),
                                        ("resume", "media_play", "Продолжаю музыку."),
                                        ("next", "media_next_track", "Переключаю на следующий трек.")):

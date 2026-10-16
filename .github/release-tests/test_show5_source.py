@@ -44,6 +44,7 @@ class SourceDistributionTests(unittest.TestCase):
             "Synthetic source snapshot",
         )
         self.policy = json.loads((self.root / ".release-policy.json").read_text())
+        self.base_version = version_plan.read_base_version(ROOT, self.policy)
 
     def command(self, *args):
         return subprocess.check_output(
@@ -52,7 +53,7 @@ class SourceDistributionTests(unittest.TestCase):
 
     def freeze(self, channel):
         plan = version_plan.create_plan(
-            "0.1.0",
+            self.base_version,
             channel,
             7,
             self.command("git", "rev-parse", "HEAD").strip(),
@@ -76,12 +77,12 @@ class SourceDistributionTests(unittest.TestCase):
             "integrations/show5-intercom/custom_components/show5_intercom/manifest.json",
         ]
         before = {name: (self.root / name).read_bytes() for name in independent}
-        for channel, expected in (("beta", "0.1.0-beta.7"), ("rc", "0.1.0")):
+        for channel, expected in (("beta", f"{self.base_version}-beta.7"), ("rc", self.base_version)):
             with self.subTest(channel=channel):
-                (self.root / "SOURCE_VERSION").write_text("0.1.0\n")
+                (self.root / "SOURCE_VERSION").write_text(self.base_version + "\n")
                 plan = self.freeze(channel)
                 output = self.root / channel
-                archive = package_source.build(self.root, "0.1.0", channel, output)
+                archive = package_source.build(self.root, self.base_version, channel, output)
                 with tarfile.open(archive) as package:
                     self.assertEqual(
                         package.extractfile("ha-echo-show-5/SOURCE_VERSION")
@@ -110,7 +111,7 @@ class SourceDistributionTests(unittest.TestCase):
 
     def test_actual_extracted_sources_and_browser_resources_pass(self):
         self.freeze("rc")
-        archive = package_source.build(self.root, "0.1.0", "rc", self.root / "output")
+        archive = package_source.build(self.root, self.base_version, "rc", self.root / "output")
         package_source.verify(archive, self.root)
 
     def test_archive_is_reproducible_and_excludes_local_state(self):
@@ -119,8 +120,8 @@ class SourceDistributionTests(unittest.TestCase):
         (self.root / "private/example.local.json").write_text(
             '{"synthetic":"do not package"}'
         )
-        first = package_source.build(self.root, "0.1.0", "beta", self.root / "first")
-        second = package_source.build(self.root, "0.1.0", "beta", self.root / "second")
+        first = package_source.build(self.root, self.base_version, "beta", self.root / "first")
+        second = package_source.build(self.root, self.base_version, "beta", self.root / "second")
         self.assertEqual(first.read_bytes(), second.read_bytes())
         with tarfile.open(first) as package:
             self.assertFalse(any("/private/" in name for name in package.getnames()))
@@ -154,7 +155,7 @@ class SourceDistributionTests(unittest.TestCase):
 
     def test_changed_archive_fails_before_extraction(self):
         self.freeze("rc")
-        archive = package_source.build(self.root, "0.1.0", "rc", self.root / "output")
+        archive = package_source.build(self.root, self.base_version, "rc", self.root / "output")
         with tarfile.open(archive, "w:gz") as package:
             entry = tarfile.TarInfo("ha-echo-show-5/SOURCE_VERSION")
             entry.size = 6

@@ -138,6 +138,33 @@ class VoiceRuntimeTest(unittest.IsolatedAsyncioTestCase):
             await self.request("volume", level=level)
             self.assertEqual(self.calls[-1][2]["volume_level"], int(level) / 100)
 
+    async def test_stop_uses_only_origin_player_and_never_changes_idle_devices(self):
+        for state in ("playing", "buffering", "paused"):
+            self.calls.clear()
+            self.hass.states.async_set("media_player.dot_music", state)
+            result = await self.request("stop", device="2" * 32)
+            self.assertEqual(self.calls, [("media_player", "media_stop", {"entity_id": ["media_player.dot_music"]})])
+            self.assertEqual(result.conversation_response, "Музыка остановлена.")
+        self.calls.clear()
+        self.hass.states.async_set("media_player.dot_music", "idle")
+        result = await self.request("stop", device="2" * 32)
+        self.assertEqual(result.conversation_response, "Музыка уже остановлена.")
+        for state in ("unknown", "unavailable"):
+            self.hass.states.async_set("media_player.dot_music", state)
+            result = await self.request("stop", device="2" * 32)
+            self.assertIn("недоступен", result.conversation_response)
+        await self.request("stop", device=None)
+        self.assertEqual(self.calls, [])
+
+    async def test_stop_service_failure_is_not_success(self):
+        from homeassistant.exceptions import HomeAssistantError
+        async def fail(call):
+            raise HomeAssistantError("Synthetic stop failure")
+        self.hass.states.async_set("media_player.dot_music", "playing")
+        self.hass.services.async_register("media_player", "media_stop", fail)
+        with self.assertRaises(HomeAssistantError):
+            await self.request("stop", device="2" * 32)
+
     async def test_explicit_volume_suppresses_origin_wildcard_reply(self):
         for sentence in ("установи громкость 35 процентов на втором шоу",
                          "set volume to 35 percent on the second show",
@@ -256,7 +283,17 @@ class VoiceRuntimeTest(unittest.IsolatedAsyncioTestCase):
             t["id"]: {"data": [{"sentences": t["command"]}]} for t in triggers}})
         for phrase, intent in (("включи музыку", "play:origin"), ("играй музыку на втором шоу", "play:show"),
                                ("Играем музыку", "play:origin"), ("играем музыку на втором шоу", "play:show"),
-                               ("останови музыку", "pause:origin"), ("покажи часы", "home:origin"),
+                               ("play music", "play:origin"), ("play some music from plex", "play:origin"),
+                               ("play something", "play:origin"), ("please play something", "play:origin"),
+                               ("play something on the first echo", "play:dot"),
+                               ("play something from plex on the second show", "play:show"),
+                               ("останови музыку", "stop:origin"), ("стоп", "stop:origin"),
+                               ("stop", "stop:origin"), ("Stop!", "stop:origin"),
+                               ("please stop", "stop:origin"), ("stop the music", "stop:origin"),
+                               ("stop on the first echo", "stop:dot"),
+                               ("выключи музыку на втором шоу", "stop:show"),
+                               ("pause", "pause:origin"), ("пауза", "pause:origin"),
+                               ("поставь на паузу музыку", "pause:origin"), ("покажи часы", "home:origin"),
                                ("установи громкость 35 процентов", "volume:origin"),
                                ("show front camera on the second show", "camera_front:show")):
             with self.subTest(phrase=phrase):
@@ -267,7 +304,10 @@ class VoiceRuntimeTest(unittest.IsolatedAsyncioTestCase):
         explicit_volume = recognize("установи громкость 35 процентов на втором шоу", intents)
         self.assertEqual(explicit_volume.intent.name, "volume:show")
         self.assertEqual(explicit_volume.entities["level"].value.strip(), "35")
-        for phrase in ("включи свет", "играй Кукутики", "какая погода", "включи канал новости", "расскажи о музыке"):
+        for phrase in ("включи свет", "играй Кукутики", "какая погода", "включи канал новости", "расскажи о музыке",
+                       "play", "play something on youtube", "play something on the unknown speaker",
+                       "tell me something", "do not play something", "stop the heater",
+                       "stop all devices", "do not stop", "останови обогреватель"):
             self.assertIsNone(recognize(phrase, intents))
 
 
