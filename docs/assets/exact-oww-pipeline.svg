@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1000" viewBox="0 0 1440 1000" role="img" aria-labelledby="title description">
+<title id="title">One phrase, exact features, one microphone</title><desc id="description">Logical local audio path for the opt-in openWakeWord implementation. Sixteen-kilohertz PCM is aligned into 1280-sample chunks with 480-sample context, transformed to 76 by 32 mel frames, then 16 by 96 embeddings for one calibrated activation classifier. The local Stop detector consumes the same PCM. HA recognition follows the chosen pipeline and may use cloud services. Sizes are algorithm parameters, not measured latency.</desc>
+<defs><linearGradient id="banner"><stop stop-color="#163b70"/><stop offset="0.5" stop-color="#563c88"/><stop offset="1" stop-color="#087f76"/></linearGradient><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#70849b"/></marker><style>text{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif} .arrow{fill:none;stroke:#70849b;stroke-width:3;marker-end:url(#arrow)}</style></defs>
+<rect width="1440" height="1000" fill="#f3f7fc"/>
+<rect width="1440" height="155" fill="url(#banner)"/>
+<text x="44" y="36" font-size="15" fill="#d1e8ff" font-weight="700">VOICE / IMPLEMENTATION</text>
+<text x="44" y="84" font-size="35" fill="white" font-weight="750">One phrase. Exact features. One microphone.</text>
+<text x="44" y="126" font-size="19" fill="#e3efff" font-weight="400">Opt-in ONNX path · VACA myshka.3 · Logical processing diagram; not an acoustic acceptance result</text>
+<rect x="44" y="189" width="1352" height="60" rx="18" fill="#e7f5f1" stroke="#a7d9cb"/>
+<text x="70" y="228" font-size="17" fill="#087f76" font-weight="750">LOCAL ON THE SHOW</text>
+<text x="320" y="228" font-size="20" fill="#142b46" font-weight="400">Private manifest binds classifier + both frontend models to SHA-256 hashes.</text>
+<rect x="44" y="291" width="302" height="252" rx="18" fill="#fff" stroke="#d7e1ed"/>
+<text x="66" y="328" font-size="15" fill="#2563eb" font-weight="750">01 / CAPTURE</text>
+<text x="66" y="374" font-size="23" fill="#142b46" font-weight="700">16 kHz mono PCM</text>
+<text x="66" y="416" font-size="17" fill="#536881" font-weight="400">Keep raw int16 scale</text>
+<text x="66" y="448" font-size="17" fill="#536881" font-weight="400">Carry partial reads</text>
+<text x="66" y="480" font-size="17" fill="#536881" font-weight="400">One microphone owner</text>
+<path d="M346 406H387" class="arrow"/>
+<rect x="394" y="291" width="302" height="252" rx="18" fill="#fff" stroke="#d7e1ed"/>
+<text x="416" y="328" font-size="15" fill="#7753c8" font-weight="750">02 / MEL</text>
+<text x="416" y="374" font-size="23" fill="#142b46" font-weight="700">1280 + 480 samples</text>
+<text x="416" y="416" font-size="17" fill="#536881" font-weight="400">80 ms chunk + 30 ms context</text>
+<text x="416" y="448" font-size="17" fill="#536881" font-weight="400">76 × 32 mel window</text>
+<text x="416" y="480" font-size="17" fill="#536881" font-weight="400">Normalize as training did</text>
+<path d="M696 406H737" class="arrow"/>
+<rect x="744" y="291" width="302" height="252" rx="18" fill="#fff" stroke="#d7e1ed"/>
+<text x="766" y="328" font-size="15" fill="#087f76" font-weight="750">03 / EMBEDDINGS</text>
+<text x="766" y="374" font-size="23" fill="#142b46" font-weight="700">16 × 96 values</text>
+<text x="766" y="416" font-size="17" fill="#536881" font-weight="400">96 values per embedding</text>
+<text x="766" y="448" font-size="17" fill="#536881" font-weight="400">Wait for 16 real embeddings</text>
+<text x="766" y="480" font-size="17" fill="#536881" font-weight="400">No random warmup</text>
+<path d="M1046 406H1087" class="arrow"/>
+<rect x="1094" y="291" width="302" height="252" rx="18" fill="#fff" stroke="#d7e1ed"/>
+<text x="1116" y="328" font-size="15" fill="#a46007" font-weight="750">04 / CLASSIFIER</text>
+<text x="1116" y="374" font-size="23" fill="#142b46" font-weight="700">Privet Myshka</text>
+<text x="1116" y="416" font-size="17" fill="#536881" font-weight="400">One activation model</text>
+<text x="1116" y="448" font-size="17" fill="#536881" font-weight="400">Raw calibrated score</text>
+<text x="1116" y="480" font-size="17" fill="#536881" font-weight="400">Threshold 0.50 (HA: 5.0)</text>
+<rect x="44" y="618" width="520" height="173" rx="18" fill="#eef1ff" stroke="#c6c9ed"/>
+<text x="70" y="658" font-size="16" fill="#7753c8" font-weight="750">LOCAL STOP / SAME AUDIO</text>
+<text x="70" y="697" font-size="19" fill="#536881" font-weight="400">Bundled Stop command stays available.</text>
+<text x="70" y="726" font-size="19" fill="#536881" font-weight="400">No second microphone; no second wake phrase.</text>
+<path d="M195 543V602" class="arrow"/>
+<text x="211" y="582" font-size="16" fill="#536881" font-weight="400">same PCM</text>
+<rect x="744" y="618" width="652" height="173" rx="18" fill="#eaf4ff" stroke="#b8d7f4"/>
+<text x="772" y="658" font-size="16" fill="#2563eb" font-weight="750">HOME ASSISTANT / EXISTING PIPELINE</text>
+<text x="772" y="697" font-size="18" fill="#536881" font-weight="400">Activation → recognition → conversation → speech.</text>
+<text x="772" y="726" font-size="18" fill="#536881" font-weight="400">The selected recognition provider may be in the cloud.</text>
+<text x="772" y="755" font-size="18" fill="#536881" font-weight="400">Changing the wake model does not choose a provider.</text>
+<path d="M1245 543V604" class="arrow"/>
+<rect x="44" y="837" width="1352" height="111" rx="18" fill="#142b46" stroke="#142b46"/>
+<text x="70" y="879" font-size="22" fill="white" font-weight="700">Timing and privacy boundaries</text>
+<text x="70" y="914" font-size="19" fill="#dceaff" font-weight="400">80 ms is the input chunk size, not response time. Model weights, recordings and device backups stay private.</text>
+</svg>

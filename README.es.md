@@ -10,9 +10,17 @@ Empiece por la [wiki del proyecto](docs/wiki/Home.md). Para un dispositivo de f�
 
 ![Arquitectura: Echo Show se conecta con HA; voz, cámaras y llamadas siguen rutas de datos separadas. Las etiquetas del diagrama están en inglés.](docs/assets/architecture.svg)
 
+## 16 de octubre: prueba con una sola frase ONNX
+
+**Compilación verificada; comprobaciones en los dispositivos pendientes.** `0.13.4+myshka.3` / `7003` superó **18 pruebas JVM sin fallos, errores ni pruebas omitidas**. La nueva opción usará únicamente **«Привет, мышка»**, con el procesamiento ONNX correspondiente y un umbral de **0,50** (**5,0 en HA**). Se retirará «Hey Jarvis» de la selección activa; se conserva el comando Stop independiente. Aún no están confirmadas la instalación, la comparación de Android con las salidas de referencia ni la activación mediante voz real. La capacidad de usar dos modelos microWakeWord sigue disponible; más abajo se conserva el estado verificado del 15 de octubre.
+
+[Cambio de modelo: proceso y resultados](docs/wiki/Wake-model-rollout.md) · [Guía técnica](docs/openwakeword-myshka.md) · [Gráfico de validación](docs/assets/wake-validation.svg)
+
+![Un micrófono alimenta el procesamiento ONNX exacto y el detector Stop separado. El bloque de audio de 80 ms no es una latencia de activación medida. Las etiquetas están en inglés.](docs/assets/exact-oww-pipeline.svg)
+
 ## Funciones
 
-- **Dos frases de activación simultáneas:** la extensión local de VACA usa un micrófono y dos modelos microWakeWord. La configuración documentada reconoce **«Привет, мышка»** y **«Hey Jarvis»**, con un umbral compartido de **0,35**. El modelo ruso privado no se distribuye. [Voz y modelos](docs/wiki/Voice-and-wake-words.md).
+- **Assist por voz:** la nueva opción ONNX usa una frase; sigue disponible la capacidad anterior de dos modelos microWakeWord. El estado verificado del 15 de octubre utiliza **«Привет, мышка»** y **«Hey Jarvis»** con **0,35**. En la prueba ONNX, **0,50** corresponde a otro modelo y no permite comparar directamente la sensibilidad. Los modelos privados no se distribuyen. [Voz y modelos](docs/wiki/Voice-and-wake-words.md).
 - **Interfaz para cinco pulgadas:** reloj grande, vídeo Front/Porch a pantalla completa al detectar movimiento, vista manual limitada en el tiempo y regreso al reloj. Se conserva la proporción; el vídeo aparece cuando hay un fotograma listo, sin el icono Play de Android deformado. [Pantalla](docs/wiki/Display-media-and-calls.md).
 - **Control desde HA:** anuncios, música, canales de TV predefinidos, nuestro cliente OTT-play FOSS sobre Capacitor, una ruta web OTT independiente y OttPlayer opcional. Home/Stop termina la actividad administrada. [Control remoto](docs/remote-endpoint.md).
 - **Llamadas mediante su propio Jitsi:** sala fija, política de entrada explícita, cesión del micrófono y restauración tras la llamada. El intercomunicador experimental de HA es una opción separada. [Llamadas](docs/wiki/Display-media-and-calls.md#jitsi-and-intercom).
@@ -21,11 +29,11 @@ Empiece por la [wiki del proyecto](docs/wiki/Home.md). Para un dispositivo de f�
 
 ## Estado de las pruebas
 
-**Actualización del 15 de octubre de 2026:** el parche compilado `dualwake.2` corrige la liberación de recursos del detector. La revisión de pantalla `20261015-r11` combina inglés, ruso, alemán y español con reintentos cuando el comando MQTT todavía no está disponible durante el arranque de HA. En **48 renderizados sintéticos de diseño en ordenador** no se observaron elementos recortados en los casos probados. Ambas actualizaciones están instaladas en los dos Shows. Cada dispositivo superó tres ciclos de silenciar/reactivar el micrófono por software y un reinicio de la aplicación; ambos modelos y la captura se recuperaron. El reconocimiento de frases pronunciadas sigue sin verificar; los detalles están en la [guía de validación](docs/wiki/Validation.md).
+**Estado verificado del 15 de octubre de 2026:** el parche compilado `dualwake.2` corrige la liberación de recursos del detector. La revisión de pantalla `20261015-r11` combina inglés, ruso, alemán y español con reintentos cuando el comando MQTT todavía no está disponible durante el arranque de HA. En **48 renderizados sintéticos de diseño en ordenador** no se observaron elementos recortados en los casos probados. En ese punto de verificación, ambas actualizaciones estaban instaladas en los dos Shows. Cada dispositivo superó tres ciclos de silenciar/reactivar el micrófono por software y un reinicio de la aplicación; ambos modelos y la captura se recuperaron. El reconocimiento de frases pronunciadas sigue sin verificar; los detalles están en la [guía de validación](docs/wiki/Validation.md).
 
 La referencia documentada del **14 de octubre de 2026** incluye dos Shows con Android 11 / LineageOS 18.1 no oficial. Ambos modelos de activación se cargaron después de un **reinicio normal de la aplicación**, se conservaron las identidades de HA y los anuncios consecutivos terminaron correctamente a nivel de servicio. Ambos dispositivos usan **Local Russian Home** y la voz **Irina**. El reconocimiento todavía envía audio a la nube. [Evidencia de compilación](integrations/vaca-dual-wake/README.md#historical-deployment-evidence--2026-10-14) · [historial de voz](docs/fcc-voice-backup.md).
 
-**Siguen pendientes la prueba deliberada de ambas frases junto al dispositivo, la calidad audible, la recuperación tras un corte de corriente y varios días de funcionamiento de la nueva compilación.** Una llamada API correcta o un modelo cargado no demuestran estos resultados. La [guía de validación](docs/wiki/Validation.md) distingue los alcances. La [referencia de conversión del 2 de octubre](docs/preparation-status.md) es histórica y contiene ajustes de voz que ya han cambiado.
+**Siguen pendientes la prueba deliberada de ambas frases junto al dispositivo, la calidad audible, la recuperación tras un corte de corriente y varios días de funcionamiento de la compilación `dualwake.2`.** Una llamada API correcta o un modelo cargado no demuestran estos resultados. La [guía de validación](docs/wiki/Validation.md) distingue los alcances. La [referencia de conversión del 2 de octubre](docs/preparation-status.md) es histórica y contiene ajustes de voz que ya han cambiado.
 
 ## Compatibilidad y preparación
 

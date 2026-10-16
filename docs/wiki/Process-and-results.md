@@ -2,9 +2,11 @@
 
 [Wiki home](Home.md) · [Validation and evidence](Validation.md) · [Architecture](Architecture.md)
 
-The project turns a supported **Echo Show 5 Gen2 (2021), `cronos`** into an Android room endpoint for Home Assistant. Firmware conversion happens once; the clock, voice client and integrations can then be updated independently. The current work adds two simultaneous wake models, fixes detector cleanup, localizes the clock interface and recovers from a specific Home Assistant startup race.
+The project turns a supported **Echo Show 5 Gen2 (2021), `cronos`** into an Android room endpoint for Home Assistant. Firmware conversion happens once; the clock, voice client and integrations can then be updated independently. The October 15 work added two simultaneous wake models, fixes detector cleanup, localizes the clock interface and recovers from a specific Home Assistant startup race.
 
 ![Six conversion stages and the installed result: LineageOS, VACA dualwake.2, display r11, two wake phrases and four available UI languages.](../assets/process-and-results.svg)
+
+For the **October 16 exact ONNX model trial**, see [Wake model rollout: process and results](Wake-model-rollout.md). It has its own processing diagram, installation gates and development-evaluation chart. The two-phrase settings and installed results below are the dated October 15 baseline, not a universal current configuration.
 
 ## From stock hardware to a reusable endpoint
 

@@ -14,8 +14,8 @@ import xml.etree.ElementTree as ET
 
 COMMIT = '65906aebffd2f39772773b44729b22fd022a1f3c'
 UPSTREAM = 'https://github.com/msp1974/ViewAssistCompanionApp.git'
-VERSION_NAME = '0.13.4+dualwake.2'
-VERSION_CODE = 7002
+VERSION_NAME = '0.13.4+myshka.3'
+VERSION_CODE = 7003
 ROOT = Path(__file__).resolve().parents[2]
 PATCH = Path(__file__).with_name('vaca-dual-wake.patch')
 
@@ -207,8 +207,8 @@ def test_totals(src):
         suite = ET.parse(report).getroot()
         for key in totals:
             totals[key] += int(suite.get(key, '0'))
-    if totals['tests'] < 9 or totals['failures'] or totals['errors'] or totals['skipped']:
-        raise BuildError('Expected at least nine passing JVM tests and no failed/skipped tests')
+    if totals['tests'] < 18 or totals['failures'] or totals['errors'] or totals['skipped']:
+        raise BuildError('Expected at least eighteen passing JVM tests and no failed/skipped tests')
     return totals
 
 

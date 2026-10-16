@@ -7,14 +7,21 @@ This route targets **Echo Show 5 Gen2 / 2021 / cronos**, using **LineageOS / And
 ## Start with the wiki
 
 - [Wiki home](wiki/Home.md): choose the installation, operation or maintenance path.
+- [Wake-model rollout](wiki/Wake-model-rollout.md): the October 16 single-phrase ONNX trial, verified build, pending device checks and colorful process/evidence diagrams.
 - [Process and results](wiki/Process-and-results.md): conversion stages, current software changes, installed results and remaining acceptance work.
 - [Architecture](wiki/Architecture.md): device, HA and service boundaries, including local versus cloud speech processing.
 - [Validation and evidence](wiki/Validation.md): dated versions, automated checks, per-device observations and unverified behavior.
 - [SVG diagram collection](assets/README.md): architecture, voice paths, installation paths, the conversion journey, startup recovery and recorded test counts.
 
-![Conversion stages, installed VACA and display revisions, two wake phrases and the limits of validation.](assets/process-and-results.svg)
+## October 16 wake-model trial
 
-Both Shows have **VACA `0.13.4+dualwake.2` / `7002`** and **display `20261015-r11`** installed. Three software mute/unmute cycles and a normal app restart on each restored both models and microphone capture. The documented activation pair is **“Привет, мышка” + “Hey Jarvis”**, with a shared **0.35** threshold. Deliberately spoken activation and audible-response acceptance remain separate work; read the validation page for current camera and recovery results.
+**Build verified; device checks pending.** `0.13.4+myshka.3` / `7003` passed 18 JVM tests with no failures, errors or skips. The opt-in configuration will use only **“Привет, мышка”** at **0.50** (**5.0 in HA**) with the exact ONNX frontend, removing “Hey Jarvis” from the active selection while retaining the separate Stop command. Installation, Android/reference comparison and physical activation are not yet confirmed. See the [rollout process](wiki/Wake-model-rollout.md) and [technical guide](openwakeword-myshka.md).
+
+![One microphone feeds the exact ONNX activation pipeline and a separate Stop detector; 80 ms denotes an audio chunk, not measured wake latency.](assets/exact-oww-pipeline.svg)
+
+## Previous installed baseline
+
+The October 15 record verified both Shows with **VACA `0.13.4+dualwake.2` / `7002`** and **display `20261015-r11`** installed. Three software mute/unmute cycles and a normal app restart on each restored both models and microphone capture. That microWakeWord configuration used **“Привет, мышка” + “Hey Jarvis”**, with a shared **0.35** threshold. Deliberately spoken activation and audible-response acceptance remain separate work; read the validation page for current camera and recovery results.
 
 There are **five documentation entry languages** and **four implemented clock-UI languages**: English, Russian, German and Spanish. French is a documentation language only. English and 24-hour formatting remain selected on the two Shows. [Localization](wiki/Localization.md) explains the runtime settings; [translation policy](i18n.md) explains documentation coverage.
 
@@ -30,7 +37,7 @@ There are **five documentation entry languages** and **four implemented clock-UI
 
 - [Display, media and calls](wiki/Display-media-and-calls.md): the room endpoint's operating behavior and feature boundaries.
 - [Clock and camera display](../integrations/show5-display/README.md): versioned deployment, four-language UI, startup recovery and camera lifecycle.
-- [Voice and wake words](wiki/Voice-and-wake-words.md): simultaneous activation models, independent language settings and per-satellite assistant selection.
+- [Voice and wake words](wiki/Voice-and-wake-words.md): the opt-in single-phrase ONNX path, two-model microWakeWord capability, independent language settings and per-satellite assistant selection.
 - [Dual-wake extension](../integrations/vaca-dual-wake/README.md): source patch, reproducible build, versioned receipts, app-data preservation and rollback.
 - [VACA and private wake words](vaca-private-wakeword.md): permissions, model deployment, thresholds and acoustic limitations.
 - [Dashboard](show-dashboard.md) and [portable HA examples](../examples/home-assistant/README.md): provide your own private entity mapping.

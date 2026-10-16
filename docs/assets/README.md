@@ -16,6 +16,14 @@ These SVGs are editable repository source, not screenshots or automatically upda
 
 The [process and results page](../wiki/Process-and-results.md) supplies a text equivalent for the new diagrams. The surrounding [wiki](../wiki/Home.md) provides detailed procedures; [Validation and evidence](../wiki/Validation.md) is authoritative for dated per-device acceptance. Do not infer a physical packet route, measured latency or physical wake-word recognition from a logical service arrow or an installed version.
 
+## Exact ONNX wake model trial — October 16
+
+- [Exact audio pipeline](exact-oww-pipeline.svg): one microphone, deterministic framing, hash-bound ONNX frontend, one activation model and a separate local Stop command.
+- [Rollout gates](wake-rollout.svg): verified backups, signed update, replay, selection, lifecycle checks and the second-device sequence, with a restoration branch.
+- [Development evaluation](wake-validation.svg): positive clip fractions and separate negative observations. These are supplied development results, not acoustic measurements from either Show.
+
+The [wake-model rollout page](../wiki/Wake-model-rollout.md) provides text equivalents and the dated result. The older diagrams above remain snapshots of the October 15 dual-wake/display work; new source capability must not be confused with a verified installation.
+
 ## Editing and verification
 
 Keep the SVG `viewBox`, accessible `<title>` and `<desc>`, `role="img"` and `aria-labelledby` references valid. Explain differences using text and structure as well as color. Use explicit line breaks, adequate contrast and native shapes; avoid scripts, external resources and embedded HTML.

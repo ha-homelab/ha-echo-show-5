@@ -4,6 +4,12 @@
 
 ### Added
 
+- Opt-in exact ONNX frontend for a private single-phrase Privet Myshka model,
+  with hash-bound artifacts, deterministic streaming features and a local Stop
+  detector sharing the microphone. VACA build `0.13.4+myshka.3` (7003) retains
+  the separate two-model microWakeWord configuration.
+- Private-fixture Android parity checks and nine additional JVM framing tests;
+  the builder now requires at least eighteen passing JVM tests.
 - Two simultaneous microWakeWord activation models in the pinned VACA Android
   patch, sharing one microphone, threshold and cross-model cooldown.
 - English, Russian, German and Spanish clock interface catalogs and README
@@ -38,6 +44,10 @@
 
 ### Documentation
 
+- Add three self-contained SVG diagrams for the exact audio pipeline, guarded
+  rollout and development evaluation, with an illustrated process/results wiki
+  page linked from all five README languages. Keep hardware acceptance separate
+  from training, build and replay results.
 - Add Russian, German, Spanish and French README entry points with a shared topic
   index, translation policy and accessible SVG architecture diagram.
 - Distinguish the EchoLocal, EchoMuse and Android Show routes and label recorded

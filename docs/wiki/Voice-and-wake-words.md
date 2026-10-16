@@ -1,8 +1,18 @@
-# Voice and two wake words
+# Voice and wake-model choices
 
-[Wiki home](Home.md) · [Architecture](Architecture.md) · [Dual-wake implementation](../../integrations/vaca-dual-wake/README.md)
+[Wiki home](Home.md) · [Wake-model rollout](Wake-model-rollout.md) · [Architecture](Architecture.md) · [Dual-wake implementation](../../integrations/vaca-dual-wake/README.md)
 
 The wake detector decides **when to start listening for a command**. Speech recognition, intent/model processing and speech synthesis are separate HA stages. Changing a page's language or its displayed clock does not change any of those stages.
+
+## October 16: opt-in single-phrase ONNX trial
+
+**Build verified; device checks pending.** The candidate `0.13.4+myshka.3` / `7003` passed **18 JVM tests with no failures, errors or skips**. Its authorized trial configuration will use the updated **“Привет, мышка”** classifier as the only activation phrase, at **0.50** (**5.0 in HA**), with engine `openwakeword`. Remove the saved secondary selection so “Hey Jarvis” is not active. The exact ONNX path is opt-in; this does not remove the independent two-model microWakeWord capability.
+
+![Exact ONNX pipeline: one microphone supplies aligned PCM to the activation frontend and separate Stop processing, while HA handles the subsequent voice request.](../assets/exact-oww-pipeline.svg)
+
+The classifier is bound to the same ONNX frontend artifacts used during training. The **80 ms** value is a processing chunk, not a measured wake latency. Its **0.50** threshold and the earlier microWakeWord **0.35** belong to different models and cannot establish relative sensitivity by numeric comparison. The bundled Stop command reuses the same PCM and is not a second activation phrase.
+
+Read the [rollout process and evidence](Wake-model-rollout.md) and [technical guide](../openwakeword-myshka.md) before installing or changing engine settings. Android installation, reference-output comparison and acoustic acceptance remain pending; the prepared reference fixtures are not successful device tests. This trial preserves the selected HA pipeline, display and media configuration and does not add a new recording task.
 
 ## Recorded two-word configuration
 
@@ -46,7 +56,7 @@ The repository's [`voice_pipeline.py`](../../scripts/voice_pipeline.py) supports
 
 ## Acceptance and microphone coexistence
 
-A model-load log and active unsilenced recorder establish deployment state. They do not prove that either phrase works from across the room. Record separate results for each phrase, near/far speech, negative phrases, background media and completion back to idle. Do not publish household audio or transcripts.
+A model-load log and active unsilenced recorder establish deployment state. They do not prove that the selected phrase works from across the room. Record separate results for every active phrase, confirm that a removed alternative is inactive, and test near/far speech, negative phrases, background media and completion back to idle. Do not publish household audio or transcripts.
 
 During a Jitsi call, follow the remote endpoint's microphone handoff. Home/Stop must restore the **previous** mute state, including an initially muted state. The display's camera viewer does not acquire a microphone. Avoid adding a second continuously listening application to solve a missing model; it can create capture contention without fixing the selected pipeline.
 

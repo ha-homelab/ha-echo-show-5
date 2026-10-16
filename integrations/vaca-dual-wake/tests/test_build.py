@@ -240,11 +240,14 @@ class MetadataTests(unittest.TestCase):
             reports = src / 'app/build/test-results/testDebugUnitTest'
             reports.mkdir(parents=True)
             report = reports / 'TEST-fixture.xml'
-            report.write_text('<testsuite tests="9" failures="1" errors="0" skipped="0"/>')
+            report.write_text('<testsuite tests="18" failures="1" errors="0" skipped="0"/>')
             with self.assertRaises(build.BuildError):
                 build.test_totals(src)
             report.write_text('<testsuite tests="9" failures="0" errors="0" skipped="0"/>')
-            self.assertEqual(build.test_totals(src)['tests'], 9)
+            with self.assertRaises(build.BuildError):
+                build.test_totals(src)
+            report.write_text('<testsuite tests="18" failures="0" errors="0" skipped="0"/>')
+            self.assertEqual(build.test_totals(src)['tests'], 18)
 
 
 class ApkValidationTests(unittest.TestCase):
@@ -252,8 +255,8 @@ class ApkValidationTests(unittest.TestCase):
         self.fingerprint = 'a' * 64
         self.signature = 'Signer #1 certificate SHA-256 digest: ' + self.fingerprint + '\n'
         self.manifest = (
-            "package: name='com.msp1974.vacompanion' versionCode='7002' "
-            "versionName='0.13.4+dualwake.2' platformBuildVersionName='16'\n"
+            "package: name='com.msp1974.vacompanion' versionCode='7003' "
+            "versionName='0.13.4+myshka.3' platformBuildVersionName='16'\n"
             "native-code: 'armeabi-v7a'\n"
         )
 
@@ -272,7 +275,7 @@ class ApkValidationTests(unittest.TestCase):
             self.validate()
 
     def test_stale_version_is_rejected(self):
-        self.manifest = self.manifest.replace('7002', '7001')
+        self.manifest = self.manifest.replace('7003', '7002')
         with self.assertRaises(build.BuildError):
             self.validate()
 

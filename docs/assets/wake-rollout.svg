@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1010" viewBox="0 0 1440 1010" role="img" aria-labelledby="title description">
+<title id="title">A guarded wake model rollout with separate acceptance gates</title><desc id="description">The six-stage sequence is identify and back up, build and verify, replay private fixtures without microphone input, activate one model, verify lifecycle and settings, then repeat for the second device. Failure preserves or restores the prior state. Per-device installation and numerical parity do not establish acoustic recognition or power-loss recovery.</desc>
+<defs><linearGradient id="banner"><stop stop-color="#163b70"/><stop offset="0.5" stop-color="#563c88"/><stop offset="1" stop-color="#087f76"/></linearGradient><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#70849b"/></marker><style>text{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif} .arrow{fill:none;stroke:#70849b;stroke-width:3;marker-end:url(#arrow)}</style></defs>
+<rect width="1440" height="1010" fill="#f3f7fc"/>
+<rect width="1440" height="155" fill="url(#banner)"/>
+<text x="44" y="36" font-size="15" fill="#d1e8ff" font-weight="700">DEPLOYMENT / PROCESS</text>
+<text x="44" y="84" font-size="35" fill="white" font-weight="750">From a trained model to a verified room endpoint</text>
+<text x="44" y="126" font-size="19" fill="#e3efff" font-weight="400">Upgrade the application in place · Preserve HA identity, voice pipeline, display and media configuration</text>
+<rect x="44" y="192" width="424" height="235" rx="18" fill="#fff" stroke="#d7e1ed"/>
+<rect x="68" y="216" width="48" height="45" rx="12" fill="#2563eb" stroke="#2563eb"/>
+<text x="92" y="247" font-size="25" fill="white" font-weight="750" text-anchor="middle">1</text>
+<text x="68" y="303" font-size="25" fill="#142b46" font-weight="750">Identify + back up</text>
+<text x="68" y="348" font-size="17" fill="#536881" font-weight="400">Confirm serial and current package.</text>
+<text x="68" y="379" font-size="17" fill="#536881" font-weight="400">Copy app data to two hosts; check hashes.</text>
+<rect x="508" y="192" width="424" height="235" rx="18" fill="#fff" stroke="#d7e1ed"/>
+<rect x="532" y="216" width="48" height="45" rx="12" fill="#7753c8" stroke="#7753c8"/>
+<text x="556" y="247" font-size="25" fill="white" font-weight="750" text-anchor="middle">2</text>
+<text x="532" y="303" font-size="25" fill="#142b46" font-weight="750">Build + verify</text>
+<text x="532" y="348" font-size="17" fill="#536881" font-weight="400">Pinned source, patch, ABI and certificate.</text>
+<text x="532" y="379" font-size="17" fill="#536881" font-weight="400">Keep the previous signed APK available.</text>
+<rect x="972" y="192" width="424" height="235" rx="18" fill="#fff" stroke="#d7e1ed"/>
+<rect x="996" y="216" width="48" height="45" rx="12" fill="#087f76" stroke="#087f76"/>
+<text x="1020" y="247" font-size="25" fill="white" font-weight="750" text-anchor="middle">3</text>
+<text x="996" y="303" font-size="25" fill="#142b46" font-weight="750">Replay + compare</text>
+<text x="996" y="348" font-size="17" fill="#536881" font-weight="400">Existing private fixtures; no microphone.</text>
+<text x="996" y="379" font-size="17" fill="#536881" font-weight="400">Compare embeddings and raw scores.</text>
+<rect x="972" y="490" width="424" height="235" rx="18" fill="#fff" stroke="#d7e1ed"/>
+<rect x="996" y="514" width="48" height="45" rx="12" fill="#2563eb" stroke="#2563eb"/>
+<text x="1020" y="545" font-size="25" fill="white" font-weight="750" text-anchor="middle">4</text>
+<text x="996" y="601" font-size="25" fill="#142b46" font-weight="750">Activate one phrase</text>
+<text x="996" y="646" font-size="17" fill="#536881" font-weight="400">Stop VACA; save the full selection.</text>
+<text x="996" y="677" font-size="17" fill="#536881" font-weight="400">Remove the secondary Jarvis selection.</text>
+<rect x="508" y="490" width="424" height="235" rx="18" fill="#fff" stroke="#d7e1ed"/>
+<rect x="532" y="514" width="48" height="45" rx="12" fill="#7753c8" stroke="#7753c8"/>
+<text x="556" y="545" font-size="25" fill="white" font-weight="750" text-anchor="middle">5</text>
+<text x="532" y="601" font-size="25" fill="#142b46" font-weight="750">Verify the endpoint</text>
+<text x="532" y="646" font-size="17" fill="#536881" font-weight="400">Check advancing audio + inference time.</text>
+<text x="532" y="677" font-size="17" fill="#536881" font-weight="400">Exercise mute, restart and saved settings.</text>
+<rect x="44" y="490" width="424" height="235" rx="18" fill="#fff" stroke="#d7e1ed"/>
+<rect x="68" y="514" width="48" height="45" rx="12" fill="#087f76" stroke="#087f76"/>
+<text x="92" y="545" font-size="25" fill="white" font-weight="750" text-anchor="middle">6</text>
+<text x="68" y="601" font-size="25" fill="#142b46" font-weight="750">Repeat, then document</text>
+<text x="68" y="646" font-size="17" fill="#536881" font-weight="400">Update the second identified Show.</text>
+<text x="68" y="677" font-size="17" fill="#536881" font-weight="400">Record each device separately.</text>
+<path d="M468 304H494" class="arrow"/>
+<path d="M932 304H958" class="arrow"/>
+<path d="M1184 427V477" class="arrow"/>
+<path d="M972 610H940" class="arrow"/>
+<path d="M508 610H476" class="arrow"/>
+<rect x="44" y="763" width="652" height="185" rx="18" fill="#fff4e4" stroke="#e6c591"/>
+<text x="70" y="802" font-size="17" fill="#a46007" font-weight="750">FAILED GATE → PRESERVE OR RESTORE</text>
+<text x="70" y="842" font-size="18" fill="#536881" font-weight="400">Stop on identity, checksum, parity or runtime failure.</text>
+<text x="70" y="871" font-size="18" fill="#536881" font-weight="400">Restore the saved engine, model, threshold and data.</text>
+<text x="70" y="900" font-size="18" fill="#536881" font-weight="400">Do not use an uninstall as an unplanned shortcut.</text>
+<rect x="720" y="763" width="676" height="185" rx="18" fill="#e7f5f1" stroke="#abd6ca"/>
+<text x="747" y="802" font-size="17" fill="#087f76" font-weight="750">PASSED GATES → ATTENDED ACCEPTANCE</text>
+<text x="747" y="842" font-size="18" fill="#536881" font-weight="400">Deliberate wake phrase, audible answer and Stop.</text>
+<text x="747" y="871" font-size="18" fill="#536881" font-weight="400">Fresh distance trials, real playback, recovery and soak.</text>
+<text x="747" y="900" font-size="18" fill="#536881" font-weight="400">A green build does not prove any of those outcomes.</text>
+<text x="44" y="987" font-size="17" fill="#536881" font-weight="400">Procedure diagram. Consult the dated rollout page for the observed state of every gate.</text>
+</svg>

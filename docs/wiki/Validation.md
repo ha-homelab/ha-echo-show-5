@@ -24,6 +24,29 @@ Each result needs a dated target, exact artifact or revision, method and limitat
 
 **Localization source — October 15.** The display now has a four-language source layer and locale/hour-format configuration. A source test establishes catalog and formatting behavior; the deployment record must separately identify which static revision and locales were actually inspected on hardware. Do not promote a prepared revision to a hardware milestone solely because files exist.
 
+## October 16 exact ONNX source and publication checks
+
+The [single-phrase rollout](Wake-model-rollout.md) adds a hash-bound exact ONNX
+frontend in VACA **`0.13.4+myshka.3` / `7003`**. Its
+[build receipt](../../integrations/vaca-dual-wake/build-myshka.3.json) preserves
+source-tree, patch, certificate and APK hashes independently of deployment.
+
+- Actual Android build: **18 JVM tests**, with no failures, errors or skips.
+- Android builder host regressions: **31 passed**; the new APK version is
+  accepted and the old version is rejected. The minimum JVM count is now 18.
+- Repository Python suite: **182 tests**, no failures, **15 optional HA-runtime
+  skips**. Those skips do not establish live HA compatibility.
+- Source packaging: **six checks passed**, including isolated checks from the
+  generated archive and exclusion of private runtime artifacts.
+- Documentation: **72 Markdown/SVG files** passed local link/anchor and SVG
+  accessibility checks. All **three new SVGs** were rendered in Chrome and
+  visually inspected, with no observed clipping or external resource requests.
+
+The [development-evaluation chart](../assets/wake-validation.svg) reports supplied
+model-development observations. It is not an acoustic benchmark on the Shows.
+Android replay and installed-state results must be recorded separately from
+these host checks. The earlier October 15 record below remains historical.
+
 ## October 15 installed-state and recovery checks
 
 Both Shows received VACA **`0.13.4+dualwake.2` / code `7002`** and the complete

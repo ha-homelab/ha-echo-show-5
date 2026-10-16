@@ -4,15 +4,19 @@
 
 This wiki is versioned with the code under `docs/wiki/`. It describes the **Echo Show 5 Gen2 / 2021 / `cronos`** route. It is readable in a local checkout and on GitHub without enabling the separate GitHub Wiki feature. Detailed instructions and evidence remain linked at their source rather than copied into conflicting procedures.
 
-![Conversion stages and installed results](../assets/process-and-results.svg)
+## October 16: new wake-model trial
 
-[Process and results](Process-and-results.md) explains the conversion stages, installed versions, recovery behavior and remaining acceptance work.
+**Build verified; device checks pending.** VACA `0.13.4+myshka.3` / `7003` passed 18 JVM tests with zero failures, errors or skips. The authorized opt-in trial will select only **“Привет, мышка”** at **0.50** (**5.0 in HA**) through the exact ONNX frontend. “Hey Jarvis” will leave the active selection; the separate Stop command remains. Android deployment, reference-output comparison and physical recognition are still unconfirmed.
+
+![One capture stream feeds the exact ONNX activation pipeline and the separate Stop detector. Audio chunk size does not measure wake latency.](../assets/exact-oww-pipeline.svg)
+
+[Wake-model rollout: process and results](Wake-model-rollout.md) tracks the new trial and its evidence gates. [Conversion process and results](Process-and-results.md) retains the earlier conversion, display and dual-wake milestones.
 
 ## Pick a task
 
 - **Convert an untouched Show:** read [installation and recovery](Installation-and-recovery.md), then follow the complete [attended runbook](../runbook.md). Identify the model before using any image.
 - **Update an existing Show:** use the same [installation page](Installation-and-recovery.md#update-an-existing-android-installation). App updates, static display releases and firmware conversions are different operations.
-- **Enable two wake words or change the assistant:** [voice and wake words](Voice-and-wake-words.md) explains local detection, cloud recognition and reversible selection.
+- **Choose a wake model or change the assistant:** [voice and wake words](Voice-and-wake-words.md) distinguishes the new single-phrase ONNX trial from the existing two-model microWakeWord capability, and explains cloud recognition and reversible assistant selection.
 - **Fix an unreadable screen or use cameras, music and calls:** [display, media and calls](Display-media-and-calls.md).
 - **Understand where audio/video goes:** [architecture and data paths](Architecture.md), including the local/cloud voice diagram.
 - **Diagnose a failure:** [troubleshooting](Troubleshooting.md), ordered by observable symptoms.
@@ -20,7 +24,7 @@ This wiki is versioned with the code under `docs/wiki/`. It describes the **Echo
 - **Choose a language or translate the project:** [localization](Localization.md).
 - **Maintain patches, docs or releases:** [maintenance](Maintenance.md).
 
-## Current baseline
+## Earlier installed baselines
 
 The recorded October 14, 2026 deployment has two converted Shows with both the private **“Привет, мышка”** model and **“Hey Jarvis”** loaded in VACA, sharing a **0.35** threshold. They select **Local Russian Home**, which uses cloud recognition, local dialogue and local Irina synthesis. An application restart and service-level announcements passed; physical two-phrase acceptance and multi-day reliability remain pending. Consult the [validation page](Validation.md) before extending that claim to a different build, a power cycle or an acoustic test.
 
