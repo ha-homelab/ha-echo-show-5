@@ -1,13 +1,36 @@
 """Keep browser execution required and release acceptance bound to its upload."""
 from pathlib import Path
+import base64
 import json
+import re
+import struct
 import unittest
 import yaml
+import zlib
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 class BrowserWorkflowTests(unittest.TestCase):
+    def test_camera_fixture_has_valid_png_chunk_checksums(self):
+        source = (ROOT / 'scripts/browser-acceptance.cjs').read_text()
+        encoded = re.search(r"const image = Buffer.from\('([^']+)', 'base64'\)", source).group(1)
+        image = base64.b64decode(encoded, validate=True)
+        self.assertEqual(image[:8], b'\x89PNG\r\n\x1a\n')
+        offset, chunks = 8, []
+        while offset < len(image):
+            length = struct.unpack('>I', image[offset:offset + 4])[0]
+            chunk = image[offset + 4:offset + 8]
+            data = image[offset + 8:offset + 8 + length]
+            checksum = struct.unpack('>I', image[offset + 8 + length:offset + 12 + length])[0]
+            self.assertEqual(zlib.crc32(chunk + data), checksum, chunk.decode('ascii'))
+            chunks.append(chunk)
+            if chunk == b'IDAT':
+                self.assertEqual(zlib.decompress(data), b'\x01\xff\xff')
+            offset += length + 12
+        self.assertEqual(offset, len(image))
+        self.assertEqual(chunks, [b'IHDR', b'IDAT', b'IEND'])
+
     def workflow(self, name):
         return yaml.safe_load((ROOT / '.github/workflows' / name).read_text())['jobs']
 

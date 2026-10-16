@@ -21,7 +21,7 @@ const assets = new Map(names.map(name => {
 const candidate = candidateMode ? JSON.parse(fs.readFileSync(path.join(directory, 'candidate.json'))) : null;
 if (candidate) for (const key of ['sourceSha', 'runId', 'runAttempt', 'candidateArtifactId']) assert.equal(candidate[key], runtime[key]);
 const token = 'synthetic-display-token-not-a-credential';
-const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aS6kAAAAASUVORK5CYII=', 'base64');
+const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=', 'base64');
 const mime = {'.html':'text/html', '.css':'text/css', '.js':'text/javascript', '.svg':'image/svg+xml'};
 const scenarios = [], unexpected = [], errors = [], snapshots = [], sockets = [];
 let selection = {locale:'en-US', hour12:false}, behavior = 'ready', observingBrowser = false;
