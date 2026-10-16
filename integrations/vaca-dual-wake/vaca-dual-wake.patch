@@ -424,10 +424,10 @@ index 0102b64..996233e 100644
                  }
 diff --git a/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/ExactOnnxWakeEngine.kt b/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/ExactOnnxWakeEngine.kt
 new file mode 100644
-index 0000000..0e02f50
+index 0000000..22bf424
 --- /dev/null
 +++ b/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/ExactOnnxWakeEngine.kt
-@@ -0,0 +1,123 @@
+@@ -0,0 +1,126 @@
 +package com.msp1974.vacompanion.wakeword.openwakeword
 +
 +import android.Manifest
@@ -445,6 +445,7 @@ index 0000000..0e02f50
 +import kotlinx.coroutines.currentCoroutineContext
 +import kotlinx.coroutines.delay
 +import kotlinx.coroutines.ensureActive
++import kotlinx.coroutines.yield
 +import kotlinx.coroutines.flow.MutableStateFlow
 +import kotlinx.coroutines.flow.emptyFlow
 +import kotlinx.coroutines.flow.flatMapLatest
@@ -537,6 +538,8 @@ index 0000000..0e02f50
 +                                        Timber.i("Exact OWW running: samples=%d windows=%d inference_ms=%d max_ms=%d", samples, windows, inferenceNanos / 1000000, maxNanos / 1000000)
 +                                        nextReport = samples + 16000L * 60
 +                                    }
++                                    // Quiet audio may emit nothing: let flatMapLatest receive mute changes.
++                                    yield()
 +                                }
 +                            } finally {
 +                                microphone.close()

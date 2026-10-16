@@ -19,6 +19,8 @@
 
 ### Fixed
 
+- Yield during quiet exact-ONNX audio processing so microphone mute changes
+  reach the active collection even when no detection events are emitted.
 - Bound artifact download writes to the pinned size, reject HTTPS downgrades and
   invalid metadata, use private unique temporary files and preserve concurrent
   destination files until their size, digest and archive checks pass.

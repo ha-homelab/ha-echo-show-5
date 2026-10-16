@@ -15,9 +15,9 @@
 <rect x="508" y="192" width="424" height="235" rx="18" fill="#fff" stroke="#d7e1ed"/>
 <rect x="532" y="216" width="48" height="45" rx="12" fill="#7753c8" stroke="#7753c8"/>
 <text x="556" y="247" font-size="25" fill="white" font-weight="750" text-anchor="middle">2</text>
-<text x="532" y="303" font-size="25" fill="#142b46" font-weight="750">Build + verify</text>
-<text x="532" y="348" font-size="17" fill="#536881" font-weight="400">Pinned source, patch, ABI and certificate.</text>
-<text x="532" y="379" font-size="17" fill="#536881" font-weight="400">Keep the previous signed APK available.</text>
+<text x="532" y="303" font-size="25" fill="#142b46" font-weight="750">Verify + install</text>
+<text x="532" y="348" font-size="17" fill="#536881" font-weight="400">Check source, ABI and retained certificate.</text>
+<text x="532" y="379" font-size="17" fill="#536881" font-weight="400">Install the verified in-place APK update.</text>
 <rect x="972" y="192" width="424" height="235" rx="18" fill="#fff" stroke="#d7e1ed"/>
 <rect x="996" y="216" width="48" height="45" rx="12" fill="#087f76" stroke="#087f76"/>
 <text x="1020" y="247" font-size="25" fill="white" font-weight="750" text-anchor="middle">3</text>

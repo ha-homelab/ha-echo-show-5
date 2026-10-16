@@ -16,7 +16,7 @@ The [rollout guide](wiki/Wake-model-rollout.md) tracks the same stages with thei
 4. **Deploy and check lifecycle — pending.** Verify each device's APK, private artifacts, one-model selection, effective threshold, microphone capture and recovery after mute/unmute and app restart. Preserve its HA identity, pipeline and display/media settings.
 5. **Check attended use and duration — pending.** Deliberately test the intended phrase, the now-inactive alternative, Stop, a harmless request and the audible reply. A fresh three-metre test and longer observation remain separate acceptance work.
 
-![Validation stages distinguish the verified JVM build, prepared reference material, pending Android comparison and pending physical acceptance.](assets/wake-validation.svg)
+![Development evaluation: 23 of 24 owner clips and 798 of 800 synthetic positives detected; separate negative-clip and background results do not establish physical acceptance on the Shows.](assets/wake-validation.svg)
 
 ## Model identity and available evidence
 
@@ -58,6 +58,8 @@ The new opt-in path uses `ExactOnnxFrontend` with the ONNX frontend artifacts wh
 
 The **80 ms value is a processing chunk size**, not a measured wake-detection or end-to-end response latency. These dimensions define feature alignment. Each running collection owns its native sessions and microphone cleanup. The verified JVM build does not replace the pending Android inference comparison, lifecycle checks or physical acceptance.
 
+The capture loop yields coroutine execution after every nonempty audio read, including quiet input that produces no detection event. This lets mute changes reach the active collection and release microphone/native resources. Checking the HA mute switch alone is insufficient: verify that capture actually stops, then resumes with the same model after unmuting.
+
 The existing microWakeWord implementation remains available independently, including its optional two-model support. Keeping that capability in the APK does **not** mean a second activation model is active in this trial.
 
 ## Private artifact layout and binding
@@ -91,7 +93,7 @@ Work on one explicitly identified Show first. Do not infer success on the second
 
 1. **Record and back up the current state.** Save the installed APK and certificate identity, a verified app-private backup, satellite identity, engine/model selection, HA threshold, optional secondary-model JSON, pipeline, dashboard path, permissions and media settings. Keep the backups private and verify their hashes.
 2. **Verify the new build.** Check package name, version `7003`, architecture and certificate against the installed app. Record the new APK hash and relevant build/test results. A same-certificate update should preserve app data; do not uninstall the working app as a routine update step.
-3. **Install the private artifact set.** Place the classifier, matching ONNX frontend files and `exact-frontend.json` in app-private storage. Verify their bytes, ownership and access. Remove any temporary staging copies and return debugging to the intended nonroot state.
+3. **Install the verified APK and private artifacts.** Apply the [same-certificate update](../integrations/vaca-dual-wake/README.md#install-a-same-certificate-update) using the explicit device selector and `adb install -r`; confirm the installed version is `7003`. Keep the existing wake selection during numerical replay. Place the classifier, matching ONNX frontend files and `exact-frontend.json` in app-private storage, verify their bytes and ownership, then run the staged private-fixture comparison with the matching test APK. Require both instrumentation tests to pass before switching. Remove temporary test artifacts after verification and retain the model files. Use authenticated nonroot ADB throughout.
 4. **Stop VACA before changing the engine.** Use the trusted ADB host and the already verified device selector to force-stop only `com.msp1974.vacompanion`. Do not restart Home Assistant. The observed upstream engine-selection path can construct a legacy openWakeWord engine with an empty model list between separate HA control writes and terminate the app. Muting alone does not prevent that constructor failure.
 5. **Save the complete selection while VACA is stopped.** Remove `files/secondary-wake-word.json` after preserving its backup. Set the HA engine to **`openwakeword`**, not `openwakeword_rt`, select only the manifest-bound model, and set the HA threshold to **5.0** (effective **0.50**). The observed selector displays **`Privet Myshka Dab4A660248F Cal`**, derived from ID `privet_myshka_dab4a660248f_cal`, rather than the manifest's Russian phrase label. Confirm all three saved HA values before launching the app; do not treat an unavailable or rejected write as success.
 6. **Launch and verify preserved behavior.** Confirm the exact model ID in the load log, advancing samples, one active wake classifier, the existing HA satellite and selected pipeline, saved display page, and retained media settings. Changing activation does not require switching STT, conversation or TTS providers.

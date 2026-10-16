@@ -2,16 +2,16 @@
   "schema_version": 1,
   "upstream_repository": "https://github.com/msp1974/ViewAssistCompanionApp",
   "upstream_commit": "65906aebffd2f39772773b44729b22fd022a1f3c",
-  "patched_source_tree": "55fa749298d546d115ab03ecf7298f97726a6a14",
-  "patch_sha256": "f4fb0e0a9d1aac92125920914100e04f6796f57d9131dd82a01fbeed51584520",
+  "patched_source_tree": "20df8ce61e62ba170bbefdaef8ad01f67aef7d62",
+  "patch_sha256": "31ac2f72152f130ba0b80edcb089bf471de033e98b185e171f0e6fe85e21afd7",
   "application_id": "com.msp1974.vacompanion",
   "version_name": "0.13.4+myshka.3",
   "version_code": 7003,
   "abi": [
     "armeabi-v7a"
   ],
-  "apk_sha256": "6a646344fef901c28db0131f35cf67628fe00296a7936c366f9412350c2f3761",
-  "apk_bytes": 74813266,
+  "apk_sha256": "6101cdd8aa4fb7d5e3c329132ec9267bb9612f736c2472b394898e32e977b3f9",
+  "apk_bytes": 74814881,
   "signing_certificate_sha256": "2cebae957468fdb54ffaa473548e9b5f7946f84b8645e3947ff73d2af29b9850",
   "unit_tests": {
     "tests": 18,
