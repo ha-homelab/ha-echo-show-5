@@ -111,3 +111,8 @@ fuzz-results/
 release-dist/
 release-assets/
 .releases/
+
+# Isolated browser qualification
+.compatibility/
+browser-candidate/
+.browser-display/

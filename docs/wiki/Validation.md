@@ -77,6 +77,13 @@ external resource request. The narrowest tested clock retained 33 px horizontal
 margin. All six SVG diagrams were rendered and inspected. These are layout
 checks; they do not certify every locale's font rendering on Android.
 
+## Automated browser coverage
+
+The [clock and authentication browser matrix](../browser-compatibility.md) checks
+the real display files on desktop browser engines and operating systems. Its
+release path uses the exact staged source archive. This does not substitute for
+Android WebView or physical-device acceptance.
+
 ## Offline checks
 
 From the repository root, use the suites relevant to the changed component:
