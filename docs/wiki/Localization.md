@@ -1,8 +1,8 @@
 # Localization and language settings
 
-[Wiki home](Home.md) · [English](../../README.md) · [Русский](../../README.ru.md) · [Deutsch](../../README.de.md) · [Español](../../README.es.md)
+[Wiki home](Home.md) · [English](../../README.md) · [Русский](../../README.ru.md) · [Deutsch](../../README.de.md) · [Español](../../README.es.md) · [Français](../../README.fr.md)
 
-The repository has four substantive README entry points and a localized clock interface. It does **not** claim that every technical document, Android application or HA integration is translated. English is the canonical technical documentation language; translated README pages guide readers to the same maintained procedures.
+The repository has five substantive README entry points and a localized clock interface. It does **not** claim that every technical document, Android application or HA integration is translated. English is the canonical technical documentation language; translated README pages guide readers to the same maintained procedures.
 
 ## Display configuration
 
@@ -40,6 +40,7 @@ A Russian assistant can therefore use an English clock and respond to either the
 - `README.ru.md`: Russian entry point, including capabilities, compatibility, validation limits and maintenance links.
 - `README.de.md`: German entry point with the same operational boundaries.
 - `README.es.md`: Spanish entry point with the same operational boundaries.
+- `README.fr.md`: French entry point; French is not an implemented display locale.
 - `docs/wiki/`, detailed runbooks, SVG labels, contribution and release documentation: English.
 - Product names, package names, command names and model IDs: retain their exact spelling in every language.
 

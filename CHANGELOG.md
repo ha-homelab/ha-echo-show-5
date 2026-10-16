@@ -17,6 +17,8 @@
   permanently treating them as denied access. Keep permission failures blocked.
 - Release the native wake detector when recognition stops or reloads. The local
   Android build is `0.13.4+dualwake.2` (7002); installation is a separate step.
+- Allow guarded private build/signing paths in extracted source archives while
+  retaining Git-ignore enforcement for checkouts and rejecting symlink escapes.
 - Reject unexpected source changes and missing/mismatched signing identities
   during Android builds. Preserve the existing key for ordinary APK updates.
 

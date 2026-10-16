@@ -12,7 +12,7 @@ These SVGs are editable repository source, not screenshots or automatically upda
 
 - [Process and installed result](process-and-results.svg): the six-stage conversion journey, current APK/UI revisions, two activation phrases and localization scope.
 - [Startup recovery](startup-recovery.svg): why authenticated HA startup can precede MQTT readiness, how temporary subscription failures retry, and why permission rejection stays blocked.
-- [Validation counts](validation-checks.svg): 109 Node display tests, 37 Python display tests, 24 Android-builder host tests and nine JVM tests. The 48 synthetic desktop renders are separate visual checks. Counts are not coverage percentages or performance measurements.
+- [Validation counts](validation-checks.svg): 109 Node display tests, 37 Python display tests, 31 Android-builder host tests and nine JVM tests. The 48 synthetic desktop renders are separate visual checks. Counts are not coverage percentages or performance measurements.
 
 The [process and results page](../wiki/Process-and-results.md) supplies a text equivalent for the new diagrams. The surrounding [wiki](../wiki/Home.md) provides detailed procedures; [Validation and evidence](../wiki/Validation.md) is authoritative for dated per-device acceptance. Do not infer a physical packet route, measured latency or physical wake-word recognition from a logical service arrow or an installed version.
 

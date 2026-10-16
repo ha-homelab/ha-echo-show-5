@@ -24,28 +24,48 @@ Each result needs a dated target, exact artifact or revision, method and limitat
 
 **Localization source — October 15.** The display now has a four-language source layer and locale/hour-format configuration. A source test establishes catalog and formatting behavior; the deployment record must separately identify which static revision and locales were actually inspected on hardware. Do not promote a prepared revision to a hardware milestone solely because files exist.
 
+## October 15 installed-state and recovery checks
+
+Both Shows received VACA **`0.13.4+dualwake.2` / code `7002`** and the complete
+**`20261015-r11`** display. The APK signature matched the previous local build;
+updates retained app data and did not uninstall or flash firmware. Private
+backups were retained on two hosts and verified by hash.
+
+On each device, three software microphone mute/unmute cycles and a normal app
+restart restored both activation models and active microphone capture. Existing
+HA identities, **Local Russian Home**, **Irina**, threshold **0.35**, English
+24-hour display, manual **100%** brightness and intended permission grants/denials
+were retained. Final HA checks reported both satellites idle, with mute and auto
+brightness off. These results do not establish physical phrase recognition.
+
+HA experienced a separate server disk-pressure eviction during the rollout.
+Removing unused build cache allowed startup to complete; persistent data and
+backups were retained. The r11 fix covers the observed interval in which HTTP
+and WebSocket authentication were available before MQTT subscription commands.
+Long-term server storage capacity remains a separate operational issue.
+
 ## October 15 source and build checks
 
-The prepared display revision is **`20261015-r11`**, combining the r10 language
+The installed display revision is **`20261015-r11`**, combining the r10 language
 catalogs with recovery when MQTT is not ready during HA startup. The Android artifact is
 **`0.13.4+dualwake.2` / `7002`**; its [build receipt](../../integrations/vaca-dual-wake/build-dualwake.2.json)
 records the exact source, patch, APK and original signing-certificate hashes.
 
-- Repository Python suite: 174 tests executed, including 13 optional HA-runtime
+- Repository Python suite: 176 tests executed, including 15 optional HA-runtime
   skips; no failures. Skips do not establish compatibility with a live HA runtime.
 - Display: 109 Node tests and 37 Python tests passed.
-- Android builder: 24 host regression tests passed. The actual Gradle build
+- Android builder: 31 host regression tests passed. The actual Gradle build
   passed nine JVM tests, including four detector resource-lifecycle cases.
 - Workflow contracts: 16 checks passed. Six source-packaging tests also passed,
   including tests executed from the generated archive.
-- Offline documentation validation passed for 55 Markdown/SVG files. It checks
+- Offline documentation validation passed for 62 Markdown/SVG files. It checks
   local targets, anchors and accessible SVG structure, not external availability.
 
 Chrome 155 desktop visual checks covered **48 synthetic renders**: four
 languages, 12/24-hour clocks, 960×480 and 480×240 viewports, and four camera
 status messages. There was no clipping, clock wrapping, JavaScript error or
 external resource request. The narrowest tested clock retained 33 px horizontal
-margin. All three SVG diagrams were rendered and inspected. These are layout
+margin. All six SVG diagrams were rendered and inspected. These are layout
 checks; they do not certify every locale's font rendering on Android.
 
 ## Offline checks

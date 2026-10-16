@@ -49,13 +49,40 @@ def normalize_fingerprint(value):
 
 
 def require_private_destination(path):
-    """Custom paths outside this checkout are allowed; in-repo output must be ignored."""
+    """Protect checkout/archive source while permitting explicit external storage."""
+    # Check lexical in-tree components before resolving: private/ must not become
+    # an external destination merely because an existing component is a symlink.
+    lexical = Path(os.path.abspath(path))
     try:
-        relative = path.relative_to(ROOT)
+        lexical_relative = lexical.relative_to(ROOT)
     except ValueError:
-        return
-    if not relative.parts or git(ROOT, 'check-ignore', '--quiet', relative, check=False).returncode:
-        raise BuildError('Build and signing directories inside the repository must be gitignored')
+        lexical_relative = None
+    if lexical_relative is not None:
+        component = ROOT
+        for part in lexical_relative.parts:
+            component = component / part
+            if component.is_symlink():
+                raise BuildError('Build and signing destinations inside the source must not use symlinks')
+    resolved = lexical.resolve()
+    try:
+        relative = resolved.relative_to(ROOT)
+    except ValueError:
+        return resolved
+    if not relative.parts:
+        raise BuildError('Build and signing destinations must not replace the source root')
+    checkout = git(ROOT, 'rev-parse', '--show-toplevel', check=False)
+    is_checkout = (checkout.returncode == 0 and
+                   Path(os.fsdecode(checkout.stdout).strip()).resolve() == ROOT)
+    if is_checkout:
+        if git(ROOT, 'check-ignore', '--quiet', relative, check=False).returncode:
+            raise BuildError('Build and signing directories inside the repository must be gitignored')
+    elif (ROOT / '.git').exists() or (ROOT / '.git').is_symlink():
+        raise BuildError('Cannot validate the source checkout; repair Git metadata first')
+    elif relative.parts[0] != 'private':
+        # Source releases intentionally omit .git and .gitignore. Accept only
+        # their dedicated private subtree, not arbitrary archive source paths.
+        raise BuildError('Inside a source archive, use private/ for build and signing data')
+    return resolved
 
 
 def validate_ignored_files(src):
@@ -215,9 +242,8 @@ def main():
         parser.error('Set ANDROID_HOME and JAVA_HOME (JDK 21) first')
     if not (Path(java) / 'bin/keytool').is_file() or not Path(sdk).is_dir():
         parser.error('JAVA_HOME or ANDROID_HOME does not point to the required toolchain')
-    work, signing = args.work_dir.resolve(), args.signing_dir.resolve()
-    require_private_destination(work)
-    require_private_destination(signing)
+    work = require_private_destination(args.work_dir)
+    signing = require_private_destination(args.signing_dir)
     work.mkdir(parents=True, exist_ok=True, mode=0o700)
     src = work / 'source'
     if not src.exists():

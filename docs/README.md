@@ -4,40 +4,58 @@
 
 This route targets **Echo Show 5 Gen2 / 2021 / cronos**, using **LineageOS / Android**, Companion and optional voice/display integrations. It is distinct from [EchoLocal on Dot 2](https://github.com/ha-homelab/ha-echo-dot) and [EchoMuse on emOS](https://github.com/ha-homelab/ha-echomuse). Never reuse another model's firmware or unlock commands.
 
-![Preparation and runtime responsibilities](assets/architecture.svg)
+## Start with the wiki
 
-## First conversion
+- [Wiki home](wiki/Home.md): choose the installation, operation or maintenance path.
+- [Process and results](wiki/Process-and-results.md): conversion stages, current software changes, installed results and remaining acceptance work.
+- [Architecture](wiki/Architecture.md): device, HA and service boundaries, including local versus cloud speech processing.
+- [Validation and evidence](wiki/Validation.md): dated versions, automated checks, per-device observations and unverified behavior.
+- [SVG diagram collection](assets/README.md): architecture, voice paths, installation paths, the conversion journey, startup recovery and recorded test counts.
 
-1. Read the [complete installation runbook](runbook.md): host preparation, exact USB selection, unlock, verified off-device backup, formatting and installation.
-2. Review the [actual release audit](release-audit.md) and [upstream source audit](upstream-audit.md) before acquiring the pinned artifacts.
-3. Configure [Android and Home Assistant](android-and-home-assistant.md), including permissions, language and Assist.
-4. Check the [recorded validation results and outstanding acceptance](preparation-status.md). These are dated observations, not a live fleet report.
+![Conversion stages, installed VACA and display revisions, two wake phrases and the limits of validation.](assets/process-and-results.svg)
+
+Both Shows have **VACA `0.13.4+dualwake.2` / `7002`** and **display `20261015-r11`** installed. Three software mute/unmute cycles and a normal app restart on each restored both models and microphone capture. The documented activation pair is **“Привет, мышка” + “Hey Jarvis”**, with a shared **0.35** threshold. Deliberately spoken activation and audible-response acceptance remain separate work; read the validation page for current camera and recovery results.
+
+There are **five documentation entry languages** and **four implemented clock-UI languages**: English, Russian, German and Spanish. French is a documentation language only. English and 24-hour formatting remain selected on the two Shows. [Localization](wiki/Localization.md) explains the runtime settings; [translation policy](i18n.md) explains documentation coverage.
+
+## First conversion or an existing Android device
+
+1. Choose the correct route in [Installation, updates and recovery](wiki/Installation-and-recovery.md). An APK or static-page update does not require repeating firmware conversion.
+2. For stock hardware, read the [complete installation runbook](runbook.md): host preparation, exact USB selection, unlock, verified off-device backup **before formatting**, then installation. The first backup is after unlock; it is not proof of a universal stock restore.
+3. Review the [release audit](release-audit.md) and [upstream source audit](upstream-audit.md) before acquiring the pinned artifacts.
+4. Configure [Android and Home Assistant](android-and-home-assistant.md), including permissions, language and Assist.
+5. Compare the relevant [current validation](wiki/Validation.md) with the [historical conversion snapshot](preparation-status.md). These are dated observations, not an automatic live fleet report.
 
 ## Daily display and voice
 
+- [Display, media and calls](wiki/Display-media-and-calls.md): the room endpoint's operating behavior and feature boundaries.
+- [Clock and camera display](../integrations/show5-display/README.md): versioned deployment, four-language UI, startup recovery and camera lifecycle.
+- [Voice and wake words](wiki/Voice-and-wake-words.md): simultaneous activation models, independent language settings and per-satellite assistant selection.
+- [Dual-wake extension](../integrations/vaca-dual-wake/README.md): source patch, reproducible build, versioned receipts, app-data preservation and rollback.
+- [VACA and private wake words](vaca-private-wakeword.md): permissions, model deployment, thresholds and acoustic limitations.
 - [Dashboard](show-dashboard.md) and [portable HA examples](../examples/home-assistant/README.md): provide your own private entity mapping.
-- [Clock and camera display](../integrations/show5-display/README.md): runtime display behavior and bounded camera lifecycle.
-- [VACA and private wake words](vaca-private-wakeword.md): permissions, deployment, thresholds and limitations. A deployed model is not evidence of reliable acoustic recognition.
 - [Native voice controls](native-voice-controls.md): music routing, short play/stop phrases and origin selection.
 - [Remote endpoint](remote-endpoint.md), [OTT command server](ott-command-server.md) and [stable addresses](stable-network-addresses.md).
 
 ## Speech services and diagnostics
 
-- [FCC voice backup](fcc-voice-backup.md): separate speech paths and controlled switching.
+- [FCC voice backup](fcc-voice-backup.md): separate speech paths and controlled switching; the selected Russian path still uses cloud speech recognition.
 - [Assist behavior](fcc-assist-behavior.md), [audio model capabilities](fcc-audio-models.md), [cloud audio](fcc-cloud-audio.md) and [local speech experiment](fcc-local-speech-experiment.md).
-- Speech language, TTS voice, conversation-agent language and wake-word model are separate settings. Documentation translations do not alter any of them.
+- Speech recognition, TTS voice, conversation-agent language, display language and wake-word models are independent settings. Translating documentation changes none of them.
+- [Troubleshooting](wiki/Troubleshooting.md): distinguish authentication, integration readiness, media transport, model loading and physical acceptance.
 - [Script review](script-review.md) and [security design](security-design.md): failure boundaries and protected configuration.
 
 ## Optional camera and calls
 
 - [Camera and intercom pilot](camera-and-intercom.md) and [HA intercom integration](../integrations/show5-intercom/README.md).
 - [Native Jitsi pilot](jitsi-calls.md): attended call setup, resource ownership and restoration.
-- Treat the acceptance limits in each guide independently. A fresh camera frame, successful signaling or one normal reboot does not prove audible calls or recovery after power loss.
+- Treat each guide's acceptance limits independently. A fresh camera frame, successful signaling or normal app restart does not prove an audible call or recovery after power loss.
 
 ## Maintain and publish
 
+- [Maintenance](wiki/Maintenance.md): validation, release hygiene and repository-hosted wiki publication.
 - [Contributing](../CONTRIBUTING.md), [translation policy](i18n.md), [security reporting](../SECURITY.md), [third-party notices](../THIRD_PARTY_NOTICES.md).
 - [Release packaging](release-packaging.md), [workflow](release-workflow.md), [versioning](VERSIONING.md), [runner preflight](runner-preflight.md) and [fuzzing](fuzzing.md).
 - [OpenSSF evidence](openssf-evidence.md).
 
-The SVG is an architecture illustration, not a benchmark. Historical measurements keep their original conditions and dates; they do not predict another device's speed. Downloaded firmware, backups, household mappings and credentials stay outside Git.
+Architecture and process SVGs describe logical relationships. The validation chart labels recorded test **counts**, not coverage percentages or a performance benchmark. Historical measurements keep their original conditions and dates. Downloaded firmware, backups, household mappings, raw receipts and credentials stay outside Git.

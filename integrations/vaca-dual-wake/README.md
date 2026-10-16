@@ -74,6 +74,11 @@ HA or device access. It builds a debuggable ARMv7 APK, preserving the private
 backup/restore workflow used by the installed upstream debug APK. Keep ADB
 authenticated and restricted to trusted hosts.
 
+When building from a release source archive without Git metadata, keep work and
+signing files under its `private/` directory or in an explicitly chosen external
+directory. In a Git checkout, in-tree destinations must be Git-ignored.
+Symlinked in-tree destinations and damaged Git metadata are rejected.
+
 Run host regression tests without an Android toolchain:
 
 ```bash
@@ -233,3 +238,20 @@ Sequential HA announcements completed and both satellites returned to idle. This
 confirms service-level playback completion, not attended listening. Physical
 recognition, false-positive rate, power-cycle recovery and multi-day stability
 remained unverified for that build.
+
+## Installed update — 2026-10-15
+
+Both converted Shows received `0.13.4+dualwake.2` / `7002` through an ordinary
+same-certificate update. App-private backups were copied to two hosts and hash
+checked first. No uninstall or firmware conversion was required.
+
+Both retained their HA satellite identity, Local Russian Home assistant,
+`privet_myshka_v1` primary and `hey_jarvis` secondary model, shared 0.35 threshold,
+and intended permissions. Current screen brightness is manual 100%; the older
+80% value below is historical. On each Show, three software mute/unmute cycles
+and one normal app restart restored both models and microphone capture without
+an operator prompt. Display revision `20261015-r11` is installed on both.
+
+Physical recognition of deliberately spoken phrases, audible response quality,
+power-loss recovery and a multi-day soak remain unverified. See the
+[validation record](../../docs/wiki/Validation.md) for scope and camera results.

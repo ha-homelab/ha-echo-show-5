@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1020" viewBox="0 0 1440 1020" role="img" aria-labelledby="title description">
 <title id="title">Recorded automated check counts for the October 15 build</title>
-<desc id="description">Horizontal bars show 109 Node display tests, 37 Python display tests, 24 Android-builder host regression tests and nine actual JVM tests. These are counts, not coverage percentages, throughput, latency or a summed quality score. Separately, 48 synthetic desktop renders checked layout. Physical spoken wake-word recognition and long-duration operation remain separate acceptance tasks.</desc>
+<desc id="description">Horizontal bars show 109 Node display tests, 37 Python display tests, 31 Android-builder host regression tests and nine actual JVM tests. These are counts, not coverage percentages, throughput, latency or a summed quality score. Separately, 48 synthetic desktop renders checked layout. Physical spoken wake-word recognition and long-duration operation remain separate acceptance tasks.</desc>
 <defs>
  <linearGradient id="banner" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#143d79"/><stop offset="0.52" stop-color="#433a91"/><stop offset="1" stop-color="#116c75"/></linearGradient>
  <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#617695"/></marker>
@@ -40,8 +40,8 @@
 <text x="715.0" y="384" font-size="26" font-weight="750" style="fill:#7550c8">37</text>
 <text x="70" y="462" font-size="22" font-weight="750" style="fill:#097c6b">Android builder · host</text>
 <text x="70" y="489" font-size="15" font-weight="400" style="fill:#4b5b73">Patch / build regression checks</text>
-<rect x="440" y="435" width="168.0" height="45" rx="10" fill="#097c6b" stroke="#097c6b"/>
-<text x="624.0" y="465" font-size="26" font-weight="750" style="fill:#097c6b">24</text>
+<rect x="440" y="435" width="217.0" height="45" rx="10" fill="#097c6b" stroke="#097c6b"/>
+<text x="673.0" y="465" font-size="26" font-weight="750" style="fill:#097c6b">31</text>
 <text x="70" y="543" font-size="22" font-weight="750" style="fill:#a8640a">Android build · JVM</text>
 <text x="70" y="570" font-size="15" font-weight="400" style="fill:#4b5b73">Includes 4 detector-lifecycle tests</text>
 <rect x="440" y="516" width="63.0" height="45" rx="10" fill="#a8640a" stroke="#a8640a"/>

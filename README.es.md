@@ -1,6 +1,6 @@
 # Echo Show 5 Gen2 → Android → Home Assistant
 
-[English](README.md) · [Русский](README.ru.md) · [Deutsch](README.de.md) · **Español**
+[English](README.md) · [Русский](README.ru.md) · [Deutsch](README.de.md) · **Español** · [Français](README.fr.md)
 
 Este proyecto reutiliza un **Amazon Echo Show 5 de segunda generación (2021), nombre en clave `cronos`**, como satélite de voz de Home Assistant, reloj legible, pantalla de cámaras por movimiento y terminal de medios y llamadas con control remoto. El repositorio incluye herramientas de conversión supervisada, parches locales, integraciones e instrucciones de recuperación. No incluye firmware, APK, modelos privados de activación ni credenciales domésticas.
 
@@ -19,7 +19,7 @@ Empiece por la [wiki del proyecto](docs/wiki/Home.md). Para un dispositivo de f�
 
 ## Estado de las pruebas
 
-**Actualización del 15 de octubre de 2026:** el parche compilado `dualwake.2` corrige la liberación de recursos del detector. La revisión de pantalla `20261015-r11` combina inglés, ruso, alemán y español con reintentos cuando el comando MQTT todavía no está disponible durante el arranque de HA. En **48 renderizados sintéticos de diseño en ordenador** no se observaron elementos recortados en los casos probados. La compilación y las pruebas de navegador no demuestran la instalación ni la aceptación física en ambos Shows; los resultados por dispositivo se registran en la [guía de validación](docs/wiki/Validation.md).
+**Actualización del 15 de octubre de 2026:** el parche compilado `dualwake.2` corrige la liberación de recursos del detector. La revisión de pantalla `20261015-r11` combina inglés, ruso, alemán y español con reintentos cuando el comando MQTT todavía no está disponible durante el arranque de HA. En **48 renderizados sintéticos de diseño en ordenador** no se observaron elementos recortados en los casos probados. Ambas actualizaciones están instaladas en los dos Shows. Cada dispositivo superó tres ciclos de silenciar/reactivar el micrófono por software y un reinicio de la aplicación; ambos modelos y la captura se recuperaron. El reconocimiento de frases pronunciadas sigue sin verificar; los detalles están en la [guía de validación](docs/wiki/Validation.md).
 
 La referencia documentada del **14 de octubre de 2026** incluye dos Shows con Android 11 / LineageOS 18.1 no oficial. Ambos modelos de activación se cargaron después de un **reinicio normal de la aplicación**, se conservaron las identidades de HA y los anuncios consecutivos terminaron correctamente a nivel de servicio. Ambos dispositivos usan **Local Russian Home** y la voz **Irina**. El reconocimiento todavía envía audio a la nube. [Evidencia de compilación](integrations/vaca-dual-wake/README.md#historical-deployment-evidence--2026-10-14) · [historial de voz](docs/fcc-voice-backup.md).
 

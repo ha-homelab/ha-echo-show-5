@@ -17,5 +17,6 @@
 - [Русский](../../README.ru.md)
 - [Deutsch](../../README.de.md)
 - [Español](../../README.es.md)
+- [Français](../../README.fr.md)
 - [Conversion runbook](../runbook.md)
 - [Security reporting](../../SECURITY.md)

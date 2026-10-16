@@ -43,15 +43,15 @@ This fixes the client recovery behavior. It does not repair a full server disk o
 
 Both converted Shows have **VACA `dualwake.2` and display `r11` installed**, with both activation models configured at **0.35**. English and 24-hour display formatting were retained.
 
-On **both Shows**, three software microphone mute/unmute cycles and a normal app restart restored the two models and microphone capture. Front-camera playback passed on both. These are lifecycle and data-path observations; they do not prove spoken activation or audible answer quality.
+On **both Shows**, three software microphone mute/unmute cycles and a normal app restart restored the two models and microphone capture. These are lifecycle observations; they do not prove spoken activation or audible answer quality.
 
-**Porch-camera acceptance remains open.** It failed on Show 2, and the earlier apparent Show 1 success requires a fresh check because a retained frame counter may have been mistaken for current playback. Consult [Validation and evidence](Validation.md) for the final per-device record. A nonzero historical frame count is not proof that frames are advancing now.
+**Show 2 passed fresh playback checks for both cameras:** Porch at 1920×1080 and Front at 854×480. **Show 1 is being rechecked** after its first retry failed during signaling. An earlier apparent success may have relied on a retained frame counter; a nonzero historical count is not proof that frames are advancing now. Consult [Validation and evidence](Validation.md) for the final per-device record.
 
 Physical recognition of both deliberately spoken phrases, false-positive behavior, power-loss recovery and a multi-day soak remain separate acceptance work. A normal app restart is not an Android reboot or removal of AC power. Jitsi, music and OTT playback also need their own end-to-end checks; launching an application alone does not establish a successful call or stream.
 
 ## Automated and visual evidence
 
-![Recorded check counts: 109 Node display tests, 37 Python display tests, 24 Android-builder host tests and 9 JVM tests; 48 desktop layout renders are listed separately.](../assets/validation-checks.svg)
+![Recorded check counts: 109 Node display tests, 37 Python display tests, 31 Android-builder host tests and 9 JVM tests; 48 desktop layout renders are listed separately.](../assets/validation-checks.svg)
 
 The chart reports **counts**, not percentages of code coverage, a performance benchmark or a combined quality score. The suites cover different layers. The nine JVM tests include four detector resource-lifecycle cases; the 48 desktop renders separately exercise four locales, 12/24-hour clocks, two viewport sizes and camera status messages.
 

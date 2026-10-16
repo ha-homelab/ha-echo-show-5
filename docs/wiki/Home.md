@@ -1,6 +1,6 @@
 # Echo Show 5 project wiki
 
-[English README](../../README.md) · [Русский](../../README.ru.md) · [Deutsch](../../README.de.md) · [Español](../../README.es.md)
+[English README](../../README.md) · [Русский](../../README.ru.md) · [Deutsch](../../README.de.md) · [Español](../../README.es.md) · [Français](../../README.fr.md)
 
 This wiki is versioned with the code under `docs/wiki/`. It describes the **Echo Show 5 Gen2 / 2021 / `cronos`** route. It is readable in a local checkout and on GitHub without enabling the separate GitHub Wiki feature. Detailed instructions and evidence remain linked at their source rather than copied into conflicting procedures.
 
@@ -24,7 +24,7 @@ This wiki is versioned with the code under `docs/wiki/`. It describes the **Echo
 
 The recorded October 14, 2026 deployment has two converted Shows with both the private **“Привет, мышка”** model and **“Hey Jarvis”** loaded in VACA, sharing a **0.35** threshold. They select **Local Russian Home**, which uses cloud recognition, local dialogue and local Irina synthesis. An application restart and service-level announcements passed; physical two-phrase acceptance and multi-day reliability remain pending. Consult the [validation page](Validation.md) before extending that claim to a different build, a power cycle or an acoustic test.
 
-The new clock localization source uses four language families and a separate hour-format option. A source change is not evidence that every installed device has received it. See [localization](Localization.md) for the exact configuration and scope.
+The October 15 update installed `dualwake.2` and display `20261015-r11` on both Shows. Each passed three software microphone mute/unmute cycles and a normal app restart with both models and capture restored. The clock supports four language families and a separate hour-format option; both devices retain English and 24-hour time. See [localization](Localization.md) for the exact configuration and scope.
 
 ## Terminology
 

@@ -104,6 +104,65 @@ class SourceProvenanceTests(unittest.TestCase):
             build.prepare_source(self.src, '0' * 40, self.patch)
 
 
+class PrivateDestinationTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.base = Path(self.temporary.name).resolve()
+        self.root = self.base / 'source-release'
+        self.root.mkdir()
+        self.mock_root = patch.object(build, 'ROOT', self.root)
+        self.mock_root.start()
+        self.addCleanup(self.mock_root.stop)
+
+    def test_extracted_archive_accepts_default_private_directories(self):
+        for name in ('vaca-dual-wake-build', 'vaca-dual-wake-signing'):
+            path = self.root / 'private' / name
+            self.assertEqual(build.require_private_destination(path), path)
+        self.assertFalse((self.root / 'private').exists())
+
+    def test_extracted_archive_rejects_source_root_and_arbitrary_subdirectories(self):
+        for path in (self.root, self.root / 'integrations' / 'build', self.root / 'keys'):
+            with self.subTest(path=path), self.assertRaises(build.BuildError):
+                build.require_private_destination(path)
+
+    def test_explicit_external_directory_is_supported(self):
+        path = self.base / 'external-signing'
+        self.assertEqual(build.require_private_destination(path), path)
+
+    def test_archive_private_symlink_cannot_escape_or_overwrite_source(self):
+        external = self.base / 'outside'
+        external.mkdir()
+        (self.root / 'private').symlink_to(external, target_is_directory=True)
+        with self.assertRaises(build.BuildError):
+            build.require_private_destination(self.root / 'private' / 'signing')
+        self.assertEqual(list(external.iterdir()), [])
+
+    def test_git_checkout_still_requires_ignored_paths(self):
+        subprocess.check_call(['git', 'init', '-q', str(self.root)])
+        (self.root / '.gitignore').write_text('private/\n')
+        path = self.root / 'private' / 'signing'
+        self.assertEqual(build.require_private_destination(path), path)
+        with self.assertRaises(build.BuildError):
+            build.require_private_destination(self.root / 'keys')
+        (self.root / '.gitignore').write_text('')
+        with self.assertRaises(build.BuildError):
+            build.require_private_destination(path)
+
+    def test_damaged_git_checkout_does_not_become_archive_mode(self):
+        (self.root / '.git').write_text('gitdir: /missing-git-directory-for-test\n')
+        with self.assertRaises(build.BuildError):
+            build.require_private_destination(self.root / 'private' / 'signing')
+
+    def test_extracted_archive_inside_another_checkout_keeps_archive_rules(self):
+        subprocess.check_call(['git', 'init', '-q', str(self.base)])
+        (self.base / '.gitignore').write_text('*.tmp\n')
+        path = self.root / 'private' / 'signing'
+        self.assertEqual(build.require_private_destination(path), path)
+        with self.assertRaises(build.BuildError):
+            build.require_private_destination(self.root / 'keys.tmp')
+
+
 class SigningIdentityTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()

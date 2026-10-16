@@ -1,6 +1,6 @@
 # Echo Show 5 Gen2 → Android → Home Assistant
 
-**English** · [Русский](README.ru.md) · [Deutsch](README.de.md) · [Español](README.es.md)
+**English** · [Русский](README.ru.md) · [Deutsch](README.de.md) · [Español](README.es.md) · [Français](README.fr.md)
 
 Reuse an **Amazon Echo Show 5, second generation (2021), codename `cronos`**, as a Home Assistant voice satellite, readable clock, motion-camera display and remotely controlled media/call endpoint. This repository contains the attended conversion tools, local application patches, integrations and recovery documentation. It does not contain firmware, APKs, private wake models or household credentials.
 
@@ -19,11 +19,11 @@ Reuse an **Amazon Echo Show 5, second generation (2021), codename `cronos`**, as
 - **An HA remote endpoint:** announcements, music, fixed TV streams, our OTT-play FOSS Capacitor client, a separate OTT web route and optional OttPlayer. Home/Stop ends the owned activity and restores the clock. [Remote controls](docs/remote-endpoint.md).
 - **Calls on your Jitsi installation:** a fixed room, explicit join policy, microphone handoff and bounded cleanup. The standalone camera/intercom pilot remains a separate experimental option. [Calls and intercom](docs/wiki/Display-media-and-calls.md#jitsi-and-intercom).
 - **Choice of voice backend:** Homeway, independent FCC cloud speech/conversation, or local Russian conversation and Piper speech with FCC cloud recognition. Selection is per satellite; fallback is manual. [Privacy boundaries and outage procedure](docs/wiki/Voice-and-wake-words.md#choose-and-switch-an-assistant).
-- **Localization:** English, Russian, German and Spanish project entry points, plus the clock interface's own locale configuration. Interface language, speech language and wake model are independent. Detailed technical runbooks and wiki pages are maintained in English. [Coverage and contribution rules](docs/wiki/Localization.md).
+- **Localization:** English, Russian, German, Spanish and French project entry points, plus the clock interface's own locale configuration. Interface language, speech language and wake model are independent. Detailed technical runbooks and wiki pages are maintained in English. [Coverage and contribution rules](docs/wiki/Localization.md).
 
 ## Current validation
 
-**October 15, 2026 update:** the built `dualwake.2` patch fixes detector cleanup, and display revision `20261015-r11` combines English, Russian, German and Spanish localization with retry handling when the MQTT command is not yet available during HA startup. A set of **48 synthetic desktop layout renders** showed no clipping in the exercised cases. Build and browser checks do not establish installation or physical acceptance on both Shows; see [current rollout evidence](docs/wiki/Validation.md) for device-specific results.
+**October 15, 2026 update:** the built `dualwake.2` patch fixes detector cleanup, and display revision `20261015-r11` combines English, Russian, German and Spanish localization with retry handling when the MQTT command is not yet available during HA startup. A set of **48 synthetic desktop layout renders** showed no clipping in the exercised cases. Both updates are installed on both Shows. Each device passed three software microphone mute/unmute cycles and a normal app restart, restoring both models and capture. Physical phrase recognition remains unverified; see [current rollout evidence](docs/wiki/Validation.md).
 
 The **October 14, 2026 deployment baseline** has two converted Shows on Android 11 / unofficial LineageOS 18.1, with both activation models loaded after a normal **application restart**, existing HA identities preserved and sequential HA announcements completed. Both use the **Local Russian Home** pipeline and **Irina** speech. Recognition still sends audio to the cloud. [Dual-wake build evidence](integrations/vaca-dual-wake/README.md#historical-deployment-evidence--2026-10-14) · [voice deployment history](docs/fcc-voice-backup.md).
 
@@ -102,4 +102,3 @@ python3 -m unittest discover -s integrations/show5-intercom/tests -v
   deployment setup.
 - [HA Homelab project directory](https://github.com/ha-homelab) lists the other
   public integrations and hardware guides.
-

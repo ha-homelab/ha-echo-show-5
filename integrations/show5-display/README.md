@@ -279,6 +279,18 @@ Switching camera, hiding the page or lease expiry clears images and revokes
 their object URLs. Select this fallback deliberately and deploy the changed
 configuration under a new release version.
 
+## Installed update, October 15, 2026
+
+Both converted Shows now use complete versioned `20261015-r11` asset sets,
+including `i18n.js`, with English and 24-hour time retained. Previous asset sets
+and private HA option snapshots are kept for rollback. Other device settings,
+selected assistants and satellite identities were preserved.
+
+The deployment was checked separately from desktop localization rendering.
+Current device-level camera observations and their limits are recorded in the
+[validation wiki](../../docs/wiki/Validation.md); the dated records below describe
+earlier builds and are not a new long-duration acceptance test.
+
 ## Observed deployment, October 4, 2026
 
 The r6 page uses an English date and status text. Both camera video elements
