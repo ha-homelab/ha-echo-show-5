@@ -47,3 +47,117 @@ Speech recognition produces words, not a reliable description of non-speech soun
 ## Recheck before changing the model
 
 Consult [live OpenRouter model metadata](https://openrouter.ai/api/v1/models), the route's provider conditions and [account limits](https://openrouter.ai/docs/api-reference/limits). Check exact input modalities, prompt/completion/audio pricing, actual provider availability and a bounded synthetic Russian request. Record the resolved route and full-answer latency. Never upload household recordings merely to benchmark a model. The catalog's listed Qwen routes are not assumed free; a similarly named current `:free` variant must be audited separately.
+
+
+## Bounded conversation comparison: 2026-10-14
+
+A synthetic comparison used the running FCC gateway with its fallback list
+confirmed empty, the existing bridge prompt, and a 30-second request deadline.
+Both Gemma endpoint listings advertised zero prompt/completion prices at the
+check. Each candidate stopped after its first failed request; no household
+transcript or energy values were sent and no model setting was changed.
+
+- LFM2.5-2.6B completed the baseline in 1.065 seconds, but answered “Пять” to
+  “Сколько будет три плюс три? Ответь одним словом.” This is a correctness
+  failure despite successful transport.
+- `anthropic/open_router/google/gemma-4-26b-a4b-it:free` timed out on the same
+  question after 30.754 seconds.
+- `anthropic/open_router/google/gemma-4-31b-it:free` timed out after 31.027 seconds.
+
+The small overshoot reflects the client's scheduling/timeout rounding, not a
+longer configured budget. These are individual observations, not latency
+percentiles. The planned energy explanation and missing-data cases were not
+sent after those failures. There is no evidence here to promote either Gemma
+route, and the deployment model was unchanged during these probes. A paid fallback was
+not introduced. Future candidates must pass answer correctness and bounded
+latency checks, not just appear in the catalogue.
+
+Endpoint metadata:
+[Gemma 26B](https://openrouter.ai/api/v1/models/google/gemma-4-26b-a4b-it:free/endpoints),
+[Gemma 31B](https://openrouter.ai/api/v1/models/google/gemma-4-31b-it:free/endpoints).
+
+
+A second bounded comparison found no Qwen or Llama `:free` alias in the running
+FCC catalogue. NVIDIA Nemotron 3 Super 120B A12B and 3.5 Lightning were available.
+Their normal reasoning aliases produced incomplete answers within the existing
+1,024-token budget (Super's missing-data case in 22.107 seconds; Lightning's
+arithmetic case in 15.652 seconds), which the bridge correctly rejected.
+
+The explicit `claude-3-freecc-no-thinking/open_router/nvidia/nemotron-3-super-120b-a12b:free`
+alias completed short Russian arithmetic, explanation, background-speech and
+negative-control probes in 1.446–5.003 seconds. However, its missing-data reply
+promised a future HA query it cannot perform. A stronger prompt was checked with
+synthetic typed IGW values: current values and missing historical data were
+handled, but a subsequent missing-snapshot reply fabricated zero consumption.
+This is a failed correctness gate despite good latency. The no-thinking
+Lightning alias also failed: it described a 68-percent battery as fully charged,
+returned multilingual gibberish for a background narrative and confused an air
+conditioner command with music. Neither is promoted by these experiments.
+
+NVIDIA's exact
+[Super post-trained model card at revision 2dc98e2afe4face0e4ce40972a915c45368bd34a](https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16/blob/2dc98e2afe4face0e4ce40972a915c45368bd34a/README.md)
+includes Russian in its post-training data description but **not** in its seven
+supported languages. The broader base-model language list must not be presented
+as Russian support for this post-trained route. Observed Russian output is
+experimental capability, not an official support guarantee. Endpoint prices
+were zero at inspection; quotas and provider availability still apply.
+
+The final bounded candidate was the exact
+`claude-3-freecc-no-thinking/open_router/nvidia/nemotron-3-ultra-550b-a55b:free`
+alias. Arithmetic completed correctly in 1.204 seconds, a short Russian science
+explanation in 3.819 seconds, background-speech suppression in 12.329 seconds,
+and an unhandled device command without a success claim in 3.887 seconds.
+Missing household measurements were reported unavailable in 1.497 seconds.
+With synthetic typed measurements, the answer preserved the supplied
+power/charge figures and signs in 4.713 seconds but described the configured
+load as whole-house consumption and omitted the available daily generation.
+This supports a limited general-Russian conversation pilot, **not** promotion
+of freeform energy narration. IGW model context remains disabled; deterministic
+HA energy intents and the bridge's missing-measurement guard handle that scope.
+These six observations are not reliability percentages or a language-support
+guarantee.
+
+The [Ultra free endpoint listing](https://openrouter.ai/nvidia/nemotron-3-ultra-550b-a55b:free)
+and [endpoint metadata](https://openrouter.ai/api/v1/models/nvidia/nemotron-3-ultra-550b-a55b:free/endpoints)
+showed zero prompt/completion prices. Its provider notice excludes confidential
+information and personal data and describes logging for security and product
+improvement. That restriction applies to text as well as raw audio; synthetic
+tests do not establish suitability for unrestricted household conversation.
+Keep the explicit free alias and an empty fallback list. The prior route for
+rollback is `anthropic/open_router/liquid/lfm-2.5-2.6b:free`; model selection is a
+separate deployment operation from the concurrency and telemetry fixes.
+
+The operator explicitly accepted this restricted general-question scope. The
+household-energy guard is not a general personal-data detector: it cannot make
+arbitrary dictation suitable for the provider. Keep personal or confidential
+questions out of this route, including details embedded in otherwise ordinary
+requests. Use a separately approved provider or local model for that scope.
+
+### Deployed general-conversation pilot: 2026-10-14
+
+After the independent cloud-audio concurrency check passed, the bridge's
+`FCC_MODEL` was changed to the exact Ultra 550B no-thinking free alias above.
+The gateway fallback list remained empty and no IGW context credential or URL
+was configured. Runtime environment and source hashes were read back from the
+ready Pod; the portable manifest still retains its earlier default so adopting
+this provider remains deliberate.
+
+Synthetic requests through the running Wyoming bridge returned **“Шесть”** for
+three plus three in **5.693 seconds**, suppressed an unrelated narrative in
+**2.786 seconds**, and returned the fixed missing-energy response in **0.063
+seconds**. The last case is handled before any provider request. These checks
+cover the deployed route and guards, not arbitrary factual accuracy or
+unrestricted personal conversation. The prior LFM route and full Deployment
+snapshot were retained for rollback.
+
+A separate direct synthetic FCC request returned the same exact model alias in
+`response.model` and answered correctly. FCC did not expose an upstream provider
+or a separate resolved-model field. This confirms the configured and reported
+route, not an independent inspection of the provider's model weights.
+
+Subsequent synthetic text requests through Home Assistant also passed: seven
+plus five returned “Двенадцать” in **3.513 seconds**; an ice-density explanation
+completed in **1.629 seconds**; one kilowatt was converted to 1,000 watts in
+**2.350 seconds**; and unavailable household history was rejected in **0.110
+seconds**. These include the HA conversation path, but no microphone, wake-word
+or speaker-acoustics test.

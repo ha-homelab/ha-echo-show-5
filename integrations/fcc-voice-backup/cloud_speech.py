@@ -26,7 +26,7 @@ from wyoming.error import Error
 from wyoming.event import Event, async_write_event
 from wyoming.info import AsrModel, AsrProgram, Attribution, Info, TtsProgram, TtsVoice
 
-VERSION = "0.1.1"
+VERSION = "0.1.2"
 RIVA_TARGET = "grpc.nvcf.nvidia.com:443"
 ASR_FUNCTION_ID = "71203149-d3b7-4460-8231-1be2543a1fca"
 TTS_FUNCTION_ID = "ddacc747-1269-4fab-bfd9-8f593dead106"
@@ -69,18 +69,25 @@ class SpeechError(Exception):
 class Config:
     api_key: str = field(repr=False)
     rpc_timeout: float = 30
+    asr_concurrency: int = 2
+    tts_concurrency: int = 2
 
     def __post_init__(self):
         if not (16 <= len(self.api_key) <= 4096) or not self.api_key.isascii() or any(c.isspace() for c in self.api_key):
             raise ValueError("Invalid cloud speech credential")
         if not 1 <= self.rpc_timeout <= 30:
             raise ValueError("Cloud speech deadline must be 1 to 30 seconds")
+        for limit in (self.asr_concurrency, self.tts_concurrency):
+            if type(limit) is not int or not 1 <= limit <= 4:
+                raise ValueError("Speech concurrency must be an integer from 1 to 4")
 
     @classmethod
     def from_env(cls):
         with Path(os.environ["NVIDIA_API_KEY_FILE"]).open() as stream:
             key = stream.read(4097).strip()
-        return cls(key, float(os.environ.get("NVIDIA_RPC_TIMEOUT_SECONDS", "30")))
+        return cls(key, float(os.environ.get("NVIDIA_RPC_TIMEOUT_SECONDS", "30")),
+                   int(os.environ.get("FCC_ASR_CONCURRENCY", "2")),
+                   int(os.environ.get("FCC_TTS_CONCURRENCY", "2")))
 
 
 class SpeechProvider(Protocol):
@@ -273,12 +280,23 @@ def validate_format(event: Event):
 
 
 class SpeechService:
-    """One capture/RPC lease; ASR provider can be replaced independently of wire IO."""
-    def __init__(self, provider: SpeechProvider, rpc_timeout: float = 30):
+    """Independent bounded ASR and TTS leases; no queue of stale requests."""
+    def __init__(self, provider: SpeechProvider, rpc_timeout: float = 30,
+                 asr_concurrency: int = 2, tts_concurrency: int = 2):
         self.provider = provider
         self.rpc_timeout = rpc_timeout
-        self.owner = None
+        for limit in (asr_concurrency, tts_concurrency):
+            if type(limit) is not int or not 1 <= limit <= 4:
+                raise ValueError("Speech concurrency must be an integer from 1 to 4")
+        self.limits = {"asr": asr_concurrency, "tts": tts_concurrency}
+        self.owners = {"asr": set(), "tts": set()}
         self.connections = 0
+
+    def acquire(self, stage, token):
+        # No await between checking capacity and reserving it on this event loop.
+        if len(self.owners[stage]) >= self.limits[stage]:
+            raise SpeechError("busy")
+        self.owners[stage].add(token)
 
     async def _request(self, reader, operation):
         call = asyncio.create_task(operation)
@@ -301,13 +319,25 @@ class SpeechService:
         token = object()
         audio = bytearray()
         state, chunks, expires = "idle", 0, 0.0
+        stage, started = "idle", None
+        loop = asyncio.get_running_loop()
+
+        def finish(outcome):
+            nonlocal started
+            if started is not None:
+                # Only fixed categories and a monotonic duration, never content,
+                # device identifiers, provider errors, or credentials.
+                logging.info("FCC_CLOUD_SPEECH_STAGE stage=%s outcome=%s elapsed_ms=%d",
+                             stage, outcome, round((loop.time() - started) * 1000))
+                started = None
+
         self.connections += 1
         try:
             if self.connections > MAX_CONNECTIONS:
                 raise SpeechError("busy")
             while True:
                 timeout = IDLE_SECONDS
-                if self.owner is token:
+                if token in self.owners["asr"]:
                     timeout = min(timeout, expires - asyncio.get_running_loop().time())
                 if timeout <= 0:
                     raise SpeechError("timeout")
@@ -317,6 +347,7 @@ class SpeechService:
                 if event.type == "describe" and state == "idle":
                     await asyncio.wait_for(async_write_event(service_info().event(), writer), 5)
                 elif event.type == "synthesize" and state == "idle":
+                    stage, started = "tts", loop.time()
                     voice = event.data.get("voice")
                     if voice is None:
                         voice = {}
@@ -324,9 +355,7 @@ class SpeechService:
                         raise SpeechError("invalid-text")
                     text = event.data.get("text")
                     text_segments(text)
-                    if self.owner is not None:
-                        raise SpeechError("busy")
-                    self.owner = token
+                    self.acquire("tts", token)
                     state = "synthesizing"
                     pcm = await self._request(reader, self.provider.synthesize(text))
                     if not pcm or len(pcm) % 2 or len(pcm) > MAX_TTS_AUDIO_BYTES:
@@ -337,14 +366,14 @@ class SpeechService:
                             await async_write_event(AudioChunk(rate=TTS_RATE, width=2, channels=1, audio=pcm[offset:offset + TTS_CHUNK_BYTES]).event(), writer)
                         await async_write_event(AudioStop().event(), writer)
                     del pcm
-                    self.owner = None
+                    finish("ok")
+                    self.owners["tts"].discard(token)
                     state = "idle"
                 elif event.type == "transcribe" and state == "idle":
+                    stage, started = "capture", loop.time()
                     if event.data.get("language") not in (None, "", "ru", "ru-RU") or event.data.get("name") not in (None, "", MODEL_NAME):
                         raise SpeechError("invalid-event")
-                    if self.owner is not None:
-                        raise SpeechError("busy")
-                    self.owner = token
+                    self.acquire("asr", token)
                     state = "requested"
                     expires = asyncio.get_running_loop().time() + CAPTURE_SECONDS
                 elif event.type == "audio-start" and state == "requested":
@@ -361,15 +390,19 @@ class SpeechService:
                     if not audio:
                         raise SpeechError("invalid-audio")
                     state = "transcribing"
+                    finish("ok")
+                    stage, started = "asr", loop.time()
                     text = await self._request(reader, self.provider.transcribe(bytes(audio)))
                     await asyncio.wait_for(async_write_event(Transcript(text=text, language="ru").event(), writer), 5)
                     audio.clear()
-                    self.owner = None
+                    finish("ok")
+                    self.owners["asr"].discard(token)
                     state, chunks = "idle", 0
                 else:
                     raise SpeechError("invalid-event")
         except (SpeechError, TimeoutError) as exc:
             code = exc.code if isinstance(exc, SpeechError) else "timeout"
+            finish(code)
             # Only fixed category codes; never audio, transcript, key, or exceptions.
             logging.warning("FCC_CLOUD_SPEECH_FAILURE %s stage=%s", code, state)
             with contextlib.suppress(ConnectionError, TimeoutError):
@@ -377,13 +410,15 @@ class SpeechService:
         except (ConnectionError, asyncio.IncompleteReadError):
             pass
         except Exception:
+            finish("provider-unavailable")
             logging.error("FCC_CLOUD_SPEECH_FAILURE provider-unavailable")
             with contextlib.suppress(ConnectionError, TimeoutError):
                 await asyncio.wait_for(async_write_event(Error(text=ERRORS["provider-unavailable"], code="provider-unavailable").event(), writer), 2)
         finally:
+            finish("cancelled")
             audio.clear()
-            if self.owner is token:
-                self.owner = None
+            for owners in self.owners.values():
+                owners.discard(token)
             self.connections -= 1
             writer.close()
             with contextlib.suppress(ConnectionError, TimeoutError):
@@ -393,7 +428,8 @@ class SpeechService:
 async def main():
     config = Config.from_env()
     provider = NvidiaSpeechProvider(config)
-    service = SpeechService(provider, config.rpc_timeout)
+    service = SpeechService(provider, config.rpc_timeout,
+                            config.asr_concurrency, config.tts_concurrency)
     try:
         server = await asyncio.start_server(service.handle_client, "0.0.0.0", 10500, limit=MAX_HEADER_BYTES)
         logging.info("FCC cloud speech ready")

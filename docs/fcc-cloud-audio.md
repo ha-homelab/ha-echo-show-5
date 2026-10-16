@@ -52,7 +52,7 @@ provider terms and data handling apply. No paid fallback is configured.
 
 ```bash
 docker build -f integrations/fcc-voice-backup/Dockerfile.cloud \
-  -t fcc-cloud-speech:0.1.1 integrations/fcc-voice-backup
+  -t fcc-cloud-speech:0.1.2 integrations/fcc-voice-backup
 ```
 
 Import this image into the selected node's k3s/containerd store before applying
@@ -88,8 +88,11 @@ credentials or raw provider errors. Its Wyoming listener is unauthenticated and
 must stay on trusted internal networking; ClusterIP is not authentication.
 The accepted gateway policy does not isolate the separate audio listener.
 
-- One shared in-flight audio operation across capture, ASR and TTS; overlapping
-  operations fail busy rather than accumulating a queue.
+- Separate ASR and TTS pools, each allowing two operations by default.
+  `FCC_ASR_CONCURRENCY` and `FCC_TTS_CONCURRENCY` accept integers 1–4.
+  An ASR slot covers capture through recognition; a TTS slot covers synthesis
+  through sending the complete result. Exceeding a pool fails busy immediately;
+  requests never queue. The independent eight-connection limit still applies.
 - ASR accepts only mono PCM16 at 16 kHz, up to 30 seconds. Capture has a 45-second
   total deadline and 10-second idle deadline. Frames, connections and allocations
   are bounded before payload reads.
@@ -180,3 +183,72 @@ synthetic text request completed in 2.111 seconds. This transport fix is for
 cloud speech; it does not guarantee the availability or latency of the external
 text model. Diagnose `no-speech`, a busy service and conversation timeouts
 separately. Do not retune wake thresholds to compensate for a cloud timeout.
+
+## Multi-satellite concurrency and telemetry (0.1.2)
+
+A recording or answer synthesis no longer blocks the other operation type.
+The pools are global to the service, not satellite identities: Wyoming uses a
+connection for the request, and every connection retains its own audio buffer
+and lease. Closing one client cancels only its RPC and releases only its slots.
+A malformed request or timeout cannot free another client's capacity. Provider
+quotas remain shared; increasing concurrency is not a quota increase.
+
+Two ASR and two TTS operations require at most about 6.9 MiB for the configured
+raw input/output buffers, excluding Python, gRPC and transport overhead. The
+existing memory limit remains in place. No streaming semantics changed: TTS
+still buffers all validated segments before emitting `audio-start`, so a later
+provider failure cannot leave a partially spoken answer.
+
+`FCC_CLOUD_SPEECH_STAGE` emits `stage=capture|asr|tts`, a fixed `outcome` and
+`elapsed_ms`. Capture duration ends at `audio-stop`; ASR measures provider work
+and transcript delivery; TTS includes synthesis and complete wire delivery.
+Cancellation and failed operations are recorded too. These are service timings,
+not microphone-to-speaker latency. Logs contain no text, audio, source IDs,
+device IDs, credentials or raw provider errors. Existing fixed-category failure
+logs remain available; do not count both records as separate failed requests.
+
+Build/load `fcc-cloud-speech:0.1.2` on the selected worker and apply the reviewed
+private overlay of `k8s/cloud-speech.yaml`. No HA pipeline edit or new secret is
+needed. To roll back, restore the saved Deployment (including its image and env),
+or select the retained `fcc-cloud-speech:0.1.1` image. An in-flight request can
+fail during a rollout; do it when the satellites are idle. This source change
+alone does not deploy the service.
+
+The 2026-10-14 image build reported that the existing pinned `grpcio-tools`
+1.82.0 release was yanked because of its
+[protobuf dependency metadata](https://github.com/grpc/grpc/issues/42906).
+The adapter uses the Riva package's shipped protobuf classes and does not invoke
+`protoc`; the pinned-image gRPC tests passed. The tested lock was retained for
+this rollout, including protobuf 6.33.5. This is a recorded dependency-refresh
+follow-up, not a claim that the dependency set is warning-free or that code
+generation with this combination is supported.
+
+### Deployed checkpoint: 2026-10-14
+
+The reviewed source at `be6b0a6df29dc2153577a11748149d662277b514`
+was built into complete Linux/amd64 images: bridge **0.1.4** and cloud speech
+**0.1.2**. Both were imported into the selected worker's containerd store before
+changing the two Deployments. The old bridge source overlay was removed;
+credentials, gateway, HA pipeline IDs and satellite selections were preserved.
+Ready Pod file hashes matched the source, and both Wyoming `Describe` replies
+reported the expected versions. ASR and TTS capacity each read back as **2**.
+
+Two synthetic recordings were held concurrently while two independent synthesis
+requests started. Both recognitions completed in **2.404 / 2.535 seconds** after
+`audio-stop`; both synthesis requests produced complete PCM responses in
+**4.206 / 4.055 seconds** (88,642 / 86,878 bytes). The fixture asked why ice floats
+in water. Both transcripts retained that question, with a spelling error in
+the final word; this is not a claim of perfect recognition. No microphone was
+recorded and the generated audio was not played on a household device.
+
+These are one paired trial's service timings, not latency percentiles or a
+physical-device acceptance test. The worker was busy, and shell/exec startup
+was independently slow. Read-only checks found no CPU quota on the worker's
+k3s service or the `kubepods` ancestors; the existing 500m Pod limits did throttle
+some startup work. No host resources or unrelated workloads were changed.
+
+Full pre-change Deployment specs were saved privately before either patch.
+Rollback must restore the previous model first if it was subsequently changed,
+then restore those specs, including the former bridge source mount/annotations
+and the cloud adapter's old environment. Retain the old images and ConfigMap
+until acceptance is complete; selecting an old bridge image alone is insufficient.

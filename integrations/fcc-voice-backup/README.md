@@ -4,7 +4,7 @@ Three small services connect the independent FCC voice path alongside Homeway: o
 
 Read [deployment and switching](../../docs/fcc-voice-backup.md), [cloud audio](../../docs/fcc-cloud-audio.md) and [the model shortlist](../../docs/fcc-audio-models.md). Cloud audio uses NVIDIA Parakeet ASR and Russian Chatterbox TTS with the existing operator credential; conversation uses FCC's selected external text route. The conversation bridge has no Home Assistant tools or credentials.
 
-[Assistant behavior](../../docs/fcc-assist-behavior.md) describes the 0.1.3
+[Assistant behavior](../../docs/fcc-assist-behavior.md) describes the 0.1.4
 classification-first prompt for Russian answers, explicit background-speech suppression and
 bounded spoken replies. Native HA intents still handle device commands before
 the text fallback; updating this bridge does not add device tools to the model.
@@ -20,7 +20,7 @@ The gateway URL must use HTTPS outside exact loopback hosts (`localhost`, `127.0
 
 The conversation bridge uses `FCC_BASE_URL`, `FCC_API_KEY_FILE`, an explicit free `FCC_MODEL`, and `FCC_TIMEOUT_SECONDS` (1–60; default 30), listening on `WYOMING_URI` (default `tcp://0.0.0.0:10400`).
 
-The cloud adapter uses `NVIDIA_API_KEY_FILE` and `NVIDIA_RPC_TIMEOUT_SECONDS` (1–30; default 30), listening on TCP 10500. It fixes its TLS provider target, model routes and Russian voice; it does not load a local model or enable arbitrary URLs/SSML. One shared audio operation, bounded input/output, real RPC deadlines and cancellation protect the service.
+The cloud adapter uses `NVIDIA_API_KEY_FILE` and `NVIDIA_RPC_TIMEOUT_SECONDS` (1–30; default 30), listening on TCP 10500. It fixes its TLS provider target, model routes and Russian voice; it does not load a local model or enable arbitrary URLs/SSML. Independent ASR and TTS pools default to two operations each (`FCC_ASR_CONCURRENCY` and `FCC_TTS_CONCURRENCY`, integer 1–4). Bounded input/output, real RPC deadlines and cancellation protect the service.
 
 Keep both unauthenticated Wyoming listeners inside trusted infrastructure. Provider keys, filled manifests and raw evidence stay outside Git. The images and Kubernetes manifests are separate so cloud-audio rollout does not restart the conversation path or Homeway.
 
@@ -34,3 +34,8 @@ leaving compatible updates eligible. Revisit the bounds when Riva changes its
 requirements, including for a security-driven migration; resolve the complete
 environment and run `test_cloud_speech.py` before merging. Updating these files
 does not deploy an image or change a device.
+
+
+Optional energy grounding is described in [assistant behavior](../../docs/fcc-assist-behavior.md#optional-read-only-energy-context).
+It requires an explicitly configured IGW URL and scoped read token; it is off by
+default and grants no device-control permission.

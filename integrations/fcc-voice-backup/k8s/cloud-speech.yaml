@@ -1,4 +1,4 @@
-# Build/load fcc-cloud-speech:0.1.1 on the selected node before applying.
+# Build/load fcc-cloud-speech:0.1.2 on the selected node before applying.
 # Set nodeSelector in a private overlay; no local speech models are needed.
 # One Wyoming endpoint advertises cloud Parakeet ASR and Chatterbox Russian TTS.
 # Create fcc-cloud-speech-credentials separately; never commit its key.
@@ -26,11 +26,13 @@ spec:
         seccompProfile: {type: RuntimeDefault}
       containers:
         - name: cloud-speech
-          image: fcc-cloud-speech:0.1.1
+          image: fcc-cloud-speech:0.1.2
           imagePullPolicy: Never
           env:
             - {name: NVIDIA_API_KEY_FILE, value: /run/secrets/nvidia-api-key}
             - {name: NVIDIA_RPC_TIMEOUT_SECONDS, value: "30"}
+            - {name: FCC_ASR_CONCURRENCY, value: "2"}
+            - {name: FCC_TTS_CONCURRENCY, value: "2"}
           ports: [{name: wyoming-asr, containerPort: 10500}]
           readinessProbe:
             tcpSocket: {port: wyoming-asr}
