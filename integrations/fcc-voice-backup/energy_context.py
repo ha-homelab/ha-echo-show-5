@@ -63,9 +63,8 @@ class EnergyConfig:
         if (u.scheme not in ("https", "http") or not u.hostname or u.username
                 or u.password or u.query or u.fragment or u.path != "/v1/energy"):
             raise ValueError("IGW_ENERGY_URL must be an origin with /v1/energy and no query or credentials")
-        if u.scheme == "http" and not (u.hostname in ("localhost", "127.0.0.1", "::1")
-                                      or u.hostname.endswith(".svc.cluster.local")):
-            raise ValueError("IGW_ENERGY_URL requires HTTPS outside loopback or the cluster")
+        if u.scheme == "http" and u.hostname not in ("localhost", "127.0.0.1", "::1"):
+            raise ValueError("IGW_ENERGY_URL requires HTTPS outside loopback")
         if not 16 <= len(self.token) <= 4096 or not self.token.isascii() or any(c.isspace() for c in self.token):
             raise ValueError("Invalid IGW energy token")
 

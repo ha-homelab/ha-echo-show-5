@@ -161,8 +161,16 @@ Configure `IGW_ENERGY_URL` as the exact
 `https://gateway.example.org/v1/energy` endpoint, without query or credentials,
 and exactly one of `IGW_ENERGY_TOKEN_FILE` or `IGW_ENERGY_TOKEN`. Prefer a mounted
 file containing a scoped, read-only IGW token. No HA token or control tool is
-needed. HTTPS is required except for exact loopback hosts and trusted
-`*.svc.cluster.local` endpoints. Internal HTTP is plaintext, not TLS.
+needed. HTTPS is required outside the exact loopback hosts `localhost`,
+`127.0.0.1` and `::1`, including for `*.svc.cluster.local` endpoints. Use a DNS
+name covered by the gateway certificate and a trusted CA chain; a private
+cluster address does not protect bearer tokens on plaintext HTTP.
+
+Before enabling enrichment, verify the existing gateway HTTPS endpoint from
+the bridge's network and configure that verified URL in the private deployment
+overlay. Keep enrichment unset until the HTTPS route and read-only token are
+available. The deployed bridge was checked with enrichment unset; this policy
+change does not require changing its current conversation route.
 
 For a Russian or English energy-related question, the bridge makes one bounded
 GET with `locale=ru`. The server must support that locale and return schema 1.

@@ -87,6 +87,20 @@ class EnergyValidationTests(unittest.TestCase):
         self.assertNotIn("synthetic-energy-token", repr(config))
         self.assertEqual(config.request_url, "https://example.com/v1/energy?locale=ru")
 
+    def test_energy_bearer_transport_requires_tls_for_cluster_and_remote_hosts(self):
+        for host in ("gateway.homeassistant.svc.cluster.local", "192.168.1.2",
+                     "localhost.example.org", "[2001:db8::1]", "127.0.0.2"):
+            with self.subTest(host=host):
+                with self.assertRaisesRegex(ValueError, "HTTPS outside loopback"):
+                    energy_context.EnergyConfig(
+                        "http://" + host + "/v1/energy", "synthetic-energy-token")
+                energy_context.EnergyConfig(
+                    "https://" + host + "/v1/energy", "synthetic-energy-token")
+        for host in ("localhost", "127.0.0.1", "[::1]"):
+            with self.subTest(host=host):
+                energy_context.EnergyConfig(
+                    "http://" + host + ":8080/v1/energy", "synthetic-energy-token")
+
 
 class ContentTests(unittest.TestCase):
     def test_no_paid_alias_or_credential_url(self):
