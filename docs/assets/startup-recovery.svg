@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1080" viewBox="0 0 1440 1080" role="img" aria-labelledby="title description">
+<title id="title">Recovering when Home Assistant authentication is ready before MQTT</title>
+<desc id="description">During Home Assistant startup HTTP and WebSocket authentication can work while MQTT commands are not registered. The display retries the specific unknown_command subscription failure using delays of one, two, four, eight, sixteen and then thirty seconds, capped at thirty seconds. Successful subscriptions reset the delay. Permission or configuration denial remains blocked and does not use this retry path.</desc>
+<defs>
+ <linearGradient id="banner" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#143d79"/><stop offset="0.52" stop-color="#433a91"/><stop offset="1" stop-color="#116c75"/></linearGradient>
+ <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#617695"/></marker>
+ <style>text {font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#14233f;} .flow{fill:none;stroke:#617695;stroke-width:3;marker-end:url(#arrow);} .grid{stroke:#dce4ef;stroke-width:1;}</style>
+</defs>
+<rect width="1440" height="1080" fill="#f4f7fc"/>
+<path d="M0 0H1440V150H0Z" fill="url(#banner)"/>
+<circle cx="1410" cy="30" r="142" fill="#ffffff" opacity="0.04"/>
+<circle cx="1290" cy="130" r="115" fill="#ffffff" opacity="0.035"/>
+<text x="44" y="36" font-size="15" font-weight="750" style="fill:#cbe1ff">STARTUP / FAILURE CLASSIFICATION</text>
+<text x="44" y="82" font-size="35" font-weight="750" style="fill:#ffffff">Ready to authenticate is not ready to subscribe</text>
+<text x="44" y="120" font-size="18" font-weight="400" style="fill:#e1eaff">Display r11 distinguishes a temporary missing command from a real permission or configuration rejection</text>
+<rect x="44" y="190" width="420" height="166" rx="20" fill="#eef3ff" stroke="#275bd8"/>
+<text x="67" y="223" font-size="13" font-weight="750" style="fill:#275bd8">STAGE 1</text>
+<text x="67" y="264" font-size="24" font-weight="750" style="fill:#275bd8">HA begins starting</text>
+<text x="67" y="302" font-size="18" font-weight="400" style="fill:#4b5b73">HTTP can respond successfully</text>
+<text x="67" y="330" font-size="18" font-weight="400" style="fill:#4b5b73">while integrations are still loading.</text>
+<rect x="510" y="190" width="420" height="166" rx="20" fill="#f4efff" stroke="#7550c8"/>
+<text x="533" y="223" font-size="13" font-weight="750" style="fill:#7550c8">STAGE 2</text>
+<text x="533" y="264" font-size="24" font-weight="750" style="fill:#7550c8">WebSocket authenticates</text>
+<text x="533" y="302" font-size="18" font-weight="400" style="fill:#4b5b73">The current credential is accepted.</text>
+<text x="533" y="330" font-size="18" font-weight="400" style="fill:#4b5b73">This does not prove MQTT is ready.</text>
+<rect x="976" y="190" width="420" height="166" rx="20" fill="#eaf8f4" stroke="#097c6b"/>
+<text x="999" y="223" font-size="13" font-weight="750" style="fill:#097c6b">STAGE 3</text>
+<text x="999" y="264" font-size="24" font-weight="750" style="fill:#097c6b">Display subscribes</text>
+<text x="999" y="302" font-size="18" font-weight="400" style="fill:#4b5b73">Request MQTT / display events.</text>
+<text x="999" y="330" font-size="18" font-weight="400" style="fill:#4b5b73">Inspect the subscription result.</text>
+<path d="M464 270H503" class="flow"/>
+<path d="M930 270H969" class="flow"/>
+<path d="M1186 356V390H370V430" class="flow"/>
+<path d="M1186 390H1070V430" class="flow"/>
+<rect x="44" y="437" width="652" height="242" rx="20" fill="#fff6e7" stroke="#dfbd7b"/>
+<text x="70" y="477" font-size="25" font-weight="750" style="fill:#a8640a">TEMPORARY: unknown_command</text>
+<text x="70" y="514" font-size="18" font-weight="400" style="fill:#4b5b73">MQTT is not registered yet. Close this session, then retry.</text>
+<text x="70" y="541" font-size="18" font-weight="400" style="fill:#4b5b73">The retry path does not relax authentication or permissions.</text>
+<rect x="70" y="564" width="80" height="49" rx="11" fill="#fff" stroke="#e4c88c"/>
+<text x="110" y="596" font-size="21" font-weight="750" style="fill:#a8640a" text-anchor="middle">1 s</text>
+<rect x="167" y="564" width="80" height="49" rx="11" fill="#fff" stroke="#e4c88c"/>
+<text x="207" y="596" font-size="21" font-weight="750" style="fill:#a8640a" text-anchor="middle">2 s</text>
+<rect x="264" y="564" width="80" height="49" rx="11" fill="#fff" stroke="#e4c88c"/>
+<text x="304" y="596" font-size="21" font-weight="750" style="fill:#a8640a" text-anchor="middle">4 s</text>
+<rect x="361" y="564" width="80" height="49" rx="11" fill="#fff" stroke="#e4c88c"/>
+<text x="401" y="596" font-size="21" font-weight="750" style="fill:#a8640a" text-anchor="middle">8 s</text>
+<rect x="458" y="564" width="80" height="49" rx="11" fill="#fff" stroke="#e4c88c"/>
+<text x="498" y="596" font-size="21" font-weight="750" style="fill:#a8640a" text-anchor="middle">16 s</text>
+<rect x="555" y="564" width="80" height="49" rx="11" fill="#fff" stroke="#e4c88c"/>
+<text x="595" y="596" font-size="21" font-weight="750" style="fill:#a8640a" text-anchor="middle">30 s</text>
+<text x="70" y="650" font-size="18" font-weight="400" style="fill:#4b5b73">Continue at 30 s while connection is eligible; no busy loop.</text>
+<rect x="744" y="437" width="652" height="242" rx="20" fill="#fff0f3" stroke="#e9bac6"/>
+<text x="770" y="477" font-size="24" font-weight="750" style="fill:#b83752">REJECTED: permission / configuration</text>
+<text x="770" y="520" font-size="19" font-weight="400" style="fill:#4b5b73">Other subscription failures remain blocked.</text>
+<text x="770" y="551" font-size="19" font-weight="400" style="fill:#4b5b73">Clear retry timers and close the WebSocket.</text>
+<text x="770" y="582" font-size="19" font-weight="400" style="fill:#4b5b73">Keep the clock available; report the error for diagnosis.</text>
+<text x="770" y="650" font-size="18" font-weight="650" style="fill:#b83752">Do not treat access denial as a temporary startup delay.</text>
+<path d="M370 679V721" class="flow"/>
+<path d="M1070 679V721" class="flow"/>
+<rect x="44" y="729" width="652" height="165" rx="20" fill="#eaf8f4" stroke="#add9c9"/>
+<text x="70" y="772" font-size="23" font-weight="750" style="fill:#097c6b">MQTT becomes ready → subscriptions succeed</text>
+<text x="70" y="810" font-size="18" font-weight="400" style="fill:#4b5b73">Resume event-driven camera behavior.</text>
+<text x="70" y="838" font-size="18" font-weight="400" style="fill:#4b5b73">Clear the startup error; reset the next retry delay to 1 s.</text>
+<text x="70" y="866" font-size="18" font-weight="400" style="fill:#4b5b73">Successful authentication alone never triggers this state.</text>
+<rect x="744" y="729" width="652" height="165" rx="20" fill="#fff" stroke="#d6dfeb"/>
+<text x="770" y="772" font-size="23" font-weight="750" style="fill:#b83752">Correct the cause before reconnecting</text>
+<text x="770" y="810" font-size="18" font-weight="400" style="fill:#4b5b73">Inspect the selected user, permissions and topic setup.</text>
+<text x="770" y="838" font-size="18" font-weight="400" style="fill:#4b5b73">A permanent rejection must remain visible.</text>
+<text x="770" y="866" font-size="18" font-weight="400" style="fill:#4b5b73">This branch has no automatic startup retry.</text>
+<rect x="44" y="925" width="1352" height="100" rx="16" fill="#14233f" stroke="#14233f"/>
+<text x="68" y="961" font-size="20" font-weight="750" style="fill:#fff">What this fix covers</text>
+<text x="68" y="994" font-size="18" font-weight="400" style="fill:#dce8fb">A real startup race in the display client. It does not repair an unavailable HA server, full disk or failed integration.</text>
+<text x="44" y="1056" font-size="15" font-weight="400" style="fill:#4b5b73">Source: integrations/show5-display/auth.js · Waiting follows the existing page-visibility and connection lifecycle.</text>
+</svg>

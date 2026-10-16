@@ -1,6 +1,36 @@
 # Changelog
 
-## Unreleased
+## [Unreleased]
+
+### Added
+
+- Two simultaneous microWakeWord activation models in the pinned VACA Android
+  patch, sharing one microphone, threshold and cross-model cooldown.
+- English, Russian, German and Spanish clock interface catalogs and README
+  entry points, plus a navigable repository wiki and accessible SVG diagrams.
+- Offline documentation checks and release-archive checks for the display and
+  dual-wake builder, including catalog, lifecycle and provenance regressions.
+
+### Fixed
+
+- Retry unavailable MQTT subscription commands during HA startup instead of
+  permanently treating them as denied access. Keep permission failures blocked.
+- Release the native wake detector when recognition stops or reloads. The local
+  Android build is `0.13.4+dualwake.2` (7002); installation is a separate step.
+- Allow guarded private build/signing paths in extracted source archives while
+  retaining Git-ignore enforcement for checkouts and rejecting symlink escapes.
+- Reject unexpected source changes and missing/mismatched signing identities
+  during Android builds. Preserve the existing key for ordinary APK updates.
+
+### Upgrade
+
+- Deploy clock revision `20261015-r11` with its new `i18n.js` asset and a fresh
+  entry/asset version. Existing settings retain English and 24-hour time.
+- Use the [same-signature update procedure](integrations/vaca-dual-wake/README.md)
+  for existing local builds. Initial migration from upstream has a different
+  signing identity and requires verified private data backup/restoration.
+- See [validation evidence](docs/wiki/Validation.md) for the distinction between
+  source checks, installed-state checks and pending physical voice acceptance.
 
 ### Documentation
 

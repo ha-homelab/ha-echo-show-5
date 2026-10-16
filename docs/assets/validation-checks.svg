@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1020" viewBox="0 0 1440 1020" role="img" aria-labelledby="title description">
+<title id="title">Recorded automated check counts for the October 15 build</title>
+<desc id="description">Horizontal bars show 109 Node display tests, 37 Python display tests, 31 Android-builder host regression tests and nine actual JVM tests. These are counts, not coverage percentages, throughput, latency or a summed quality score. Separately, 48 synthetic desktop renders checked layout. Physical spoken wake-word recognition and long-duration operation remain separate acceptance tasks.</desc>
+<defs>
+ <linearGradient id="banner" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#143d79"/><stop offset="0.52" stop-color="#433a91"/><stop offset="1" stop-color="#116c75"/></linearGradient>
+ <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#617695"/></marker>
+ <style>text {font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#14233f;} .flow{fill:none;stroke:#617695;stroke-width:3;marker-end:url(#arrow);} .grid{stroke:#dce4ef;stroke-width:1;}</style>
+</defs>
+<rect width="1440" height="1020" fill="#f4f7fc"/>
+<path d="M0 0H1440V150H0Z" fill="url(#banner)"/>
+<circle cx="1410" cy="30" r="142" fill="#ffffff" opacity="0.04"/>
+<circle cx="1290" cy="130" r="115" fill="#ffffff" opacity="0.035"/>
+<text x="44" y="36" font-size="15" font-weight="750" style="fill:#cbe1ff">VALIDATION / RECORDED COUNTS</text>
+<text x="44" y="82" font-size="35" font-weight="750" style="fill:#ffffff">Checks you can count. Claims you can trace.</text>
+<text x="44" y="120" font-size="18" font-weight="400" style="fill:#e1eaff">October 15 build record · Independent test suites · Bar length represents a count, not coverage or performance</text>
+<rect x="44" y="179" width="1352" height="492" rx="20" fill="#fff" stroke="#d6dfeb"/>
+<text x="70" y="224" font-size="16" font-weight="750" style="fill:#275bd8">AUTOMATED TESTS</text>
+<text x="1368" y="224" font-size="16" font-weight="500" style="fill:#4b5b73" text-anchor="end">Number of tests</text>
+<path d="M440.0 270V599" class="grid"/>
+<text x="440.0" y="630" font-size="16" font-weight="400" style="fill:#4b5b73" text-anchor="middle">0</text>
+<path d="M580.0 270V599" class="grid"/>
+<text x="580.0" y="630" font-size="16" font-weight="400" style="fill:#4b5b73" text-anchor="middle">20</text>
+<path d="M720.0 270V599" class="grid"/>
+<text x="720.0" y="630" font-size="16" font-weight="400" style="fill:#4b5b73" text-anchor="middle">40</text>
+<path d="M860.0 270V599" class="grid"/>
+<text x="860.0" y="630" font-size="16" font-weight="400" style="fill:#4b5b73" text-anchor="middle">60</text>
+<path d="M1000.0 270V599" class="grid"/>
+<text x="1000.0" y="630" font-size="16" font-weight="400" style="fill:#4b5b73" text-anchor="middle">80</text>
+<path d="M1140.0 270V599" class="grid"/>
+<text x="1140.0" y="630" font-size="16" font-weight="400" style="fill:#4b5b73" text-anchor="middle">100</text>
+<path d="M1280.0 270V599" class="grid"/>
+<text x="1280.0" y="630" font-size="16" font-weight="400" style="fill:#4b5b73" text-anchor="middle">120</text>
+<text x="70" y="300" font-size="22" font-weight="750" style="fill:#275bd8">Display · Node</text>
+<text x="70" y="327" font-size="15" font-weight="400" style="fill:#4b5b73">Client state, auth, media and locales</text>
+<rect x="440" y="273" width="763.0" height="45" rx="10" fill="#275bd8" stroke="#275bd8"/>
+<text x="1219.0" y="303" font-size="26" font-weight="750" style="fill:#275bd8">109</text>
+<text x="70" y="381" font-size="22" font-weight="750" style="fill:#7550c8">Display · Python</text>
+<text x="70" y="408" font-size="15" font-weight="400" style="fill:#4b5b73">Configuration and integration contracts</text>
+<rect x="440" y="354" width="259.0" height="45" rx="10" fill="#7550c8" stroke="#7550c8"/>
+<text x="715.0" y="384" font-size="26" font-weight="750" style="fill:#7550c8">37</text>
+<text x="70" y="462" font-size="22" font-weight="750" style="fill:#097c6b">Android builder · host</text>
+<text x="70" y="489" font-size="15" font-weight="400" style="fill:#4b5b73">Patch / build regression checks</text>
+<rect x="440" y="435" width="217.0" height="45" rx="10" fill="#097c6b" stroke="#097c6b"/>
+<text x="673.0" y="465" font-size="26" font-weight="750" style="fill:#097c6b">31</text>
+<text x="70" y="543" font-size="22" font-weight="750" style="fill:#a8640a">Android build · JVM</text>
+<text x="70" y="570" font-size="15" font-weight="400" style="fill:#4b5b73">Includes 4 detector-lifecycle tests</text>
+<rect x="440" y="516" width="63.0" height="45" rx="10" fill="#a8640a" stroke="#a8640a"/>
+<text x="519.0" y="546" font-size="26" font-weight="750" style="fill:#a8640a">9</text>
+<text x="70" y="651" font-size="16" font-weight="400" style="fill:#4b5b73">Suites exercise different layers; their counts must not be interpreted as comparable coverage percentages.</text>
+<rect x="44" y="695" width="652" height="206" rx="20" fill="#eef3ff" stroke="#bdcff4"/>
+<text x="70" y="739" font-size="14" font-weight="750" style="fill:#275bd8">SEPARATE VISUAL CHECK</text>
+<text x="70" y="808" font-size="61" font-weight="750" style="fill:#275bd8">48</text>
+<text x="179" y="787" font-size="23" font-weight="750" style="fill:#275bd8">synthetic desktop renders</text>
+<text x="179" y="821" font-size="18" font-weight="400" style="fill:#4b5b73">Four locales · 12/24 h · two viewports</text>
+<text x="179" y="848" font-size="18" font-weight="400" style="fill:#4b5b73">Camera status cases; no observed clipping</text>
+<text x="70" y="877" font-size="16" font-weight="400" style="fill:#4b5b73">Chrome layout checks do not certify Android font rendering.</text>
+<rect x="744" y="695" width="652" height="206" rx="20" fill="#fff6e7" stroke="#e3c692"/>
+<text x="770" y="739" font-size="14" font-weight="750" style="fill:#a8640a">DISTINCT HARDWARE ACCEPTANCE</text>
+<text x="770" y="783" font-size="20" font-weight="400" style="fill:#4b5b73">Installed-state, lifecycle and camera checks</text>
+<text x="770" y="811" font-size="20" font-weight="400" style="fill:#4b5b73">are recorded separately for each Show.</text>
+<text x="770" y="839" font-size="20" font-weight="400" style="fill:#4b5b73">Spoken recognition, false activations, power loss</text>
+<text x="770" y="867" font-size="20" font-weight="400" style="fill:#4b5b73">and multi-day reliability need their own evidence.</text>
+<rect x="44" y="929" width="1352" height="54" rx="14" fill="#14233f" stroke="#14233f"/>
+<text x="68" y="963" font-size="18" font-weight="650" style="fill:#fff">Read the dated Validation page for versions, methods, skips, deployment evidence and remaining work.</text>
+<text x="44" y="1006" font-size="15" font-weight="400" style="fill:#4b5b73">Counts are from recorded checks for this build, not a live dashboard and not an aggregate quality score.</text>
+</svg>

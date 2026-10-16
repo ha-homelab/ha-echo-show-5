@@ -1,98 +1,89 @@
 # Echo Show 5 Gen2 → Android → Home Assistant
 
-[English](README.md) · [Русский](README.ru.md) · [Deutsch](README.de.md) · [Español](README.es.md) · [Français](README.fr.md)
+**English** · [Русский](README.ru.md) · [Deutsch](README.de.md) · [Español](README.es.md) · [Français](README.fr.md)
 
-**Documentation:** [topic index](docs/README.md) · [translation scope and maintenance](docs/i18n.md). Localized READMEs cover the overview, setup sequence and limitations; detailed operational guides remain in English.
+Reuse an **Amazon Echo Show 5, second generation (2021), codename `cronos`**, as a Home Assistant voice satellite, readable clock, motion-camera display and remotely controlled media/call endpoint. This repository contains the attended conversion tools, local application patches, integrations and recovery documentation. It does not contain firmware, APKs, private wake models or household credentials.
 
-[![Fuzzing: RC only](https://img.shields.io/badge/fuzzing-RC_only-blue)](docs/fuzzing.md)
+**Documentation:** [topic index](docs/README.md) · [translation policy](docs/i18n.md).
 
-Tools and an attended runbook for reusing an **Amazon Echo Show 5, second generation (2021), codename `cronos`**, as an Android Home Assistant display and voice client. This project targets a physical **x86_64 Synology NAS** as the USB host, controlled over SSH from a separate computer.
+**Start with the [project wiki](docs/wiki/Home.md), or the [conversion runbook](docs/runbook.md) for an untouched device.** Already running Android? Use the [installation and update guide](docs/wiki/Installation-and-recovery.md); do not repeat the unlock.
 
-**Recorded validation snapshot, 2026-10-02 (not live fleet status):** a physical cronos device has completed the guarded TWRP conversion and first **Android 11 / LineageOS 18.1** boot. The raw backups passed validation on both NAS and workstation, and the pinned **Home Assistant Companion minimal APK installed successfully**. Companion is authenticated to HA and renders the existing dashboard. Optional **VACA 0.13.4** is installed with a local custom model, a running wake-word engine and an idle HA satellite connection. After settling onboarding permissions, VACA restarted unattended through one normal Android reboot, reconnected to HA and kept capture active with Companion back in the foreground. Controlled physical voice, power-cycle and multi-day reliability tests remain pending. See [validation status](docs/preparation-status.md) for the evidence and remaining checks.
+![Architecture: the Show connects to Home Assistant; voice, cameras, media and calls have separate data paths.](docs/assets/architecture.svg)
 
-The [camera pilot](docs/camera-and-intercom.md) delivered authenticated **640×480 MJPEG at 5.19 fps over a 20-second sample**, while Companion stayed in the foreground and VACA capture remained active. A later zero-camera condition cleared after an ordinary Android reboot with hardware privacy off. Android then reported one camera, and manual camera/Companion startup returned two different fresh authenticated JPEG frames. The cause of the earlier loss remains unresolved. A later [Wi-Fi ADB reboot check](docs/android-and-home-assistant.md#persistent-wi-fi-adb-on-the-tested-rom) passed: authenticated network access returned after an ordinary reboot without using USB commands. Trusted USB remains a [recovery fallback](docs/camera-and-intercom.md#manual-recovery-after-an-android-reboot). Camera boot start is off; full unattended recovery and power-loss behavior remain unverified.
+[Conversion process and results](docs/wiki/Process-and-results.md) · [Startup recovery diagram](docs/assets/startup-recovery.svg) · [Validation chart](docs/assets/validation-checks.svg)
 
-The optional [HA intercom integration](integrations/show5-intercom/README.md) passed live checks for 100 ms of silent talkback data, a one-second microphone reply, membership guards and service/microphone restoration. Synthetic signaling and isolated WebView camera/microphone capture passed. A real attempt through the lightweight receiver reached Answer and caller offer submission, but **a complete call through the HA WebRTC card and physical audibility remain unverified**. Cleanup restored fresh camera frames and the microphone baseline. Keep experimental video outside the [daily-use configuration](integrations/show5-intercom/README.md#daily-use-configuration-without-experimental-video). The home panel rendered at 960×480. After disabling Always-on Display, remote sleep reported display OFF and wake restored ON; this does not establish deep CPU sleep. [Portable HA examples](examples/home-assistant/README.md) provide announcement, media, screen and navigation scripts. See the integration's [tested results](integrations/show5-intercom/README.md#tested-results) for exact scope and the remaining unattended-recovery limits.
+## What it does
 
-The separate [native Jitsi pilot](docs/jitsi-calls.md) uses a verified F-Droid APK and an operator-controlled conference server. An attended two-party test confirmed received video in both directions and audio transport from the Show. Explicit HA End restored fresh camera video, VACA capture and Companion home. Physical audibility, intelligibility and echo behavior still need acceptance. The HA controls use a two-minute lease, attended Join and explicit End/restoration.
+- **Hands-free Assist:** the local VACA extension can listen for two microWakeWord models through one microphone. The recorded two-device configuration uses **“Привет, мышка”** and **“Hey Jarvis”**, with a shared **0.35** threshold. The private Russian model is not distributed. [Voice setup and switching](docs/wiki/Voice-and-wake-words.md).
+- **A screen suited to five inches:** a large clock, full-screen Front/Porch video on motion, bounded manual camera viewing and return to the clock. Video preserves proportions; the ready-frame gate suppresses Android's stretched play placeholder. [Display guide](docs/wiki/Display-media-and-calls.md).
+- **An HA remote endpoint:** announcements, music, fixed TV streams, our OTT-play FOSS Capacitor client, a separate OTT web route and optional OttPlayer. Home/Stop ends the owned activity and restores the clock. [Remote controls](docs/remote-endpoint.md).
+- **Calls on your Jitsi installation:** a fixed room, explicit join policy, microphone handoff and bounded cleanup. The standalone camera/intercom pilot remains a separate experimental option. [Calls and intercom](docs/wiki/Display-media-and-calls.md#jitsi-and-intercom).
+- **Choice of voice backend:** Homeway, independent FCC cloud speech/conversation, or local Russian conversation and Piper speech with FCC cloud recognition. Selection is per satellite; fallback is manual. [Privacy boundaries and outage procedure](docs/wiki/Voice-and-wake-words.md#choose-and-switch-an-assistant).
+- **Localization:** English, Russian, German, Spanish and French project entry points, plus the clock interface's own locale configuration. Interface language, speech language and wake model are independent. Detailed technical runbooks and wiki pages are maintained in English. [Coverage and contribution rules](docs/wiki/Localization.md).
 
-## Conversion route
+## Current validation
 
-![Temporary USB preparation; Android Companion and optional VACA connect to Home Assistant over Wi-Fi](docs/assets/architecture.svg)
+**October 15, 2026 update:** the built `dualwake.2` patch fixes detector cleanup, and display revision `20261015-r11` combines English, Russian, German and Spanish localization with retry handling when the MQTT command is not yet available during HA startup. A set of **48 synthetic desktop layout renders** showed no clipping in the exercised cases. Both updates are installed on both Shows. Each device passed three software microphone mute/unmute cycles and a normal app restart, restoring both models and capture. Physical phrase recognition remains unverified; see [current rollout evidence](docs/wiki/Validation.md).
 
-Stock Show 5 Gen2 → **amonet-cronos 2.0.1** → TWRP → verified off-device backup → **unofficial LineageOS 18.1 v0.4 / Android 11** → **Home Assistant Companion 2026.8.4 minimal** → your Home Assistant server.
+The **October 14, 2026 deployment baseline** has two converted Shows on Android 11 / unofficial LineageOS 18.1, with both activation models loaded after a normal **application restart**, existing HA identities preserved and sequential HA announcements completed. Both use the **Local Russian Home** pipeline and **Irina** speech. Recognition still sends audio to the cloud. [Dual-wake build evidence](integrations/vaca-dual-wake/README.md#historical-deployment-evidence--2026-10-14) · [voice deployment history](docs/fcc-voice-backup.md).
 
-The initial unlock modifies the boot chain before the first backup. Installing Android replaces Fire OS and Alexa and requires data formatting. The Android port has limitations documented in [the Home Assistant guide](docs/android-and-home-assistant.md). This is an attended hardware conversion, with separate commands for each stage; connecting USB does not trigger a write.
+**Deliberate physical recognition of both phrases, audible-response quality, power-loss recovery and a multi-day soak remain pending for the dual-wake build.** A loaded model, an idle satellite or completed service call does not establish those results. Earlier camera, brightness, media and Jitsi tests have their own dated scope. The [validation guide](docs/wiki/Validation.md) separates those observations; the [October 2 conversion snapshot](docs/preparation-status.md) is historical and contains superseded voice settings.
 
-This is a **Show 5 Gen2** project. Echo Dot/EchoLocal, Show 5 Gen1, Show 8 and other device images are incompatible with this route.
+## Compatible hardware and conversion route
 
-## Requirements
+**Show 5 Gen2 / `cronos` only.** Echo Dot/EchoLocal, Show 5 Gen1, Show 8 and other images are not interchangeable.
 
-- A confirmed Show 5 **Gen2 / 2021 / cronos**, its normal AC power adapter, and a micro-USB **data** cable.
-- A physical x86_64 Synology host with Docker, Python 3.8 or newer, SSH access, and sufficient private storage for backups. The tested DSM environment is recorded in [validation status](docs/preparation-status.md).
-- A workstation with Python 3, SSH and rsync. The Linux release binaries run on the NAS, not directly on macOS.
-- An existing Home Assistant server reachable from the Show's Wi-Fi. Voice use needs a working Assist pipeline with speech-to-text and text-to-speech.
-- The pinned third-party artifacts, acquired separately as described in the runbook. Firmware, APKs and downloaded vendor trees are intentionally absent from Git.
+```text
+Stock cronos → amonet-cronos 2.0.1 → TWRP → verified off-device backup
+             → LineageOS 18.1 v0.4 / Android 11 → Companion + optional VACA
+```
 
-## Start here
+The initial unlock changes the boot chain **before the first backup**. Installing Android replaces Fire OS/Alexa and formats data. The backup route is not a tested generic return-to-stock procedure. Follow the [runbook's checkpoints](docs/runbook.md) and the [artifact audit](docs/release-audit.md), not this diagram alone.
 
-Clone this repository, then read [the runbook](docs/runbook.md) before connecting an untouched unit or starting a write. Configure your own SSH destination and project directory, acquire and verify the artifacts, then build and validate the host image. The preparation commands and fresh-clone procedure are in that document.
+You need:
 
-Once preparation is complete, these commands inspect the host and USB inventory:
+- The confirmed device, its normal **AC adapter**, and a micro-USB **data** cable. USB does not replace the power adapter.
+- A physical **x86_64 Synology NAS** with Docker, Python 3.8+, SSH and private backup storage, plus a workstation with Python, SSH and rsync. Linux release tools execute on the NAS.
+- A reachable Home Assistant server; voice also needs a working Assist pipeline.
+- Independently downloaded, pinned artifacts. The runbook explains verification and XDA's manual-download fallback.
+
+After configuring your own host and preparing its image as described in the runbook, these commands only inspect readiness and USB inventory:
 
 ```bash
 python3 scripts/remote.py preflight
 python3 scripts/remote.py inventory
 ```
 
-Select the **physical USB port and complete observed serial** of your Show. `PORT` and `FULL_SERIAL` in the documentation are placeholders; never select the first device or copy an identifier from another Echo. For a stock unit in FASTBOOT:
+Every device operation must use the **observed physical USB port and complete serial**. Never select “the first Echo.” Write stages have separate identity and confirmation gates. Connecting a cable does not initiate conversion.
+
+## Documentation map
+
+- [Wiki home](docs/wiki/Home.md): task-based navigation, diagrams and terminology.
+- [Architecture and data paths](docs/wiki/Architecture.md): local/cloud boundaries, camera routing and Jitsi media.
+- [Installation, update and recovery](docs/wiki/Installation-and-recovery.md): stock conversion versus an existing Android installation, signing keys and rollback.
+- [Voice and two wake words](docs/wiki/Voice-and-wake-words.md): threshold semantics, model privacy, assistant switching and tests.
+- [Display, media and calls](docs/wiki/Display-media-and-calls.md): brightness, color, full-screen video and remote activities.
+- [Troubleshooting](docs/wiki/Troubleshooting.md): isolate the failing layer before reinstalling.
+- [Validation](docs/wiki/Validation.md): automated, service-level and physical acceptance.
+- [Localization](docs/wiki/Localization.md) and [maintenance](docs/wiki/Maintenance.md): language coverage, versioned static assets, patches and publication.
+
+Detailed implementation guides: [Android/HA](docs/android-and-home-assistant.md), [VACA private models](docs/vaca-private-wakeword.md), [dual-wake source](integrations/vaca-dual-wake/README.md), [clock integration](integrations/show5-display/README.md), [FCC backup](docs/fcc-voice-backup.md), [native voice controls](docs/native-voice-controls.md), [Jitsi](docs/jitsi-calls.md), [camera pilot](docs/camera-and-intercom.md), [intercom](integrations/show5-intercom/README.md), [OTT command server](docs/ott-command-server.md), [stable addresses](docs/stable-network-addresses.md), [portable HA examples](examples/home-assistant/README.md).
+
+## Development and private data
+
+Keep downloads in `downloads/`, extracted upstream trees in `vendor/`, backups in `backups/`, logs in `logs/`, and keys, filled mappings, recordings and device evidence in `private/`. These are ignored; `.gitignore` cannot remove something already committed. Inspect the staged diff before publication. Never place credentials in HA's unauthenticated `/local` files.
+
+Run the relevant offline suites from the repository root:
 
 ```bash
-python3 scripts/remote.py probe-fastboot --port PORT --serial FULL_SERIAL
-```
-
-For a unit already unlocked and in TWRP, use `probe-recovery` instead. Do not repeat the exploit solely to follow the guide from its beginning. Every write stage requires identity checks and an exact typed action/serial phrase. Only the selected USB node is mapped into a nonroot, network-disabled container.
-
-## Project contents
-
-- [Installation runbook](docs/runbook.md): host setup, device identification, unlock, backup, formatting, ROM and APK installation.
-- [Android and Home Assistant](docs/android-and-home-assistant.md): dashboard, Assist, optional wake word and acceptance tests.
-- [Private custom wake word with VACA](docs/vaca-private-wakeword.md): optional pinned APK, private model handling and deployment/acceptance boundaries.
-- [Camera and intercom pilot](docs/camera-and-intercom.md): optional authenticated HTTPS camera, HA MJPEG setup and microphone ownership for experimental half-duplex audio.
-- [Compact Show dashboard](docs/show-dashboard.md): portable native-card template for home, camera, screen, voice, music and planned calls, with private local rendering.
-- [Clock and motion cameras](integrations/show5-display/README.md): lightweight clock-first display with bounded Front/Porch live WebRTC video, an explicit snapshot fallback and per-device VACA home configuration.
-- [HA intercom integration](integrations/show5-intercom/README.md): administrator-only talkback, optional listening/video, deployment steps and recovery boundaries.
-- [FCC voice backup](docs/fcc-voice-backup.md): parallel Homeway/FCC pipelines, independent cloud audio and guarded device switching.
-- [Native Jitsi calls](docs/jitsi-calls.md): pinned Android app, own-server configuration, administrator Start/End controls and attended acceptance.
-- [Portable HA examples](examples/home-assistant/README.md): announcement helper and fixed media, screen and dashboard-navigation scripts.
-- [Release audit](docs/release-audit.md): the actual amonet archive and bundled host tools.
-- [Source audit](docs/upstream-audit.md): why the GitHub source checkout alone does not replace the release.
-- [Script review](docs/script-review.md) and [validation status](docs/preparation-status.md): verification and remaining limitations.
-- [Amonet metadata](amonet-artifact.json), [reviewed file inventory](amonet-review.json), [ROM metadata](lineage-artifact.json), [Companion metadata](companion-artifact.json), [optional VACA metadata](vaca-artifact.json), [optional camera metadata](androidipcamera-artifact.json) and [optional Jitsi metadata](jitsi-artifact.json): pinned provenance and integrity checks.
-- `host/synology/`: separate Docker host definition.
-- `scripts/` and `tests/`: explicit stages and regression checks.
-- `templates/home-assistant/`: public dashboard placeholders; keep the filled entity mapping and rendered configuration in `private/`.
-
-## Local data and maintenance
-
-Keep downloaded files in `downloads/`, extracted third-party code in `vendor/`, backups in `backups/`, logs in `logs/`, and host keys or local records in `private/`. These directories are ignored. Keep HA URLs, access tokens, Wi-Fi credentials, device inventories and household-specific test records outside public documentation. `.gitignore` does not remove files already committed; inspect the staged diff before publishing.
-
-```bash
-python3 scripts/artifacts.py fetch lineage companion
-python3 scripts/artifacts.py verify lineage companion
+python3 scripts/check_docs.py
 python3 -m unittest discover -s tests -v
+node --test integrations/show5-display/tests/*.cjs
+python3 -m unittest discover -s integrations/show5-display/tests -p 'test_*.py' -v
+python3 -m unittest discover -s integrations/show5-intercom/tests -v
 ```
 
-The pinned Companion minimal app includes ARMv7 support and does not need GApps. Third-party code and firmware retain their upstream terms; this repository provides metadata and preparation tooling rather than redistributing their binaries.
-
-## Remote endpoint controls
-
-The [remote endpoint guide](docs/remote-endpoint.md) covers a target-specific HA
-control panel for clocks, full-screen cameras, music, TV streams, Jitsi and both
-our OTT-play FOSS Capacitor Android client and separate OTT web/app launchers. Generate the private HA package with
-`scripts/render_remote_endpoint.py` and its matching phone/desktop dashboard with
-`scripts/render_remote_dashboard.py`. Local URLs, device bindings and downloaded
-APKs stay outside Git.
+[CONTRIBUTING](CONTRIBUTING.md) and [CI](.github/workflows/tests.yml) describe the complete required checks and separate voice runtimes. Tests do not authorize writes or certify a device. [Release packaging](docs/release-packaging.md) publishes a reviewed **integration-source suite**, not firmware or an APK. [Release policy](RELEASING.md) · [bounded RC fuzzing](docs/fuzzing.md) · [versioning](docs/VERSIONING.md) · [security reporting](SECURITY.md) · [security design](docs/security-design.md) · [third-party notices](THIRD_PARTY_NOTICES.md).
 
 ## Related projects
 
@@ -107,29 +98,3 @@ APKs stay outside Git.
   deployment setup.
 - [HA Homelab project directory](https://github.com/ha-homelab) lists the other
   public integrations and hardware guides.
-
-## Project maintenance
-
-See [contribution and test requirements](CONTRIBUTING.md), the
-[security reporting policy](SECURITY.md), [security design](docs/security-design.md),
-and the [OpenSSF evidence and remaining criteria](docs/openssf-evidence.md).
-
-Included upstream patch fragments retain their original licenses; see
-[third-party notices](THIRD_PARTY_NOTICES.md).
-
-## RC fuzz qualification
-
-The published [v0.1.0-rc.1 release](https://github.com/ha-homelab/ha-echo-show-5/releases/tag/v0.1.0-rc.1)
-contains the qualification report for that tag's exact source commit.
-
-[Bounded Linux fuzzing](docs/fuzzing.md) qualifies release candidates with synthetic
-inputs and a source-bound report. The guide documents targets, local replay and
-acceptance limits. The badge identifies RC-only capability; beta publication and
-hardware acceptance remain separate.
-
-## Integration-source releases
-
-The versioned beta/RC asset is the reviewed source suite described in
-[release packaging and acceptance](docs/release-packaging.md). It includes the
-owned integration code and portable templates; no firmware or APK is bundled.
-Use its saved plan, manifest and checksums when testing the exact candidate.

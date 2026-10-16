@@ -24,7 +24,16 @@ per-entry-dashboard modifications remain subject to the
 commit contains a LICENSE file and no separate NOTICE file. The helper identifies
 original and modified hashes and emits the changes as a guarded local patch.
 
-## Referenced downloads
+`integrations/vaca-dual-wake/vaca-dual-wake.patch` contains source context and
+local modifications from the Android
+[ViewAssistCompanionApp](https://github.com/msp1974/ViewAssistCompanionApp/tree/65906aebffd2f39772773b44729b22fd022a1f3c),
+Copyright © 2025 Mark Parker and upstream contributors. The pinned upstream
+[license](licenses/ViewAssistCompanionApp-LICENSE.txt) and
+[NOTICE](licenses/ViewAssistCompanionApp-NOTICE.txt) are preserved. The patch
+adds two-model selection and related lifecycle/build changes; it is not an
+upstream release. Keep these notices with redistributions of the patch.
+
+## Referenced downloads and binaries
 
 Firmware, recovery images, APKs, trained weights, recordings and device backups
 are not redistributed by these notices. Artifact JSON records identify external

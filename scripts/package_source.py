@@ -139,6 +139,16 @@ def verify(archive: Path, root: Path) -> None:
                 "integrations/show5-display/tests",
             ],
             [sys.executable, "scripts/voice_pipeline.py", "--help"],
+            [
+                sys.executable, "-m", "unittest", "discover", "-s",
+                "integrations/vaca-dual-wake/tests",
+            ],
+            [
+                "node", "--test",
+                *[str(path.relative_to(installed)) for path in sorted(
+                    (installed / "integrations/show5-display/tests").glob("*.cjs")
+                )],
+            ],
             ["node", "integrations/show5-intercom/tests/test_frontend.cjs"],
             ["node", "integrations/show5-intercom/tests/test_readiness.cjs"],
             ["node", "integrations/show5-intercom/tests/test_duplicate_import.cjs"],

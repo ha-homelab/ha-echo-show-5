@@ -1,18 +1,84 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="360" viewBox="0 0 1000 360" role="img" aria-labelledby="title desc">
-  <title id="title">Echo Show 5 Gen2: preparation and daily use</title>
-  <desc id="desc">A temporary Linux USB host prepares and backs up the exact Echo. During daily use, the device connects to Home Assistant over Wi-Fi; speech services may be local or cloud-hosted.</desc>
-  <defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto-start-reverse"><path d="M0 0 L9 4.5 L0 9" fill="#47627d"/></marker></defs>
-  <rect width="1000" height="360" rx="18" fill="#f5f8fc"/>
-  <g font-family="Arial, Helvetica, sans-serif">
-    <text x="32" y="42" font-size="25" font-weight="700" fill="#122b45">Echo Show 5 Gen2: preparation and daily use</text>
-    <text x="32" y="70" font-size="15" fill="#47627d">LineageOS / Android path — model-specific cronos conversion</text>
-    <g fill="#ffffff" stroke="#b7c9da" stroke-width="1.5"><rect x="32" y="132" width="268" height="139" rx="12"/><rect x="366" y="132" width="268" height="139" rx="12"/><rect x="700" y="132" width="268" height="139" rx="12"/></g>
-    <g font-size="13" font-weight="700" fill="#126c96"><text x="50" y="156">PREPARATION</text><text x="384" y="156">DEVICE</text><text x="718" y="156">DAILY SERVICES</text></g>
-    <g font-size="20" font-weight="700" fill="#122b45"><text x="50" y="186">Linux USB host</text><text x="384" y="186">Echo Show 5 · cronos</text><text x="718" y="186">Home Assistant</text></g>
-    <g font-size="15" fill="#334e68"><text x="50" y="219">Identify · unlock · verify backup</text><text x="50" y="245">Temporary conversion tools</text><text x="384" y="219">Android + Companion</text><text x="384" y="245">Optional VACA voice client</text><text x="718" y="219">Integration + Assist pipeline</text><text x="718" y="245">STT · conversation · TTS</text></g>
-    <g fill="none" stroke="#47627d" stroke-width="2" marker-end="url(#arrow)"><path d="M302 204 H358" stroke-dasharray="5 4"/><path d="M641 204 H692" marker-start="url(#arrow)"/></g>
-    <g font-size="13" fill="#47627d" text-anchor="middle"><text x="333" y="115">USB</text><text x="667" y="115">Wi-Fi</text></g>
-    <text x="32" y="310" font-size="15" fill="#334e68">USB: conversion and maintenance. Daily use: normal power and Wi-Fi.</text>
-    <text x="32" y="336" font-size="14" fill="#47627d">Speech services can be local or cloud-hosted. Follow the runbook; this is an architecture map, not a benchmark.</text>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" width="1220" height="790" viewBox="0 0 1220 790" role="img" aria-labelledby="title description">
+  <title id="title">Echo Show 5: services and data boundaries</title>
+  <desc id="description">The converted Show runs VACA and a local clock page. It connects to Home Assistant for Assist, events and remote control. HA selects separate voice, camera and media services. Native Jitsi has its own conference connection. Synology USB is an administration path, not a required normal media hop. Logical arrows do not assert the actual WebRTC network route.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#365a78"/></marker>
+    <style>
+      text { font-family: system-ui, -apple-system, sans-serif; fill: #152c40; }
+      .title { font-size: 30px; font-weight: 700; }
+      .subtitle { font-size: 18px; fill: #465e71; }
+      .heading { font-size: 23px; font-weight: 700; }
+      .body { font-size: 18px; }
+      .small { font-size: 16px; fill: #465e71; }
+      .panel { fill: #fff; stroke: #c9d6e2; stroke-width: 2; rx: 18; }
+      .rule { stroke: #d9e3eb; stroke-width: 1.5; }
+      .flow { fill: none; stroke: #365a78; stroke-width: 3; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect width="1220" height="790" fill="#f4f7fa"/>
+  <text x="40" y="52" class="title">One display. Separate voice, camera and call paths.</text>
+  <text x="40" y="84" class="subtitle">Echo Show 5 Gen2 / cronos · Logical architecture · No household addresses or credentials</text>
+
+  <rect x="40" y="150" width="300" height="395" class="panel"/>
+  <rect x="40" y="150" width="300" height="10" rx="5" fill="#276caa"/>
+  <text x="64" y="197" class="heading">Echo Show 5</text>
+  <text x="64" y="227" class="small">Android 11 / LineageOS 18.1</text>
+  <line x1="64" y1="247" x2="316" y2="247" class="rule"/>
+  <text x="64" y="278" class="body" font-weight="700">VACA</text>
+  <text x="64" y="307" class="body">Local wake detection</text>
+  <text x="64" y="335" class="body">One mic · two models</text>
+  <text x="64" y="363" class="body">Authenticated HA session</text>
+  <line x1="64" y1="383" x2="316" y2="383" class="rule"/>
+  <text x="64" y="415" class="body" font-weight="700">Clock WebView</text>
+  <text x="64" y="444" class="body">Local UI / locale catalog</text>
+  <text x="64" y="473" class="body">Full-screen camera viewer</text>
+  <text x="64" y="514" class="small">Models and app data stay private</text>
+
+  <rect x="450" y="150" width="310" height="395" class="panel"/>
+  <rect x="450" y="150" width="310" height="10" rx="5" fill="#16816e"/>
+  <text x="474" y="197" class="heading">Home Assistant</text>
+  <text x="474" y="227" class="small">Authenticated coordination</text>
+  <line x1="474" y1="247" x2="736" y2="247" class="rule"/>
+  <text x="474" y="278" class="body">Selected Assist pipeline</text>
+  <text x="474" y="311" class="body">Native intents / home tools</text>
+  <text x="474" y="344" class="body">Motion and remote events</text>
+  <text x="474" y="377" class="body">Camera session signaling</text>
+  <text x="474" y="410" class="body">App/media session leases</text>
+  <text x="474" y="443" class="body">End + microphone restore</text>
+  <text x="474" y="488" class="small">Static /local files are public.</text>
+  <text x="474" y="514" class="small">Never store tokens in them.</text>
+
+  <rect x="870" y="150" width="310" height="395" class="panel"/>
+  <rect x="870" y="150" width="310" height="10" rx="5" fill="#956528"/>
+  <text x="894" y="197" class="heading">Separate services</text>
+  <text x="894" y="227" class="small">Configured by the operator</text>
+  <line x1="894" y1="247" x2="1156" y2="247" class="rule"/>
+  <text x="894" y="278" class="body" font-weight="700">Voice</text>
+  <text x="894" y="307" class="body">Local and/or cloud stages</text>
+  <text x="894" y="335" class="small">See the voice-path diagram</text>
+  <text x="894" y="377" class="body" font-weight="700">Camera / media</text>
+  <text x="894" y="406" class="body">HA cameras and relay</text>
+  <text x="894" y="434" class="body">Optional compatible rendition</text>
+  <text x="894" y="477" class="small">Actual media follows negotiated</text>
+  <text x="894" y="503" class="small">ICE or player network routes.</text>
+
+  <path d="M340 270H446" class="flow"/>
+  <text x="395" y="244" class="small" text-anchor="middle">Assist</text>
+  <path d="M450 407H344" class="flow"/>
+  <text x="395" y="383" class="small" text-anchor="middle">Events</text>
+  <path d="M760 270H866" class="flow"/>
+  <text x="815" y="244" class="small" text-anchor="middle">Pipeline</text>
+  <path d="M870 407H764" class="flow"/>
+  <text x="815" y="383" class="small" text-anchor="middle">Services</text>
+
+  <rect x="40" y="602" width="350" height="132" class="panel"/>
+  <text x="64" y="637" class="body" font-weight="700">Administration: Synology USB</text>
+  <text x="64" y="667" class="small">Identity checks · backup · conversion</text>
+  <text x="64" y="694" class="small">Not a required normal media hop</text>
+  <path d="M190 602V550" fill="none" stroke="#60778b" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrow)"/>
+  <rect x="430" y="602" width="750" height="132" class="panel"/>
+  <text x="454" y="637" class="body" font-weight="700">Native Jitsi / OTT / player apps have their own connections</text>
+  <text x="454" y="667" class="small">HA launches and restores the fixed target; it need not relay every media byte.</text>
+  <text x="454" y="694" class="small">Verify selected candidates and server counters before claiming a direct route.</text>
+  <text x="40" y="768" class="small">Source: project runbooks · Logical connections do not measure performance or establish physical acceptance.</text>
 </svg>

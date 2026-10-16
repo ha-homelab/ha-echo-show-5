@@ -26,6 +26,10 @@ jobs:
         python-version: ${{ matrix.python }}
     - name: Run synthetic tests without firmware or device access
       run: python -m unittest discover -s tests -v
+    - name: Check documentation links and SVG accessibility offline
+      run: python scripts/check_docs.py
+    - name: Check dual-wake build provenance without Android or devices
+      run: python -m unittest discover -s integrations/vaca-dual-wake/tests -v
     timeout-minutes: 30
   intercom-tests:
     name: Intercom lifecycle and browser cancellation

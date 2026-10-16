@@ -11,8 +11,11 @@ the resulting behavior, compatibility implications and checks performed. Preserv
 existing authorship and third-party license/provenance records. Discuss changes
 to protocols, storage, device safety or dependency/runtime requirements before
 making an incompatible change. English is the common language for code review
-and the canonical operational guides. Translated entry-point READMEs are welcome; follow the
-[translation policy](docs/i18n.md) and update all affected languages together.
+and the canonical technical documentation. Translated README entry points and
+the display's English, Russian, German and Spanish catalogs are maintained
+together; see [localization](docs/wiki/Localization.md) and the
+[translation policy](docs/i18n.md). Keep code identifiers,
+commands and device model names unchanged in translations.
 
 ## Development and validation
 
@@ -21,9 +24,16 @@ python3 -m unittest discover -s tests -v
 python3 -m unittest discover -s integrations/show5-intercom/tests -v
 node --test integrations/show5-display/tests/*.cjs
 python3 -m unittest discover -s integrations/show5-display/tests -p 'test_*.py' -v
+python3 -m unittest discover -s integrations/vaca-dual-wake/tests -v
+python3 scripts/check_docs.py
 ```
 
 CI separates synthetic host tests, frontend lifecycle tests and optional voice-runtime environments. Use the workflow-specific Python requirements for those environments. These commands do not install firmware, access a camera or approve a live rollout.
+
+The offline documentation check verifies local Markdown links, heading anchors
+and accessible, self-contained SVG diagrams. It does not fetch external links.
+Keep new shipped files in the explicit `release-files.json` inventory; a new
+script referenced by HTML must also be present in the source distribution.
 
 The [CI workflow](.github/workflows/tests.yml) is the authoritative list of required jobs.
 Use isolated test data and temporary outputs. Never run a device write, unlock,

@@ -25,6 +25,14 @@ Use VACA's HA integration and Android app at matching versions, updating the int
 
 This guide's behavior review uses the pinned [Android source](https://github.com/msp1974/ViewAssistCompanionApp/tree/65906aebffd2f39772773b44729b22fd022a1f3c) and [HA integration source](https://github.com/msp1974/ViewAssist_Companion_App/tree/4948528bd016c24c395bf8dc3d86c1c7ec60eb73). A future release requires rechecking the paths and behavior below.
 
+## Optional two-model local build
+
+The [dual-wake extension](../integrations/vaca-dual-wake/README.md) adds one
+app-private secondary microWakeWord model alongside the primary HA selection.
+It includes a pinned source patch, build helper, duplicate-trigger protection
+and a signing-aware backup/restore procedure. See its deployment status before
+assuming an individual device has received the extension.
+
 ## Network and microphone ownership
 
 VACA requires **HA → Show TCP10800** by default for Wyoming, or the actual port configured in the app. The device still needs access to HA authentication, HTTP(S), WebSocket and returned media URLs. Across routed networks, configure the intended device explicitly rather than assuming mDNS discovery crosses network boundaries. Keep the device listener on a trusted private network.

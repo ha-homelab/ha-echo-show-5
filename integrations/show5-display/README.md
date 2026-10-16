@@ -3,10 +3,29 @@
 This standalone page replaces the full Home Assistant dashboard with a large
 clock. A matching Front or Porch motion event shows that camera for 30 seconds;
 another event renews the lease, and the latest camera wins. Expiry returns to the
-clock. The interface, date and status messages are English. Camera video fills
+clock. The interface, date and status messages use English by default; English,
+Russian, German and Spanish are available through an explicit locale setting. Camera video fills
 the entire screen without a title or clock header. `object-fit: cover` preserves
 proportions and crops the excess at the edges instead of stretching or adding
 borders; timestamps embedded by a camera remain part of its video.
+
+Revision **`20261015-r11`** recovers when Home Assistant accepts WebSocket
+authentication before MQTT has registered its subscription command. An explicit
+`unknown_command` subscription failure closes the full event connection,
+discards partial subscriptions, returns to the clock and retries with exponential
+backoff from one second up to 30 seconds. Controls stay inactive until every
+subscription succeeds; earlier events are not replayed. Diagnostic status is
+`subscription_unavailable` during retry. Permission denials, other errors and
+malformed failure results remain blocked as `subscription_forbidden`; they do
+not start a permission retry loop. This recovery retains all r10 localization
+and camera presentation behavior.
+
+Revision **`20261015-r10`** adds the local `i18n.js` catalog, localized dates,
+accessible names and status text, with an optional 12-hour clock. Existing
+configurations remain English with a 24-hour clock. It preserves automatic
+playback, the masked loading surface and full-screen video from r9. The source
+and offline regression tests cover all four languages; that is not evidence of
+deployment, device font rendering or physical voice acceptance.
 
 Revision **`20261005-r9`** removes Android WebView's fallback play-circle poster
 from motion camera playback. An explicit same-origin black poster avoids the
@@ -72,6 +91,45 @@ HA serves `/local` files without authentication: the entity/topic mapping is
 visible there even though obtaining camera images still requires authorization.
 Keep the filled mapping out of the public Git repository.
 
+### Language and clock format
+
+Set these non-secret fields in the device's ignored `config.js`:
+
+```javascript
+locale: "en-US", // en / ru / de / es, optionally with a region
+hour12: false,   // false: 00:05; true: 12:05 AM (day period follows the locale)
+timeZone: "America/Los_Angeles",
+```
+
+`en`, `ru`, `de` and `es` select `en-US`, `ru-RU`, `de-DE` and `es-ES`
+respectively. A language-region tag such as `en-GB`, `de-AT` or `es-MX` retains
+regional date formatting. Input is case-insensitive; unsupported languages and
+malformed tags fall back to `en-US`. Browser preferences and URL parameters do
+not override this setting. `hour12` must be a boolean when supplied; omission
+keeps the existing 24-hour format. The configured IANA time zone controls the
+date and daylight saving transitions independently of the locale.
+
+All 12 page strings are in the same-origin `i18n.js` file: page title, accessible
+clock/camera/image/video names, loading/connecting/delayed/unavailable messages
+and default Front/Porch names. No translation service, remote font or additional
+network request is used. `document.documentElement.lang` identifies the active
+language for assistive technology. If Android's `Intl` library lacks the chosen
+date locale, the clock/date fall back to English while translated page text
+remains available. The non-sensitive `data-format-locale` attribute on `<html>`
+shows the formatter's actual locale.
+
+An explicit camera `label` is operator-provided text and is not translated;
+omit it to use the localized default. Labels remain accessible names, never
+visible overlays over video. Do **not** translate camera role keys (`front`,
+`porch`), entity IDs, MQTT topics, matching payloads or `jsonName`: those identify
+existing integrations. Localized text is inserted as text/attributes, never HTML.
+
+This setting only translates this clock/camera page. It does not change Android,
+VACA, Home Assistant, OTT/Jitsi, spoken wake words or the assistant pipeline's
+language. Diagnostic error codes remain stable for scripts and troubleshooting.
+Changing locale requires the same complete, newly versioned deployment as any
+other configuration update; see the installation steps below.
+
 The page uses VACA's existing native external-auth bridge. Short-lived tokens
 stay in memory and authorize same-origin HA camera and WebSocket requests.
 If HA rejects a video authentication challenge, the adapter forces one native
@@ -87,6 +145,10 @@ session. Confirm that the existing session can subscribe; do not silently grant
 an ordinary display account administrator access. If it cannot, the clock still
 works but automatic camera activation needs a separately designed restricted
 event adapter. Subscription failures are visible in `Show5Auth.status()`.
+An `unknown_command` result can mean that HA is still starting its integrations:
+the page reconnects automatically as described in r11 above. It does not request
+new permissions or change the account. A persistent unavailable result still
+requires checking that MQTT and the expected HA commands are installed/enabled.
 
 The video adapter opens its own authenticated same-origin HA WebSocket, obtains
 the camera's client configuration, then exchanges offer, answer and bounded ICE
@@ -102,12 +164,13 @@ do not add external scripts, frames or navigation to this authenticated page.
 ## Installation
 
 1. Back up any existing `/config/www/show5-display` directory outside `/config/www`.
-2. Copy the six assets `display.css`, `display.js`, `stream.js`, `auth.js`,
-   `blank-video.svg` and the filled `config.js` to
+2. Copy the seven assets `display.css`, `i18n.js`, `display.js`, `stream.js`,
+   `auth.js`, `blank-video.svg` and the filled `config.js` to
    `/config/www/show5-display/`. Copy the source `index.html` as
-   **`index-20261005-r9.html`**, with all six asset URL versions set to
-   **`?v=20261005-r9`**. Do not copy tests or backup files.
-3. Open `/local/show5-display/index-20261005-r9.html?external_auth=1` in the selected VACA
+   **`index-20261015-r11.html`**, with all seven asset URL versions set to
+   **`?v=20261015-r11`**. Keep `i18n.js` before `display.js` in the deferred
+   script order. Do not copy tests or backup files.
+3. Open `/local/show5-display/index-20261015-r11.html?external_auth=1` in the selected VACA
    WebView. Verify the clock and the sanitized `Show5Auth.status()` result.
 4. Configure the selected device's persistent home path as described below.
    A one-time browser navigation alone does not survive VACA Refresh/restart.
@@ -116,7 +179,7 @@ do not add external scripts, frames or navigation to this authenticated page.
 HA `/local` responses can be cached for 31 days. VACA uses `LOAD_DEFAULT` and
 its Refresh action does not clear the WebView cache. **Every deployed update,
 including a configuration-only change, needs a new entry filename and a new
-version on all six asset URLs in the HTML.** Change the selected entry's home
+version on all seven asset URLs in the HTML.** Change the selected entry's home
 path to that new filename after copying the complete release. Keep a private
 backup of the previous complete release; a rollback also needs a fresh release
 ID because the original asset URLs may already be cached. Restarting the app
@@ -139,7 +202,7 @@ Deploy the patch to the HA configuration volume, validate configuration and
 perform one normal HA Core restart to load changed Python modules. An integration
 reload alone does not reliably import edited Python code. Then edit only the
 intended VACA config entry's options, retaining its existing `ha_url`, and set
-`ha_dashboard` to `/local/show5-display/index-20261005-r9.html`. VACA adds `external_auth=1`.
+`ha_dashboard` to `/local/show5-display/index-20261015-r11.html`. VACA adds `external_auth=1`.
 The entry's existing update listener reloads that entry after saving options.
 
 Check the selected device after VACA Refresh and an app restart. Recheck this
@@ -159,6 +222,14 @@ Run the offline tests from the repository root:
 node --test integrations/show5-display/tests/*.cjs
 python3 -m unittest discover -s integrations/show5-display/tests -p 'test_*.py' -v
 ```
+
+Localization tests check complete catalogs, hostile/unknown locale fallback,
+regional tags, translated DOM/status output, midnight and daylight saving,
+12-hour formatting, reduced `Intl` support and unchanged camera IDs. Existing
+tests still exercise authentication, motion leases, frame retention, video
+startup/cleanup and the hidden native play poster. On the actual Show, also check
+the chosen alphabet, the full date and the 12-hour marker if enabled: a desktop
+test cannot establish Android font coverage or layout at the device's density.
 
 On the selected device, inspect `Show5Auth.status()` without logging tokens.
 Its MQTT-ready status establishes the event connection, not successful video
@@ -207,6 +278,18 @@ Each request is bounded to ten seconds and 10 MiB, and requests never overlap.
 Switching camera, hiding the page or lease expiry clears images and revokes
 their object URLs. Select this fallback deliberately and deploy the changed
 configuration under a new release version.
+
+## Installed update, October 15, 2026
+
+Both converted Shows now use complete versioned `20261015-r11` asset sets,
+including `i18n.js`, with English and 24-hour time retained. Previous asset sets
+and private HA option snapshots are kept for rollback. Other device settings,
+selected assistants and satellite identities were preserved.
+
+The deployment was checked separately from desktop localization rendering.
+Current device-level camera observations and their limits are recorded in the
+[validation wiki](../../docs/wiki/Validation.md); the dated records below describe
+earlier builds and are not a new long-duration acceptance test.
 
 ## Observed deployment, October 4, 2026
 
