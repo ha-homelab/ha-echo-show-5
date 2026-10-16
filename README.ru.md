@@ -1,5 +1,7 @@
 # Echo Show 5 Gen2 → Android → Home Assistant
 
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15595/badge)](https://www.bestpractices.dev/projects/15595)
+
 [English](README.md) · **Русский** · [Deutsch](README.de.md) · [Español](README.es.md) · [Français](README.fr.md)
 
 Проект превращает **Amazon Echo Show 5 второго поколения (2021), кодовое имя `cronos`**, в голосовую точку Home Assistant, часы, экран камер по движению и управляемый медиатерминал. В репозитории — инструменты конверсии под наблюдением оператора, патчи, интеграции и инструкции восстановления. Прошивки, APK, личные модели активации и домашние учётные данные сюда не входят.

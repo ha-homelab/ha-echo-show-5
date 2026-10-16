@@ -73,7 +73,7 @@ class OptionalApkChecks:
         path = self.make_artifact()
         payload = path.read_bytes()
         path.unlink()
-        with mock.patch.object(artifacts.urllib.request, 'urlopen', return_value=io.BytesIO(payload)) as get:
+        with mock.patch.object(artifacts, 'open_source', return_value=io.BytesIO(payload)) as get:
             self.assertEqual(artifacts.fetch(self.kind), path)
         request = get.call_args[0][0]
         self.assertEqual(request.full_url, self.metadata['url'])
@@ -84,7 +84,7 @@ class OptionalApkChecks:
         path = self.make_artifact()
         payload = path.read_bytes() + b'modified'
         path.unlink()
-        with mock.patch.object(artifacts.urllib.request, 'urlopen', return_value=io.BytesIO(payload)):
+        with mock.patch.object(artifacts, 'open_source', return_value=io.BytesIO(payload)):
             with self.assertRaisesRegex(ValueError, 'size/SHA256'):
                 artifacts.fetch(self.kind)
         self.assertFalse(path.exists())
@@ -106,7 +106,7 @@ class OptionalApkChecks:
                         path.write_bytes(valid_payload)
                     return io.BytesIO(corrupted)
 
-                with mock.patch.object(artifacts.urllib.request, 'urlopen', side_effect=download):
+                with mock.patch.object(artifacts, 'open_source', side_effect=download):
                     with self.assertRaisesRegex(ValueError, 'Archive CRC'):
                         artifacts.fetch(self.kind)
                 if destination_appears_during_download:
@@ -118,7 +118,7 @@ class OptionalApkChecks:
     def test_fetch_keeps_existing_verified_destination(self):
         path = self.make_artifact()
         payload = path.read_bytes()
-        with mock.patch.object(artifacts.urllib.request, 'urlopen') as get:
+        with mock.patch.object(artifacts, 'open_source') as get:
             self.assertEqual(artifacts.fetch(self.kind), path)
         get.assert_not_called()
         self.assertEqual(path.read_bytes(), payload)
@@ -127,7 +127,7 @@ class OptionalApkChecks:
         path = self.make_artifact('optional-fixture.zip')
         payload = path.read_bytes()
         path.unlink()
-        with mock.patch.object(artifacts.urllib.request, 'urlopen', return_value=io.BytesIO(payload)):
+        with mock.patch.object(artifacts, 'open_source', return_value=io.BytesIO(payload)):
             with self.assertRaisesRegex(ValueError, 'Unexpected file type'):
                 artifacts.fetch(self.kind)
         self.assertFalse(path.exists())
@@ -144,6 +144,100 @@ class AndroidIpCameraArtifactTests(OptionalApkChecks, unittest.TestCase):
 
 class JitsiArtifactTests(OptionalApkChecks, unittest.TestCase):
     kind = 'jitsi'
+
+
+class ArtifactTransferBoundaryTests(unittest.TestCase):
+    kind = 'vaca'
+    setUp = OptionalApkChecks.setUp
+    tearDown = OptionalApkChecks.tearDown
+    make_artifact = OptionalApkChecks.make_artifact
+    record = OptionalApkChecks.record
+
+    def test_rejects_invalid_metadata_before_network_access(self):
+        self.make_artifact().unlink()
+        original = dict(self.metadata)
+        cases = [('name', '../escape.apk'), ('name', '..\\escape.apk'),
+                 ('size', True), ('size', 0), ('size', -1), ('size', 1.5),
+                 ('sha256', 'z' * 64), ('url', 'http://example.invalid/file'),
+                 ('url', 'https://user:password@example.invalid/file')]
+        for field, value in cases:
+            with self.subTest(field=field, value=value):
+                (self.root / 'vaca-artifact.json').write_text(json.dumps({**original, field: value}))
+                with mock.patch.object(artifacts, 'open_source') as get:
+                    with self.assertRaises(ValueError):
+                        artifacts.fetch(self.kind)
+                    get.assert_not_called()
+
+    def test_oversized_response_stops_at_pinned_limit_and_cleans_partial(self):
+        path = self.make_artifact()
+        payload = path.read_bytes()
+        path.unlink()
+        response = mock.MagicMock()
+        response.__enter__.return_value = response
+        response.read.return_value = payload + b'x'
+        with mock.patch.object(artifacts, 'open_source', return_value=response):
+            with self.assertRaisesRegex(ValueError, 'exceeds pinned size'):
+                artifacts.fetch(self.kind)
+        response.read.assert_called_once_with(len(payload) + 1)
+        self.assertFalse(path.exists())
+        self.assertEqual(list(path.parent.iterdir()), [])
+
+    def test_unique_private_partial_ignores_stale_shared_name(self):
+        path = self.make_artifact()
+        payload = path.read_bytes()
+        path.unlink()
+        stale = path.with_name(path.name + '.partial')
+        stale.write_bytes(b'preserve an unrelated partial')
+
+        def response(request):
+            partials = [p for p in path.parent.iterdir() if p != stale]
+            self.assertEqual(len(partials), 1)
+            self.assertEqual(partials[0].stat().st_mode & 0o777, 0o600)
+            return io.BytesIO(payload)
+
+        with mock.patch.object(artifacts, 'open_source', side_effect=response):
+            artifacts.fetch(self.kind)
+        self.assertEqual(stale.read_bytes(), b'preserve an unrelated partial')
+        self.assertEqual(set(path.parent.iterdir()), {path, stale})
+
+    def test_concurrent_destination_is_verified_and_never_overwritten(self):
+        for valid in (False, True):
+            with self.subTest(valid=valid):
+                path = self.make_artifact()
+                payload = path.read_bytes()
+                path.unlink()
+                winner = payload if valid else b'preserve concurrent bytes'
+
+                def response(request):
+                    path.write_bytes(winner)
+                    return io.BytesIO(payload)
+
+                with mock.patch.object(artifacts, 'open_source', side_effect=response):
+                    if valid:
+                        self.assertEqual(artifacts.fetch(self.kind), path)
+                    else:
+                        with self.assertRaisesRegex(ValueError, 'size/SHA256'):
+                            artifacts.fetch(self.kind)
+                self.assertEqual(path.read_bytes(), winner)
+                self.assertEqual(list(path.parent.iterdir()), [path])
+
+    def test_rejects_symlink_before_reading_artifact(self):
+        path = self.make_artifact()
+        payload = path.read_bytes()
+        path.unlink()
+        other = self.root / 'other.apk'
+        other.write_bytes(payload)
+        path.symlink_to(other)
+        with self.assertRaisesRegex(ValueError, 'regular file'):
+            artifacts.verify(self.kind)
+
+    def test_https_redirects_reject_plaintext(self):
+        request = artifacts.urllib.request.Request('https://example.invalid/a')
+        handler = artifacts.HTTPSRedirect()
+        with self.assertRaisesRegex(ValueError, 'remain HTTPS'):
+            handler.redirect_request(request, None, 302, 'Found', {}, 'http://example.invalid/b')
+        redirected = handler.redirect_request(request, None, 302, 'Found', {}, 'https://other.invalid/b')
+        self.assertEqual(redirected.full_url, 'https://other.invalid/b')
 
 
 if __name__ == '__main__':
