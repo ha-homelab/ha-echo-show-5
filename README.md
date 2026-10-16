@@ -100,3 +100,7 @@ python3 -m unittest discover -s integrations/show5-intercom/tests -v
   deployment setup.
 - [HA Homelab project directory](https://github.com/ha-homelab) lists the other
   public integrations and hardware guides.
+
+## License
+
+Original project code and documentation are available under the [MIT license](LICENSE). [Third-party notices](THIRD_PARTY_NOTICES.md) preserve separate terms for included or referenced upstream material. This grant does not relicense firmware, models, recordings, datasets or other third-party artifacts.

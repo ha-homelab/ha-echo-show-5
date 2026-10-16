@@ -28,7 +28,7 @@ analyzed.
 
 ## Unresolved criteria and applicability
 
-An explicit project-source license grant is absent. Resolve source ownership and license choice, including third-party conversion artifacts, before claiming FLOSS eligibility. Preserve pending physical voice/power-cycle acceptance from the existing runbook.
+Original project code and documentation use [MIT](../LICENSE). The [third-party notices](../THIRD_PARTY_NOTICES.md) preserve separate conversion-artifact and patch-fragment terms. Preserve pending physical voice/power-cycle acceptance from the existing runbook.
 
 The project maintainer must confirm secure-design/common-error knowledge for
 this project and supply the history of bug, enhancement and vulnerability

@@ -1,8 +1,7 @@
 # Third-party source and artifact notices
 
 The following notices apply to upstream material included or referenced by this
-repository. They do not select a license for this project's original helpers
-and documentation; that separate owner decision is still pending.
+repository. Original project helpers and documentation use the root [MIT license](LICENSE). The included upstream fragments and their modifications described below retain their stated licenses; the root grant does not replace them.
 
 ## Included patch fragments
 
@@ -47,3 +46,7 @@ source uses MIT. The referenced [amonet](https://github.com/R0rt1z2/amonet/tree/
 source includes GPL-2.0 terms in `LICENSE.GPL2`; this does not establish a grant
 for every downloaded proprietary payload. Preserve component notices and review
 the actual distribution contents before redistributing any built image.
+
+## Vendored release tooling
+
+Shared release, versioning and workflow-contract scripts come from [venus-os-ci-toolkit](https://github.com/victron-venus/venus-os-ci-toolkit). Their [MIT notice](licenses/venus-os-ci-toolkit-LICENSE.txt) is preserved separately.
