@@ -1,10 +1,14 @@
 # Echo Show 5 Gen2 → Android → Home Assistant
 
+[English](README.md) · [Русский](README.ru.md) · [Deutsch](README.de.md) · [Español](README.es.md) · [Français](README.fr.md)
+
+**Documentation:** [topic index](docs/README.md) · [translation scope and maintenance](docs/i18n.md). Localized READMEs cover the overview, setup sequence and limitations; detailed operational guides remain in English.
+
 [![Fuzzing: RC only](https://img.shields.io/badge/fuzzing-RC_only-blue)](docs/fuzzing.md)
 
 Tools and an attended runbook for reusing an **Amazon Echo Show 5, second generation (2021), codename `cronos`**, as an Android Home Assistant display and voice client. This project targets a physical **x86_64 Synology NAS** as the USB host, controlled over SSH from a separate computer.
 
-**Validation status, 2026-10-02:** a physical cronos device has completed the guarded TWRP conversion and first **Android 11 / LineageOS 18.1** boot. The raw backups passed validation on both NAS and workstation, and the pinned **Home Assistant Companion minimal APK installed successfully**. Companion is authenticated to HA and renders the existing dashboard. Optional **VACA 0.13.4** is installed with a local custom model, a running wake-word engine and an idle HA satellite connection. After settling onboarding permissions, VACA restarted unattended through one normal Android reboot, reconnected to HA and kept capture active with Companion back in the foreground. Controlled physical voice, power-cycle and multi-day reliability tests remain pending. See [validation status](docs/preparation-status.md) for the evidence and remaining checks.
+**Recorded validation snapshot, 2026-10-02 (not live fleet status):** a physical cronos device has completed the guarded TWRP conversion and first **Android 11 / LineageOS 18.1** boot. The raw backups passed validation on both NAS and workstation, and the pinned **Home Assistant Companion minimal APK installed successfully**. Companion is authenticated to HA and renders the existing dashboard. Optional **VACA 0.13.4** is installed with a local custom model, a running wake-word engine and an idle HA satellite connection. After settling onboarding permissions, VACA restarted unattended through one normal Android reboot, reconnected to HA and kept capture active with Companion back in the foreground. Controlled physical voice, power-cycle and multi-day reliability tests remain pending. See [validation status](docs/preparation-status.md) for the evidence and remaining checks.
 
 The [camera pilot](docs/camera-and-intercom.md) delivered authenticated **640×480 MJPEG at 5.19 fps over a 20-second sample**, while Companion stayed in the foreground and VACA capture remained active. A later zero-camera condition cleared after an ordinary Android reboot with hardware privacy off. Android then reported one camera, and manual camera/Companion startup returned two different fresh authenticated JPEG frames. The cause of the earlier loss remains unresolved. A later [Wi-Fi ADB reboot check](docs/android-and-home-assistant.md#persistent-wi-fi-adb-on-the-tested-rom) passed: authenticated network access returned after an ordinary reboot without using USB commands. Trusted USB remains a [recovery fallback](docs/camera-and-intercom.md#manual-recovery-after-an-android-reboot). Camera boot start is off; full unattended recovery and power-loss behavior remain unverified.
 
@@ -13,6 +17,8 @@ The optional [HA intercom integration](integrations/show5-intercom/README.md) pa
 The separate [native Jitsi pilot](docs/jitsi-calls.md) uses a verified F-Droid APK and an operator-controlled conference server. An attended two-party test confirmed received video in both directions and audio transport from the Show. Explicit HA End restored fresh camera video, VACA capture and Companion home. Physical audibility, intelligibility and echo behavior still need acceptance. The HA controls use a two-minute lease, attended Join and explicit End/restoration.
 
 ## Conversion route
+
+![Temporary USB preparation; Android Companion and optional VACA connect to Home Assistant over Wi-Fi](docs/assets/architecture.svg)
 
 Stock Show 5 Gen2 → **amonet-cronos 2.0.1** → TWRP → verified off-device backup → **unofficial LineageOS 18.1 v0.4 / Android 11** → **Home Assistant Companion 2026.8.4 minimal** → your Home Assistant server.
 
@@ -89,6 +95,9 @@ our OTT-play FOSS Capacitor Android client and separate OTT web/app launchers. G
 APKs stay outside Git.
 
 ## Related projects
+
+- [EchoMuse on emOS](https://github.com/ha-homelab/ha-echomuse) covers a separate
+  Dot software stack. Its firmware and access methods are not this Android Show route.
 
 - [Echo Dot 2 conversion](https://github.com/ha-homelab/ha-echo-dot) documents the
   EchoLocal voice-satellite route for different hardware. Do not interchange

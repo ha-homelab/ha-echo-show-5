@@ -11,7 +11,8 @@ the resulting behavior, compatibility implications and checks performed. Preserv
 existing authorship and third-party license/provenance records. Discuss changes
 to protocols, storage, device safety or dependency/runtime requirements before
 making an incompatible change. English is the common language for code review
-and project documentation.
+and the canonical operational guides. Translated entry-point READMEs are welcome; follow the
+[translation policy](docs/i18n.md) and update all affected languages together.
 
 ## Development and validation
 

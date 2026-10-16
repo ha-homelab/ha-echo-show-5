@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Documentation
+
+- Add Russian, German, Spanish and French README entry points with a shared topic
+  index, translation policy and accessible SVG architecture diagram.
+- Distinguish the EchoLocal, EchoMuse and Android Show routes and label recorded
+  validation as historical evidence rather than current device state.
+- Include the new documentation in the public source distribution.
+
 ## [0.1.1] - 2026-10-14
 
 ### Changed
