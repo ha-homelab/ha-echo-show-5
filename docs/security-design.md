@@ -28,7 +28,7 @@ upstream service, hardware model or production deployment.
 
 ## Remaining security assessment
 
-An explicit project-source license grant is absent. Resolve source ownership and license choice, including third-party conversion artifacts, before claiming FLOSS eligibility. Preserve pending physical voice/power-cycle acceptance from the existing runbook.
+Original project code and documentation use [MIT](../LICENSE). The [third-party notices](../THIRD_PARTY_NOTICES.md) preserve separate conversion-artifact and patch-fragment terms. Preserve pending physical voice/power-cycle acceptance from the existing runbook.
 
 Report new issues through [SECURITY.md](../SECURITY.md). An OpenSSF assessment
 records evidence and applicability; it is not a guarantee that a system is safe.

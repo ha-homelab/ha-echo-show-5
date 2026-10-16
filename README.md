@@ -1,5 +1,7 @@
 # Echo Show 5 Gen2 → Android → Home Assistant
 
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15595/badge)](https://www.bestpractices.dev/projects/15595)
+
 [![Fuzzing: RC only](https://img.shields.io/badge/fuzzing-RC_only-blue)](docs/fuzzing.md)
 
 **English** · [Русский](README.ru.md) · [Deutsch](README.de.md) · [Español](README.es.md) · [Français](README.fr.md)
@@ -100,3 +102,14 @@ python3 -m unittest discover -s integrations/show5-intercom/tests -v
   deployment setup.
 - [HA Homelab project directory](https://github.com/ha-homelab) lists the other
   public integrations and hardware guides.
+
+## License
+
+Original project code and documentation are available under the [MIT license](LICENSE). [Third-party notices](THIRD_PARTY_NOTICES.md) preserve separate terms for included or referenced upstream material. This grant does not relicense firmware, models, recordings, datasets or other third-party artifacts.
+
+
+## Project maintenance
+
+[Contribution guide](CONTRIBUTING.md) · [Security policy](SECURITY.md) ·
+[Governance](GOVERNANCE.md) · [Code of Conduct](CODE_OF_CONDUCT.md) ·
+[Roadmap](ROADMAP.md) · [Quality evidence and limits](docs/quality.md)

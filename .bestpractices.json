@@ -7,9 +7,9 @@
   "interact_status": "Met",
   "contribution_status": "Met",
   "contribution_requirements_status": "Met",
-  "floss_license_status": "?",
-  "floss_license_osi_status": "?",
-  "license_location_status": "?",
+  "floss_license_status": "Met",
+  "floss_license_osi_status": "Met",
+  "license_location_status": "Met",
   "documentation_basics_status": "Met",
   "documentation_interface_status": "?",
   "sites_https_status": "Met",
@@ -88,7 +88,7 @@
   "test_invocation_justification": "https://github.com/ha-homelab/ha-echo-show-5/blob/main/CONTRIBUTING.md documents the project evidence; see https://github.com/ha-homelab/ha-echo-show-5/blob/main/docs/openssf-evidence.md for scope and unresolved criteria.",
   "test_policy_justification": "https://github.com/ha-homelab/ha-echo-show-5/blob/main/CONTRIBUTING.md documents the project evidence; see https://github.com/ha-homelab/ha-echo-show-5/blob/main/docs/openssf-evidence.md for scope and unresolved criteria.",
   "tests_documented_added_justification": "https://github.com/ha-homelab/ha-echo-show-5/blob/main/CONTRIBUTING.md documents the project evidence; see https://github.com/ha-homelab/ha-echo-show-5/blob/main/docs/openssf-evidence.md for scope and unresolved criteria.",
-  "floss_license_justification": "An explicit project-source license grant is absent. Resolve source ownership and license choice, including third-party conversion artifacts, before claiming FLOSS eligibility. Preserve pending physical voice/power-cycle acceptance from the existing runbook.",
-  "floss_license_osi_justification": "An explicit project-source license grant is absent. Resolve source ownership and license choice, including third-party conversion artifacts, before claiming FLOSS eligibility. Preserve pending physical voice/power-cycle acceptance from the existing runbook.",
-  "license_location_justification": "An explicit project-source license grant is absent. Resolve source ownership and license choice, including third-party conversion artifacts, before claiming FLOSS eligibility. Preserve pending physical voice/power-cycle acceptance from the existing runbook."
+  "floss_license_justification": "The owner explicitly authorized the MIT grant for original project code and documentation. The root LICENSE contains that grant; THIRD_PARTY_NOTICES.md preserves upstream terms and excludes third-party firmware, models, data and linked artifacts. https://github.com/ha-homelab/ha-echo-show-5/blob/main/LICENSE https://github.com/ha-homelab/ha-echo-show-5/blob/main/THIRD_PARTY_NOTICES.md",
+  "floss_license_osi_justification": "The owner explicitly authorized the MIT grant for original project code and documentation. The root LICENSE contains that grant; THIRD_PARTY_NOTICES.md preserves upstream terms and excludes third-party firmware, models, data and linked artifacts. https://github.com/ha-homelab/ha-echo-show-5/blob/main/LICENSE https://github.com/ha-homelab/ha-echo-show-5/blob/main/THIRD_PARTY_NOTICES.md",
+  "license_location_justification": "The owner explicitly authorized the MIT grant for original project code and documentation. The root LICENSE contains that grant; THIRD_PARTY_NOTICES.md preserves upstream terms and excludes third-party firmware, models, data and linked artifacts. https://github.com/ha-homelab/ha-echo-show-5/blob/main/LICENSE https://github.com/ha-homelab/ha-echo-show-5/blob/main/THIRD_PARTY_NOTICES.md"
 }

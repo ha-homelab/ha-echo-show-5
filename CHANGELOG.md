@@ -13,6 +13,10 @@
 
 ### Fixed
 
+- Bound artifact download writes to the pinned size, reject HTTPS downgrades and
+  invalid metadata, use private unique temporary files and preserve concurrent
+  destination files until their size, digest and archive checks pass.
+
 - Retry unavailable MQTT subscription commands during HA startup instead of
   permanently treating them as denied access. Keep permission failures blocked.
 - Release the native wake detector when recognition stops or reloads. The local
