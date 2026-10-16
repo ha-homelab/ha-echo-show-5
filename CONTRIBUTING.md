@@ -68,3 +68,5 @@ Run the documented tests in a fresh virtual environment after updating a lock.
 The isolated Home Assistant test runtime is 2026.10.0 and requires Python
 3.14.2 or newer. Updating these test dependencies does not upgrade an installed
 Home Assistant instance.
+
+Contributions to original project code and documentation are made under the [MIT license](LICENSE). Preserve upstream copyright, license and NOTICE files for third-party material.
