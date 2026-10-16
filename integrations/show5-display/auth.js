@@ -412,6 +412,13 @@
             }
           } else if (authenticated && message.type === "result" && subscriptions.has(message.id)) {
             if (message.success !== true) {
+              // HA can accept WebSocket auth before an integration registers
+              // its commands. Retry only this explicit availability failure.
+              // Reconnecting closes every partial subscription and the camera.
+              if (message.success === false && message.error && typeof message.error === "object" &&
+                  !Array.isArray(message.error) && message.error.code === "unknown_command") {
+                reconnect("subscription_unavailable"); return;
+              }
               // MQTT and custom HA event subscriptions are admin-only. Do not
               // partially activate controls when any subscription is rejected.
               blocked = true; lastError = "subscription_forbidden"; state = "forbidden";

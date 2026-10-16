@@ -320,6 +320,76 @@ test("subscription permission failure closes all subscriptions and blocks reconn
   assert.ok(!JSON.stringify(h.adapter.status()).includes("private"));
 });
 
+test("HA startup unknown_command retries subscriptions and becomes ready when MQTT loads", async () => {
+  const h = harness(); h.adapter.start(); h.token(); await flush();
+  const first = h.sockets[0]; first.message({ type: "auth_ok" });
+  const sub = first.sent.find(item => item.type === "mqtt/subscribe");
+  const clocks = h.clocks();
+  first.message({ type: "result", id: sub.id, success: false,
+    error: { code: "unknown_command", message: "private startup diagnostics" } });
+  assert.equal(h.adapter.status().connection, "reconnecting");
+  assert.equal(h.adapter.status().lastError, "subscription_unavailable");
+  assert.equal(h.adapter.status().subscriptions, 0);
+  assert.equal(first.closed, true);
+  assert.equal(h.clocks(), clocks + 1);
+  assert.ok(!JSON.stringify(h.adapter.status()).includes("private"));
+  await h.timers.tick(999); assert.equal(h.sockets.length, 1);
+  await h.timers.tick(1); assert.equal(h.sockets.length, 2);
+  const second = h.sockets[1]; second.message({ type: "auth_ok" });
+  const retry = second.sent.filter(item => item.type === "mqtt/subscribe");
+  assert.deepEqual(retry.map(item => item.topic), ["test/front", "test/porch"]);
+  assert.equal(h.adapter.status().connection, "subscribing");
+  retry.forEach(item => second.message({ type: "result", id: item.id, success: true }));
+  assert.equal(h.adapter.status().connection, "ready");
+  assert.equal(h.adapter.status().lastError, null);
+  h.event(second, "test/front", "motion"); assert.deepEqual(h.displayed, ["front"]);
+  assert.deepEqual(h.native, [{ force: false }], "availability retry reuses the valid token");
+  second.disconnect();
+  await h.timers.tick(999); assert.equal(h.sockets.length, 2);
+  await h.timers.tick(1); assert.equal(h.sockets.length, 3, "full readiness resets backoff");
+  h.adapter.destroy();
+});
+
+test("persistent unknown_command uses capped exponential backoff and stops while hidden", async () => {
+  const h = harness(); h.adapter.start(); h.token(); await flush();
+  for (const delay of [1000, 2000, 4000, 8000, 16000, 30000, 30000]) {
+    const socket = h.sockets.at(-1); socket.message({ type: "auth_ok" });
+    const sub = socket.sent.find(item => item.type === "mqtt/subscribe");
+    socket.message({ type: "result", id: sub.id, success: false, error: { code: "unknown_command" } });
+    assert.equal(h.adapter.status().lastError, "subscription_unavailable");
+    const count = h.sockets.length;
+    await h.timers.tick(delay - 1); assert.equal(h.sockets.length, count);
+    await h.timers.tick(1); assert.equal(h.sockets.length, count + 1);
+  }
+  h.adapter.setHidden(true);
+  const count = h.sockets.length;
+  await h.timers.tick(60000); assert.equal(h.sockets.length, count);
+  h.adapter.destroy();
+});
+
+test("other and malformed subscription failures never become availability retries", async () => {
+  const errors = [null, "unknown_command", ["unknown_command"], {},
+    { code: "UNKNOWN_COMMAND" }, { code: "unauthorized" }, { code: "forbidden" },
+    { code: "not_found" }, { code: "unknown_error" }, { code: "timeout" }];
+  const results = errors.map(error => ({ success: false, error }));
+  results.push({ error: { code: "unknown_command" } },
+    { success: "false", error: { code: "unknown_command" } });
+  for (const result of results) {
+    const h = harness(); h.adapter.start(); h.token(); await flush();
+    const socket = h.sockets[0]; socket.message({ type: "auth_ok" });
+    const sub = socket.sent.find(item => item.type === "mqtt/subscribe");
+    socket.message({ type: "result", id: sub.id, ...result });
+    assert.equal(h.adapter.status().connection, "forbidden");
+    assert.equal(h.adapter.status().lastError, "subscription_forbidden");
+    assert.equal(h.adapter.status().subscriptions, 0);
+    assert.equal(socket.closed, true);
+    await h.timers.tick(60000); assert.equal(h.sockets.length, 1);
+    h.adapter.setHidden(true); h.adapter.setHidden(false); await flush();
+    assert.equal(h.sockets.length, 1);
+    h.adapter.destroy();
+  }
+});
+
 test("disconnect reconnects with exponential delay and ignores obsolete socket callbacks", async () => {
   const h = harness(); const first = await h.ready(); const oldMessage = first.onmessage;
   first.disconnect(); assert.equal(h.adapter.status().connection, "reconnecting");
@@ -594,6 +664,38 @@ test("remote and motion wait for every subscription acknowledgement in any order
     assert.equal(h.adapter.status().subscriptions, 3);
     remote(socket, command(h)); assert.deepEqual(h.displayed, ["front"]);
   }
+});
+
+test("unknown_command drops partial remote and motion subscriptions without replay or partial controls", async () => {
+  const h = harness(REMOTE_CONFIG); h.adapter.start(); h.token(); await flush();
+  const first = h.sockets[0]; first.message({ type: "auth_ok" });
+  const firstCallback = first.onmessage;
+  const subs = first.sent.filter(item => ["mqtt/subscribe", "subscribe_events"].includes(item.type));
+  first.message({ type: "result", id: subs[0].id, success: true });
+  first.message({ type: "result", id: subs[2].id, success: true });
+  assert.equal(h.adapter.status().subscriptions, 2);
+  remote(first, command(h)); h.event(first, "test/front", "motion");
+  assert.deepEqual(h.displayed, []); assert.equal(acknowledgements(first).length, 0);
+  first.message({ type: "result", id: subs[1].id, success: false, error: { code: "unknown_command" } });
+  assert.equal(first.closed, true); assert.equal(h.adapter.status().subscriptions, 0);
+  assert.equal(h.adapter.status().connection, "reconnecting");
+  firstCallback({ data: JSON.stringify({ type: "event", id: subs[2].id,
+    event: { event_type: "show5_remote_display", data: command(h) } }) });
+  firstCallback({ data: JSON.stringify({ type: "result", id: subs[1].id, success: true }) });
+  assert.deepEqual(h.displayed, []);
+  await h.timers.tick(1000);
+  const second = h.sockets[1]; second.message({ type: "auth_ok" });
+  const retry = second.sent.filter(item => ["mqtt/subscribe", "subscribe_events"].includes(item.type));
+  assert.equal(retry.length, 3);
+  retry.slice(0, 2).forEach(item => second.message({ type: "result", id: item.id, success: true }));
+  h.event(second, "test/front", "motion"); remote(second, command(h));
+  assert.deepEqual(h.displayed, []); assert.equal(acknowledgements(second).length, 0);
+  second.message({ type: "result", id: retry[2].id, success: true });
+  assert.equal(h.adapter.status().connection, "ready");
+  assert.deepEqual(h.displayed, [], "events seen before readiness were not replayed");
+  remote(second, command(h)); assert.deepEqual(h.displayed, ["front"]);
+  assert.equal(acknowledgements(second).length, 1);
+  h.adapter.destroy();
 });
 
 test("remote rejects wrong target, stale/far-future data, unconfigured roles and malformed commands", async () => {

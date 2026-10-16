@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1160" viewBox="0 0 1440 1160" role="img" aria-labelledby="title description">
+<title id="title">From a stock Echo Show to a local Home Assistant endpoint</title>
+<desc id="description">Six conversion stages: identify a supported cronos device, unlock into TWRP, verify an off-device backup before formatting, install LineageOS, install VACA with two local wake models, then use the Home Assistant clock, cameras and voice. Both devices have dualwake.2 and display r11 installed. Installed state does not establish physical voice acceptance. Speech recognition in the selected Russian pipeline still uses a cloud service.</desc>
+<defs>
+ <linearGradient id="banner" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#143d79"/><stop offset="0.52" stop-color="#433a91"/><stop offset="1" stop-color="#116c75"/></linearGradient>
+ <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#617695"/></marker>
+ <style>text {font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#14233f;} .flow{fill:none;stroke:#617695;stroke-width:3;marker-end:url(#arrow);} .grid{stroke:#dce4ef;stroke-width:1;}</style>
+</defs>
+<rect width="1440" height="1160" fill="#f4f7fc"/>
+<path d="M0 0H1440V150H0Z" fill="url(#banner)"/>
+<circle cx="1410" cy="30" r="142" fill="#ffffff" opacity="0.04"/>
+<circle cx="1290" cy="130" r="115" fill="#ffffff" opacity="0.035"/>
+<text x="44" y="36" font-size="15" font-weight="750" style="fill:#cbe1ff">PROCESS / INSTALLED RESULT</text>
+<text x="44" y="82" font-size="35" font-weight="750" style="fill:#ffffff">A second life for the Echo Show 5</text>
+<text x="44" y="120" font-size="18" font-weight="400" style="fill:#e1eaff">Supported target: Echo Show 5 Gen2 (2021), cronos · Conversion and application updates are distinct operations</text>
+<text x="44" y="197" font-size="16" font-weight="750" style="fill:#275bd8">THE CONVERSION PATH</text>
+<text x="820" y="197" font-size="16" font-weight="750" style="fill:#097c6b">WHAT IS NOW INSTALLED</text>
+<path d="M70 251V946" stroke="#d8dff1" stroke-width="5"/>
+<rect x="110" y="219" width="660" height="112" rx="16" fill="#eef3ff" stroke="#275bd8"/>
+<circle cx="70" cy="257" r="23" fill="#275bd8"/>
+<text x="70" y="264" font-size="21" font-weight="750" style="fill:#fff" text-anchor="middle">1</text>
+<text x="134" y="254" font-size="23" font-weight="750" style="fill:#275bd8">Identify the exact device</text>
+<text x="134" y="285" font-size="17" font-weight="400" style="fill:#4b5b73">Confirm cronos, the full USB identity and the recovery route.</text>
+<text x="134" y="311" font-size="17" font-weight="400" style="fill:#4b5b73">Use the AC adapter; USB supplies the data connection.</text>
+<rect x="110" y="347" width="660" height="112" rx="16" fill="#f4efff" stroke="#7550c8"/>
+<circle cx="70" cy="385" r="23" fill="#7550c8"/>
+<text x="70" y="392" font-size="21" font-weight="750" style="fill:#fff" text-anchor="middle">2</text>
+<text x="134" y="382" font-size="23" font-weight="750" style="fill:#7550c8">Unlock into recovery</text>
+<text x="134" y="413" font-size="17" font-weight="400" style="fill:#4b5b73">Run the reviewed amonet release, then verify TWRP.</text>
+<text x="134" y="439" font-size="17" font-weight="400" style="fill:#4b5b73">A launcher exiting successfully is not a recovery check.</text>
+<rect x="110" y="475" width="660" height="112" rx="16" fill="#fff6e7" stroke="#a8640a"/>
+<circle cx="70" cy="513" r="23" fill="#a8640a"/>
+<text x="70" y="520" font-size="21" font-weight="750" style="fill:#fff" text-anchor="middle">3</text>
+<text x="134" y="510" font-size="23" font-weight="750" style="fill:#a8640a">Back up before formatting</text>
+<text x="134" y="541" font-size="17" font-weight="400" style="fill:#4b5b73">Verify the off-device backup after unlock, before format.</text>
+<text x="134" y="567" font-size="17" font-weight="400" style="fill:#4b5b73">This is not proof of a universal return-to-stock route.</text>
+<rect x="110" y="603" width="660" height="112" rx="16" fill="#eef3ff" stroke="#275bd8"/>
+<circle cx="70" cy="641" r="23" fill="#275bd8"/>
+<text x="70" y="648" font-size="21" font-weight="750" style="fill:#fff" text-anchor="middle">4</text>
+<text x="134" y="638" font-size="23" font-weight="750" style="fill:#275bd8">Boot LineageOS 18.1</text>
+<text x="134" y="669" font-size="17" font-weight="400" style="fill:#4b5b73">Install the reviewed Android 11 image and finish setup.</text>
+<text x="134" y="695" font-size="17" font-weight="400" style="fill:#4b5b73">Authorize the intended ADB host and preserve identity.</text>
+<rect x="110" y="731" width="660" height="112" rx="16" fill="#f4efff" stroke="#7550c8"/>
+<circle cx="70" cy="769" r="23" fill="#7550c8"/>
+<text x="70" y="776" font-size="21" font-weight="750" style="fill:#fff" text-anchor="middle">5</text>
+<text x="134" y="766" font-size="23" font-weight="750" style="fill:#7550c8">Add two local wake models</text>
+<text x="134" y="797" font-size="17" font-weight="400" style="fill:#4b5b73">Install VACA dualwake.2; retain app data and HA identity.</text>
+<text x="134" y="823" font-size="17" font-weight="400" style="fill:#4b5b73">One microphone frontend feeds both activation models.</text>
+<rect x="110" y="859" width="660" height="112" rx="16" fill="#eaf8f4" stroke="#097c6b"/>
+<circle cx="70" cy="897" r="23" fill="#097c6b"/>
+<text x="70" y="904" font-size="21" font-weight="750" style="fill:#fff" text-anchor="middle">6</text>
+<text x="134" y="894" font-size="23" font-weight="750" style="fill:#097c6b">Connect the room endpoint</text>
+<text x="134" y="925" font-size="17" font-weight="400" style="fill:#4b5b73">Use the clock, motion cameras and selected Assist pipeline.</text>
+<text x="134" y="951" font-size="17" font-weight="400" style="fill:#4b5b73">Remote media and calling have separate acceptance checks.</text>
+<rect x="820" y="219" width="576" height="188" rx="20" fill="#fff" stroke="#acdaca"/>
+<text x="847" y="254" font-size="14" font-weight="750" style="fill:#097c6b">BOTH SHOWS</text>
+<text x="847" y="295" font-size="25" font-weight="750" style="fill:#14233f">VACA 0.13.4+dualwake.2</text>
+<text x="847" y="328" font-size="18" font-weight="400" style="fill:#4b5b73">Android version code 7002</text>
+<text x="847" y="366" font-size="21" font-weight="650" style="fill:#097c6b">Clock / camera release 20261015-r11</text>
+<rect x="820" y="427" width="576" height="204" rx="20" fill="#f4efff" stroke="#d5c5f4"/>
+<text x="847" y="463" font-size="14" font-weight="750" style="fill:#7550c8">TWO PHRASES · ONE SHARED THRESHOLD</text>
+<text x="847" y="507" font-size="28" font-weight="750" style="fill:#7550c8">Привет, мышка</text>
+<text x="847" y="549" font-size="28" font-weight="750" style="fill:#7550c8">Hey Jarvis</text>
+<text x="847" y="590" font-size="19" font-weight="400" style="fill:#4b5b73">Threshold 0.35 · local activation on the device</text>
+<rect x="820" y="651" width="576" height="177" rx="20" fill="#eef3ff" stroke="#bdcff4"/>
+<text x="847" y="687" font-size="14" font-weight="750" style="fill:#275bd8">DISPLAY LANGUAGE IS INDEPENDENT</text>
+<text x="847" y="730" font-size="25" font-weight="750" style="fill:#275bd8">English + 24-hour clock retained</text>
+<text x="847" y="771" font-size="19" font-weight="400" style="fill:#4b5b73">Available UI catalogs: EN / RU / DE / ES</text>
+<text x="847" y="801" font-size="17" font-weight="400" style="fill:#4b5b73">Voice language follows the selected Assist pipeline.</text>
+<rect x="820" y="848" width="576" height="171" rx="20" fill="#fff6e7" stroke="#ebd2a4"/>
+<text x="847" y="885" font-size="14" font-weight="750" style="fill:#a8640a">EVIDENCE HAS LAYERS</text>
+<text x="847" y="923" font-size="18" font-weight="400" style="fill:#4b5b73">Installed revisions are verified on both devices.</text>
+<text x="847" y="951" font-size="18" font-weight="400" style="fill:#4b5b73">Lifecycle and camera checks are recorded per device.</text>
+<text x="847" y="979" font-size="18" font-weight="400" style="fill:#4b5b73">Spoken-phrase and long-duration acceptance remain open.</text>
+<rect x="44" y="1046" width="1352" height="74" rx="16" fill="#14233f" stroke="#14233f"/>
+<text x="68" y="1076" font-size="19" font-weight="700" style="fill:#ffffff">Local wake detection does not mean fully local speech processing.</text>
+<text x="68" y="1104" font-size="17" font-weight="400" style="fill:#dce8fb">The selected Russian path still sends speech to cloud STT. See Voice paths and the dated Validation page.</text>
+<text x="44" y="1144" font-size="15" font-weight="400" style="fill:#4b5b73">Process-and-results.md provides the text equivalent, exact checks and remaining acceptance work.</text>
+</svg>

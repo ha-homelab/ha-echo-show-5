@@ -38,6 +38,9 @@ body { -webkit-user-select: none; user-select: none; }
   margin: 26px 0 0;
 }
 
+/* The day-period marker needs room; the default 24-hour clock is unchanged. */
+html[data-hour-cycle="h12"] #clock-time { font-size: clamp(4rem, 20vw, 14rem); }
+
 #camera-view { position: relative; background: #000; }
 .camera-frame { position: absolute; inset: 0; }
 #camera-image, #camera-video { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -67,5 +70,6 @@ body { -webkit-user-select: none; user-select: none; }
 
 @media (max-height: 300px) {
   #clock-time { font-size: 54vh; }
+  html[data-hour-cycle="h12"] #clock-time { font-size: min(42vh, 20vw); }
   #clock-date { font-size: 7vh; margin-top: 10px; }
 }

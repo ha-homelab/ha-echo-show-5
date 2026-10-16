@@ -1,41 +1,54 @@
 # Echo Show 5 Gen2 → Android → Home Assistant
 
-[English](README.md) · [Русский](README.ru.md) · [Deutsch](README.de.md) · [Español](README.es.md) · [Français](README.fr.md)
+[English](README.md) · [Русский](README.ru.md) · **Deutsch** · [Español](README.es.md)
 
-Dies ist ein übersetzter Überblick mit Einstiegspfad. Die ausführlichen Anleitungen und Befehle werden derzeit auf Englisch gepflegt und sind unten verlinkt. Die README-Sprache ändert weder Spracherkennung noch Antwortstimme oder Aktivierungswort.
+Dieses Projekt macht einen **Amazon Echo Show 5 der zweiten Generation (2021), Codename `cronos`**, zu einem Home-Assistant-Sprachsatelliten, einer gut lesbaren Uhr, einem Kamera-Bildschirm bei Bewegung und einem fernsteuerbaren Medien- und Anrufgerät. Das Repository enthält Werkzeuge für den begleiteten Umbau, lokale Patches, Integrationen und Wiederherstellungsanleitungen. Firmware, APKs, private Aktivierungsmodelle und Zugangsdaten sind nicht enthalten.
 
-Werkzeuge und eine betreute Schrittfolge für den **Echo Show 5 der zweiten Generation (2021), Codename `cronos`**. Mit Android kann das Gerät über Companion ein HA-Dashboard anzeigen und mit einer separat eingerichteten Assist-Pipeline als Sprachclient arbeiten. Dies ist ein eigener Display-Pfad, keine EchoLocal- oder EchoMuse-Firmware für einen Dot.
+Beginnen Sie im [Projekt-Wiki](docs/wiki/Home.md). Für ein unverändertes Gerät gilt die [Umbauanleitung](docs/runbook.md); für ein Gerät mit Android die [Update- und Wiederherstellungsanleitung](docs/wiki/Installation-and-recovery.md). **Ein bereits entsperrtes Gerät nicht erneut entsperren.** Die ausführlichen technischen Anleitungen werden auf Englisch gepflegt; diese Seite ist der deutsche Einstieg.
 
-![Echo Show 5 Gen2 → Android → Home Assistant](docs/assets/architecture.svg)
+![Architektur: Echo Show verbindet sich mit HA; Sprache, Kameras und Anrufe haben getrennte Datenwege. Die Grafik ist englisch beschriftet.](docs/assets/architecture.svg)
 
-## Erste Schritte
+## Funktionen
 
-1. Bestätigen Sie **Gen2 / cronos**. Benötigt werden das originale Netzteil, ein Micro-USB-Datenkabel, ein physischer x86_64-Synology-Host mit Docker und Python 3.8+ sowie ein Rechner mit Python, SSH und rsync.
-2. Beginnen Sie mit der [Installationsanleitung](docs/runbook.md): SSH-Ziel festlegen, festgelegte Artefakte laden und prüfen, Container vorbereiten. Wählen Sie den physischen USB-Port und die vollständig beobachtete Seriennummer, nicht das erste gefundene Gerät.
-3. Führen Sie die Stufen getrennt aus: amonet-cronos 2.0.1 → TWRP → geprüftes externes Backup → LineageOS 18.1 v0.4 / Android 11 → Companion 2026.8.4 minimal. Bei bereits bestätigtem TWRP wird das Entsperren nicht wiederholt.
-4. Verbinden Sie Android mit WLAN, melden Sie Companion bei HA an und prüfen Sie Dashboard und Berechtigungen. Sprache und Assist-Stufen stehen im [Android-/HA-Leitfaden](docs/android-and-home-assistant.md). VACA ist ein optionaler Weg zur dauerhaften Aktivierungsworterkennung.
-5. Ergänzen Sie [Dashboard](docs/show-dashboard.md), [native Musikbefehle](docs/native-voice-controls.md), Kamera und Intercom einzeln. Prüfen Sie zuerst den Grundbetrieb, dann jede zusätzliche Funktion.
+- **Zwei Aktivierungsphrasen gleichzeitig:** Die lokale VACA-Erweiterung verwendet ein Mikrofon und zwei microWakeWord-Modelle. Die dokumentierte Konfiguration hört auf **„Привет, мышка“** und **„Hey Jarvis“**, mit einem gemeinsamen Schwellwert von **0,35**. Das private russische Modell wird nicht mitgeliefert. [Sprache und Modelle](docs/wiki/Voice-and-wake-words.md).
+- **Oberfläche für fünf Zoll:** große Uhr, bildschirmfüllendes Front-/Porch-Kameravideo bei Bewegung, zeitlich begrenzte manuelle Ansicht und Rückkehr zur Uhr. Das Seitenverhältnis bleibt erhalten; Video erscheint erst mit einem verfügbaren Bild, ohne verzerrtes Android-Play-Symbol. [Bildschirm](docs/wiki/Display-media-and-calls.md).
+- **HA-Fernbedienung:** Ansagen, Musik, fest konfigurierte TV-Streams, unser OTT-play-FOSS-Client auf Capacitor, ein separater OTT-Webzugang und optional OttPlayer. Home/Stop beendet die verwaltete Aktivität. [Fernsteuerung](docs/remote-endpoint.md).
+- **Anrufe über die eigene Jitsi-Installation:** fester Raum, ausdrücklich gewählte Beitrittsregel, Mikrofonübergabe und Wiederherstellung nach dem Anruf. Die experimentelle HA-Gegensprechanlage ist ein gesonderter Weg. [Anrufe](docs/wiki/Display-media-and-calls.md#jitsi-and-intercom).
+- **Sprachdienst auswählen:** Homeway, der unabhängige FCC-Cloud-Pfad oder lokaler Dialog und Piper mit FCC-Cloud-Spracherkennung. Die Auswahl gilt pro Satellit; es gibt kein automatisches Failover. [Umschalten](docs/wiki/Voice-and-wake-words.md#choose-and-switch-an-assistant).
+- **Sprachen:** Einstiegs-READMEs auf Englisch, Russisch, Deutsch und Spanisch sowie eine eigene Spracheinstellung für die Uhr. Bildschirm-, Erkennungs- und Aktivierungssprache sind unabhängig. [Lokalisierungsumfang](docs/wiki/Localization.md).
 
-## Grenzen und Prüfung
+## Stand der Prüfung
 
-Das Entsperren verändert die Bootkette bereits vor dem ersten Backup. Android ersetzt Fire OS und Alexa und erfordert das Formatieren der Daten. Das Raw-Backup entsteht nach dem Entsperren, enthält kein RPMB und garantiert keine allgemeine Wiederherstellung des Werkszustands. Historische Ergebnisse und offene Prüfungen stehen im Abnahmebericht; eine installierte App belegt weder akustische Erkennung noch mehrtägige Stabilität. Kamera, Intercom und Jitsi haben eigene Grenzen. Diese Anleitung gilt nicht für Dot-Geräte oder andere Show-Generationen.
+**Update vom 15. Oktober 2026:** Der gebaute Patch `dualwake.2` korrigiert die Freigabe der Detektorressourcen. Die Bildschirmversion `20261015-r11` kombiniert Englisch, Russisch, Deutsch und Spanisch mit Wiederholungsversuchen, wenn der MQTT-Befehl beim HA-Start noch nicht verfügbar ist. In **48 synthetischen Desktop-Layout-Renderings** wurden in den geprüften Fällen keine abgeschnittenen Elemente festgestellt. Build- und Browsertests belegen weder die Installation noch die physische Abnahme beider Shows; gerätespezifische Ergebnisse stehen im [Validierungsprotokoll](docs/wiki/Validation.md).
 
-## Ausführliche Dokumentation
+Der dokumentierte Stand vom **14. Oktober 2026** umfasst zwei Shows mit Android 11 / inoffiziellem LineageOS 18.1. Beide Aktivierungsmodelle wurden nach einem normalen **App-Neustart** geladen, die HA-Identitäten blieben erhalten, und aufeinanderfolgende Ansagen wurden auf Dienstebene abgeschlossen. Beide Geräte verwenden **Local Russian Home** und die Stimme **Irina**. Für die Spracherkennung wird weiterhin Audio in die Cloud gesendet. [Build-Nachweise](integrations/vaca-dual-wake/README.md#historical-deployment-evidence--2026-10-14) · [Sprachkonfiguration](docs/fcc-voice-backup.md).
 
-- [Index](docs/README.md)
-- [Prüfprotokoll](docs/preparation-status.md)
-- [Aktivierungswort](docs/vaca-private-wakeword.md)
-- [Kamera und Intercom](docs/camera-and-intercom.md)
-- [Fernsteuerung](docs/remote-endpoint.md)
-- [Alternativer Sprachpfad](docs/fcc-voice-backup.md)
-- [Sicherheit](SECURITY.md)
-- [Veröffentlichung und Releases](docs/release-packaging.md)
-- [Beiträge und Übersetzung](docs/i18n.md)
+**Gezielte Tests beider Phrasen am Gerät, hörbare Antwortqualität, Wiederanlauf nach Stromausfall und mehrtägiger Betrieb sind für den neuen Build noch nicht bestätigt.** Ein API-Erfolg oder geladenes Modell ersetzt diese Tests nicht. Die [Validierungsübersicht](docs/wiki/Validation.md) trennt die Prüfumfänge. Der [Umbau-Schnappschuss vom 2. Oktober](docs/preparation-status.md) ist historisch und enthält inzwischen geänderte Spracheinstellungen.
 
-## Verwandte Projekte
+## Kompatibilität und Vorbereitung
 
-- [EchoMuse / emOS](https://github.com/ha-homelab/ha-echomuse)
-- [Echo Dot 2 / EchoLocal](https://github.com/ha-homelab/ha-echo-dot)
-- [Amazon Echo Home Energy / Alexa](https://github.com/4alvit/amazon-echo-home-voice)
+Unterstützt wird **nur Show 5 Gen2 / `cronos`**. Images und Verfahren für Echo Dot/EchoLocal, Show 5 Gen1 oder Show 8 sind nicht austauschbar.
 
-EchoMuse mit emOS ist ein anderer Softwarestack für den Dot. Konfiguration, Zugriff und Wiederherstellung stehen im eigenen Repository. Das Alexa-Projekt behält die ursprüngliche Plattform und macht daraus keinen Assist-Satelliten.
+```text
+Unveränderter cronos → amonet-cronos 2.0.1 → TWRP → geprüfte externe Sicherung
+                    → LineageOS 18.1 v0.4 / Android 11 → Companion + optional VACA
+```
+
+Das Entsperren verändert die Boot-Kette **vor der ersten Sicherung**. Android ersetzt Fire OS/Alexa und erfordert das Formatieren von Daten. Die Sicherung ist kein Nachweis einer allgemein getesteten Rückkehr zum Werkszustand. Erforderlich sind das normale **Netzteil**, ein Micro-USB-**Datenkabel**, ein physischer **x86_64**-Synology-NAS mit Docker/Python 3.8+/SSH und Sicherungsspeicher, ein Rechner mit Python/SSH/rsync sowie ein erreichbarer HA-Server. USB ersetzt das Netzteil nicht. Die benötigten Dateien werden separat heruntergeladen und gemäß Anleitung geprüft.
+
+Nach der Vorbereitung des Hosts im [Runbook](docs/runbook.md) lesen diese Befehle nur den Zustand:
+
+```bash
+python3 scripts/remote.py preflight
+python3 scripts/remote.py inventory
+```
+
+Wählen Sie den **beobachteten physischen USB-Port und die vollständige Seriennummer**, niemals „den ersten Echo“. Schreibvorgänge haben eigene Befehle und Prüfschranken; das Einstecken startet keinen Umbau.
+
+## Dokumentation und Wartung
+
+[Wiki](docs/wiki/Home.md) · [Architektur und Cloud-Grenzen](docs/wiki/Architecture.md) · [Installation und Rückkehr](docs/wiki/Installation-and-recovery.md) · [Sprache](docs/wiki/Voice-and-wake-words.md) · [Bildschirm, Medien, Anrufe](docs/wiki/Display-media-and-calls.md) · [Fehlersuche](docs/wiki/Troubleshooting.md) · [Validierung](docs/wiki/Validation.md) · [Lokalisierung](docs/wiki/Localization.md) · [Wartung](docs/wiki/Maintenance.md).
+
+Downloads gehören nach `downloads/`, fremder Quellcode nach `vendor/`, Sicherungen nach `backups/`, Protokolle nach `logs/`, Schlüssel, Aufnahmen und ausgefüllte Konfigurationen nach `private/`. Git ignoriert diese Verzeichnisse, entfernt damit aber keine bereits eingecheckten Daten. HA-Dateien unter `/local` sind ohne Anmeldung erreichbar und dürfen keine Geheimnisse enthalten.
+
+[Beiträge und Tests](CONTRIBUTING.md) · [Sicherheit](SECURITY.md) · [Drittlizenzen](THIRD_PARTY_NOTICES.md) · [Releases](RELEASING.md). Ein Projekt-Release enthält Integrationsquellen, keine Firmware und keine APK. CI bestätigt weder hörbaren Ton noch die Zuverlässigkeit eines konkreten Geräts.

@@ -1,10 +1,89 @@
 # FCC backup and Homeway switching
 
-**FCC (`fcc-claude`) is the Homeway backup, with its own cloud audio path.** Home Assistant supports keeping both assistants connected. The FCC gateway, conversation bridge and cloud audio adapter run as three small services on the designated worker. Local Whisper/Piper remain stopped and excluded from the active deployment.
+**FCC (`fcc-claude`) is the Homeway backup, with its own cloud audio path.** Home Assistant supports keeping both assistants connected. The FCC gateway, conversation bridge and cloud audio adapter run as three small services on the designated worker. The original FCC deployment excluded local Whisper/Piper; the later local-dialogue option below reuses a separately deployed Piper service.
+
+## Local dialogue and Russian speech on both Shows
+
+**Deployment update, October 14, 2026 PDT:** both Shows now select
+**Local Russian Home** with the female Russian voice **Irina**. The first Show
+initially switched from **FCC Russian Backup** using Denis. During the later
+female-voice rollout, the Echo Dot work updated the shared TTS service and
+pipeline to Irina; this Show rollout then changed only the second Show's
+Assistant selector from **FCC Russian Backup** to **Local Russian Home**.
+HA's global preferred pipeline, other satellite selectors, the Shows' wake-word
+models and thresholds, and screen settings were preserved. No firmware, APK,
+or on-device model installation was required.
+
+This pipeline uses:
+
+- **Recognition:** FCC Cloud Speech, NVIDIA Parakeet multilingual ASR, Russian.
+  Input audio still goes to the cloud speech provider.
+- **Dialogue and household tools:** local Ollama on the NUC, the
+  `echomuse-home:4b` model based on `qwen3:4b-instruct` (Q4_K_M).
+- **Speech:** local Piper, `piper-ru-irina`, through the existing
+  **Local Russian Speech** integration.
+- **Common state questions:** HA's native intents first, including the
+  installed `EchoMuseGetState` handler, avoiding an LLM round trip.
+
+The model, tool permissions, infrastructure and current latency limitations
+are maintained in the [EchoMuse home-control guide](https://github.com/ha-homelab/ha-echomuse/blob/feat/russian-energy-assist/docs/home-control.md).
+This is not a fully offline voice pipeline: local dialogue and synthesis do
+not replace cloud recognition. There is no automatic cloud-LLM fallback for
+household requests in this pipeline.
+
+To repeat the switch, identify the physical device by its complete USB serial
+and match its VACA device in HA. Save that device's current **Assistant** value,
+verify that **Local Russian Home** is available, and select it only on the
+intended device. Restore the saved value to roll back. Before the female-voice
+rollout the first Show already selected **Local Russian Home**, and the second
+selected **FCC Russian Backup**. The previous value on a Dot is not necessarily
+the correct Show rollback. Restoring a selector does not restore an earlier
+voice inside a shared pipeline: a Denis/Irina service rollback must be
+coordinated with the shared TTS owner. Do not change HA's preferred assistant
+to perform a single-device switch.
+
+The existing `voice_pipeline.py` CLI currently supports the two named backends
+`homeway` and `fcc`; it has not been extended for this third option. Use HA's
+Assistant selector rather than relabeling the local model as an FCC backend.
+The EchoMuse controller's `EM_TTS_WAIT_TIMEOUT=120` setting applies to Dots using
+that controller, not to VACA. It was not copied to the Show; long model queries
+still need separate end-to-end validation on VACA.
+
+Initial first-Show acceptance with Denis, before the female-voice rollout:
+
+- A read-only power question used the native intent and produced downloaded
+  Russian speech in **3.549 seconds** from text submission.
+- A synthetic spoken arithmetic question completed **recognition → local
+  model → Piper**, returning the correct Russian answer with downloaded audio
+  in **8.642 seconds**, including **1.710 seconds** of input audio upload.
+- A short announcement through the Show's actual satellite service completed
+  successfully and returned it to idle. USB logs confirmed audio start, audio
+  stop and normal completion of the device playback pipeline. Its microphone
+  permission and active, unsilenced 16 kHz mono capture were checked through
+  trusted USB.
+
+The subsequent **Irina rollout passed on both Shows**: both selectors read
+**Local Russian Home**, whose TTS voice read `piper-ru-irina`. Sequential,
+read-only power questions in the two Show device contexts produced valid
+downloaded speech in **2.470 seconds** and **0.166 seconds** respectively;
+the second identical request reused cached speech, so those numbers are not
+independent uncached synthesis benchmarks. Each Show then completed a short
+announcement through its own satellite service and returned to idle. The
+tests were sequential to respect the shared TTS service's single active
+request and one queued request limit. Device-side wake-word choices,
+thresholds and screen settings remained unchanged.
+
+These timings are single service-level trials, not physical microphone-to-
+speaker latency measurements. The operator could not perform an attended test;
+fresh wake-word and audible-response acceptance on the Show remains pending.
+Device identifiers, exact pipeline IDs,
+the previous selection and verification evidence are stored privately.
+
+## Original FCC deployment
 
 **Deployment update, October 3, 2026 PDT:** the operator requested promotion after
 reporting that the Homeway monthly allowance was exhausted. **FCC Russian Backup**
-is now HA's preferred pipeline and the explicit selection for both assistant slots
+became HA's preferred pipeline and the explicit selection for both assistant slots
 of two converted Dot 2 units and the reachable VACA Show. The existing name was
 retained. One unavailable restored Show selector was excluded and must be checked
 after reconnection. Homeway remains registered for manual rollback. The guarded

@@ -1,6 +1,8 @@
 (function (root) {
   "use strict";
 
+  var i18n = typeof module !== "undefined" && module.exports ? require("./i18n.js") : root.Show5I18n;
+
   var ROLES = ["front", "porch"];
   var REQUEST_MS = 10000;
   // Allow the stream adapter's 15-second startup deadline to settle first.
@@ -29,6 +31,8 @@
     catch (_) { throw new Error("Display time zone is invalid"); }
     var mode = input.cameraMode === undefined ? "snapshots" : input.cameraMode;
     if (["snapshots", "webrtc"].indexOf(mode) < 0) { throw new Error("Camera mode is invalid"); }
+    if (input.hour12 !== undefined && typeof input.hour12 !== "boolean") { throw new Error("Clock format is invalid"); }
+    var language = i18n.create(input.locale);
     var cameras = {};
     Object.keys(input.cameras).forEach(function (role) {
       if (ROLES.indexOf(role) < 0) { throw new Error("Camera role is not allowed"); }
@@ -36,14 +40,15 @@
       if (!camera || typeof camera.entityId !== "string" || !/^camera\.[a-z0-9_]+$/.test(camera.entityId)) {
         throw new Error("Camera entity is invalid");
       }
-      var label = camera.label === undefined ? (role === "front" ? "Front" : "Porch") : camera.label;
+      var label = camera.label === undefined ? language.text(role) : camera.label;
       if (typeof label !== "string" || !label.trim() || label.length > 80) {
         throw new Error("Camera label is invalid");
       }
       // Auth owns motionEntityId and event subscription. Never interpret it here.
       cameras[role] = Object.freeze({ entityId: camera.entityId, label: label.trim() });
     });
-    return Object.freeze({ timeZone: input.timeZone, cameraMode: mode, cameraSeconds: duration(input.cameraSeconds), cameras: Object.freeze(cameras) });
+    return Object.freeze({ timeZone: input.timeZone, locale: language.locale, hour12: input.hour12 === true,
+      cameraMode: mode, cameraSeconds: duration(input.cameraSeconds), cameras: Object.freeze(cameras) });
   }
 
   function roleFromSearch(search) {
@@ -249,18 +254,27 @@
       snapshotFailed: snapshotFailed, destroy: destroy });
   }
 
-  function createView(document) {
+  function createView(document, locale) {
+    var language = i18n.create(locale);
     var clock = document.getElementById("clock-view");
     var camera = document.getElementById("camera-view");
     var image = document.getElementById("camera-image");
     var status = document.getElementById("camera-status");
     var video = document.getElementById("camera-video");
+    document.documentElement.lang = language.locale;
+    document.title = language.text("title");
+    document.getElementById("display").setAttribute("aria-label", language.text("display"));
+    clock.setAttribute("aria-label", language.text("clock"));
+    camera.setAttribute("aria-label", language.text("camera"));
+    image.setAttribute("alt", language.text("cameraImage"));
+    video.setAttribute("aria-label", language.text("cameraVideo"));
+    status.textContent = language.text("loading");
     return {
       video: video,
       showClock: function () { camera.hidden = true; clock.hidden = false; },
       showCamera: function (label) {
         camera.setAttribute("aria-label", label);
-        status.textContent = "Loading camera…";
+        status.textContent = language.text("loading");
         status.classList.remove("frame-delayed");
         status.hidden = false;
         clock.hidden = true;
@@ -280,7 +294,7 @@
         // adapter resolves only after playback and a decoded/presented frame.
         video.classList.remove("has-frame");
         video.hidden = false;
-        status.textContent = "Connecting to camera…";
+        status.textContent = language.text("connecting");
         status.classList.remove("frame-delayed");
         status.hidden = false;
       },
@@ -312,23 +326,23 @@
         });
       },
       showSnapshot: function (url) { image.src = url; image.hidden = false; status.hidden = true; status.classList.remove("frame-delayed"); },
-      showDelayed: function () { status.textContent = "Update delayed"; status.classList.add("frame-delayed"); status.hidden = false; },
-      showUnavailable: function () { status.textContent = "Camera unavailable"; status.classList.remove("frame-delayed"); status.hidden = false; }
+      showDelayed: function () { status.textContent = language.text("delayed"); status.classList.add("frame-delayed"); status.hidden = false; },
+      showUnavailable: function () { status.textContent = language.text("unavailable"); status.classList.remove("frame-delayed"); status.hidden = false; }
     };
   }
 
   function bootstrap(document) {
-    var view = createView(document);
     var config;
     try { config = validateConfig(root.SHOW5_DISPLAY_CONFIG); }
     catch (_) { document.documentElement.dataset.configuration = "invalid"; }
-    var zone = config ? config.timeZone : undefined;
-    var time = new Intl.DateTimeFormat("en-US", { timeZone: zone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
-    var date = new Intl.DateTimeFormat("en-US", { timeZone: zone, weekday: "long", day: "numeric", month: "long" });
+    var view = createView(document, config && config.locale);
+    var formats = i18n.createFormatters(config && config.locale, config);
+    document.documentElement.dataset.hourCycle = config && config.hour12 ? "h12" : "h23";
+    document.documentElement.dataset.formatLocale = formats.locale;
     function tick() {
       var instant = new Date();
-      document.getElementById("clock-time").textContent = time.format(instant);
-      document.getElementById("clock-date").textContent = date.format(instant);
+      document.getElementById("clock-time").textContent = formats.time.format(instant);
+      document.getElementById("clock-date").textContent = formats.date.format(instant);
     }
     tick();
     var clockTimer = root.setInterval(tick, 1000);

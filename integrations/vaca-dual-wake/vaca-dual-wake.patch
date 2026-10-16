@@ -1,0 +1,352 @@
+diff --git a/app/build.gradle.kts b/app/build.gradle.kts
+index 4606ee9..07676bf 100644
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -8,8 +8,6 @@ plugins {
+     alias(libs.plugins.kotlin.serialization)
+     alias(libs.plugins.hilt)
+     alias(libs.plugins.ksp)
+-    id("com.google.gms.google-services")
+-    id("com.google.firebase.crashlytics")
+ }
+ 
+ tasks.register("printVersionName") {
+@@ -24,25 +22,12 @@ android {
+     namespace = "com.msp1974.vacompanion"
+     compileSdk = 36
+ 
+-    val versionPropsFile = file("../version.properties")
+-    var code = 0
+-
+-    if (versionPropsFile.canRead()) {
+-        val versionProps = Properties()
+-        versionProps.load(FileInputStream(versionPropsFile))
+-        code = versionProps["VERSION_CODE"].toString().toInt() + 1
+-        versionProps["VERSION_CODE"] = code.toString()
+-        versionProps.store(versionPropsFile.writer(), null)
+-    } else {
+-        throw GradleException("Could not read version.properties!")
+-    }
+-
+     defaultConfig {
+         applicationId = "com.msp1974.vacompanion"
+         minSdk = 26
+         targetSdk = 36
+-        versionName = "0.13.4"
+-        versionCode = code
++        versionName = "0.13.4+dualwake.2"
++        versionCode = 7002
+         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+     }
+ 
+@@ -57,9 +42,9 @@ android {
+ 
+     buildTypes {
+         debug {
++            signingConfig = signingConfigs.getByName("release")
+             isMinifyEnabled = false
+             ndk {
+-                abiFilters.add("arm64-v8a")
+                 abiFilters.add("armeabi-v7a")
+             }
+         }
+diff --git a/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt b/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
+index 4b12a5c..221e154 100644
+--- a/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
+@@ -784,7 +784,8 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+     fun sendDiagnostics(audioLevel: Float, detectionLevel: Float) {
+         lastAudioLevel = audioLevel
+         lastDetectionLevel = detectionLevel
+-        val wakeWordName = if (config.wakeWord == "") "None" else config.wakeWord.replace("_", " ").capitalizeWords()
++        val wakeWordName = wakeWordHandler?.activeWakeWordIds?.takeIf { it.isNotEmpty() }
++            ?.joinToString(" + ") { it.replace("_", " ").capitalizeWords() } ?: "None"
+         if (config.diagnosticsEnabled) {
+             val data = DiagnosticInfo(
+                 show = config.diagnosticsEnabled,
+diff --git a/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteWakeWorkHandler.kt b/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteWakeWorkHandler.kt
+index 21cb486..822987a 100644
+--- a/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteWakeWorkHandler.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteWakeWorkHandler.kt
+@@ -1,6 +1,11 @@
+ package com.msp1974.vacompanion.satellite
+ 
+ import android.Manifest
++import android.os.SystemClock
++import java.io.File
++import org.json.JSONObject
++import com.msp1974.vacompanion.wakeword.WakeWordSelection
++import com.msp1974.vacompanion.wakeword.WakeWordCooldown
+ import android.content.Context
+ import com.msp1974.vacompanion.broadcasts.BroadcastSender
+ import com.msp1974.vacompanion.device.DeviceManager
+@@ -60,6 +65,18 @@ abstract class SatelliteWakeWorkHandler(val context: Context, val deviceManager:
+     private val detectionCooldowns = mutableMapOf<String, Long>()
+     private val detectionCooldownMs: Long = 2000L
+     private var lastWakeDetectionTimestamp = 0L
++    private val wakeCooldown = WakeWordCooldown()
++    var activeWakeWordIds: List<String> = emptyList()
++        private set
++
++    private fun secondaryWakeWord(): String? = try {
++        val file = File(context.filesDir, "secondary-wake-word.json")
++        if (file.isFile) JSONObject(file.readText()).optString("id").takeIf { it.isNotBlank() }
++        else null
++    } catch (error: Exception) {
++        Timber.w(error, "Invalid secondary wake word configuration; using primary only")
++        null
++    }
+ 
+     suspend fun run() {
+         val startTime = System.currentTimeMillis()
+@@ -89,7 +106,11 @@ abstract class SatelliteWakeWorkHandler(val context: Context, val deviceManager:
+                         else -> WakeWordEngineModel.MICROWAKEWORD
+                     }
+                 )
+-                engine?.setActiveWakeWords(listOf(config.wakeWord))
++                val secondary = if (config.wakeWordEngine == "microwakeword") secondaryWakeWord() else null
++                activeWakeWordIds = WakeWordSelection.select(config.wakeWord, secondary,
++                    engine!!.getAvailableWakeWords().map { it.id }.toSet())
++                engine?.setActiveWakeWords(activeWakeWordIds)
++                Timber.i("Active wake word models: %s; threshold=%s", activeWakeWordIds, config.wakeWordThreshold)
+                 engine?.setActiveStopWords(listOf("stop"))
+                 runWakeWordDetection()
+             }
+@@ -143,7 +164,7 @@ abstract class SatelliteWakeWorkHandler(val context: Context, val deviceManager:
+                         val now = System.currentTimeMillis()
+                         val lastDetection = detectionCooldowns[it.detection.wakeWordId]
+ 
+-                        if (lastDetection == null || detectionCooldownMs == 0L || now - lastDetection >= detectionCooldownMs) {
++                        if (wakeCooldown.accept(SystemClock.elapsedRealtime())) {
+                             Timber.i("Wake word detected: ${it.detection.wakeWord}")
+                             wakeWordDetected(it.detection, engine!!.isStreaming())
+                             detectionCooldowns[it.detection.wakeWordId] = now
+@@ -203,7 +224,7 @@ abstract class SatelliteWakeWorkHandler(val context: Context, val deviceManager:
+         lastWakeDetectionTimestamp = detection.timestamp
+         firebase.logEvent(
+             FirebaseManager.WAKE_WORD_DETECTED, mapOf(
+-                "wake_word" to config.wakeWord,
++                "wake_word" to detection.wakeWordId,
+                 "threshold" to config.wakeWordThreshold.toString(),
+                 "prediction" to detection.score.toString()
+             )
+diff --git a/app/src/main/java/com/msp1974/vacompanion/wakeword/CloseableResource.kt b/app/src/main/java/com/msp1974/vacompanion/wakeword/CloseableResource.kt
+new file mode 100644
+index 0000000..d1fb752
+--- /dev/null
++++ b/app/src/main/java/com/msp1974/vacompanion/wakeword/CloseableResource.kt
+@@ -0,0 +1,18 @@
++package com.msp1974.vacompanion.wakeword
++
++/** Owns the current detector in one collection; never closes a retired resource twice. */
++internal class CloseableResource<T : AutoCloseable> : AutoCloseable {
++    private var current: T? = null
++    val value: T get() = checkNotNull(current) { "Resource is not initialized" }
++
++    suspend fun replace(create: suspend () -> T) {
++        close()
++        current = create()
++    }
++
++    override fun close() {
++        val previous = current
++        current = null
++        previous?.close()
++    }
++}
+diff --git a/app/src/main/java/com/msp1974/vacompanion/wakeword/WakeWordSelection.kt b/app/src/main/java/com/msp1974/vacompanion/wakeword/WakeWordSelection.kt
+new file mode 100644
+index 0000000..20d15a9
+--- /dev/null
++++ b/app/src/main/java/com/msp1974/vacompanion/wakeword/WakeWordSelection.kt
+@@ -0,0 +1,22 @@
++package com.msp1974.vacompanion.wakeword
++
++/** One microphone/frontend; at most two distinct, available activation models. */
++object WakeWordSelection {
++    fun select(primary: String, secondary: String?, available: Set<String>): List<String> {
++        if (primary.isBlank() || primary == "none") return emptyList()
++        return listOfNotNull(primary, secondary?.trim())
++            .filter { it.isNotEmpty() && it != "none" && it in available }
++            .distinct().take(2)
++    }
++}
++
++/** Suppress duplicate triggers across different models for the same utterance. */
++class WakeWordCooldown(private val durationMs: Long = 2000L) {
++    private var lastAccepted: Long? = null
++    fun accept(now: Long): Boolean {
++        val previous = lastAccepted
++        if (previous != null && now - previous < durationMs) return false
++        lastAccepted = now
++        return true
++    }
++}
+diff --git a/app/src/main/java/com/msp1974/vacompanion/wakeword/microwakeword/MicroWakeWordEngine.kt b/app/src/main/java/com/msp1974/vacompanion/wakeword/microwakeword/MicroWakeWordEngine.kt
+index 0102b64..996233e 100644
+--- a/app/src/main/java/com/msp1974/vacompanion/wakeword/microwakeword/MicroWakeWordEngine.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/wakeword/microwakeword/MicroWakeWordEngine.kt
+@@ -12,6 +12,7 @@ import com.msp1974.vacompanion.audio.VACAAudioFormat
+ import com.msp1974.vacompanion.device.DeviceManager
+ import com.msp1974.vacompanion.settings.APPConfig
+ import com.msp1974.vacompanion.wakeword.WakeWordEngineProvider
++import com.msp1974.vacompanion.wakeword.CloseableResource
+ import kotlinx.coroutines.ExperimentalCoroutinesApi
+ import kotlinx.coroutines.flow.MutableStateFlow
+ import kotlinx.coroutines.flow.asStateFlow
+@@ -37,8 +38,6 @@ open class MicroWakeWordEngine (
+ 
+     private val lastScores = mutableMapOf<String, Float>()
+ 
+-    private val detector: MicroWakeWordDetector? = null
+-
+     private val _activeWakeWords = MutableStateFlow(activeWakeWords)
+     val activeWakeWords = _activeWakeWords.asStateFlow()
+     override fun setActiveWakeWords(value: List<String>) {
+@@ -70,17 +69,17 @@ open class MicroWakeWordEngine (
+             val microphoneInput = MicrophoneInput(context, deviceManager)
+             var wakeWords = activeWakeWords.value
+             var stopWords = activeStopWords.value
++            val detector = CloseableResource<MicroWakeWordDetector>()
+ 
+             try {
+-                var detector = createDetector(wakeWords, stopWords)
++                detector.replace { createDetector(wakeWords, stopWords) }
+                 microphoneInput.start()
+                 emit(AudioResult.EngineStatus("Started"))
+                 while (true) {
+                     if (wakeWords != activeWakeWords.value || stopWords != activeStopWords.value) {
+                         wakeWords = activeWakeWords.value
+                         stopWords = activeStopWords.value
+-                        detector.close()
+-                        detector = createDetector(wakeWords, stopWords)
++                        detector.replace { createDetector(wakeWords, stopWords) }
+                     }
+ 
+                     val audio = microphoneInput.readBytes()
+@@ -108,7 +107,7 @@ open class MicroWakeWordEngine (
+ 
+                     // Always run audio through the models, even if not currently streaming, to keep
+                     // their internal state up to date
+-                    val detections = detector.detect(audio)
++                    val detections = detector.value.detect(audio)
+                     for (detection in detections) {
+                         val lastScore = lastScores[detection.wakeWordId] ?: 0f
+                         if (detection.score > 0.1f || lastScore > 0.1f) {
+@@ -127,8 +126,11 @@ open class MicroWakeWordEngine (
+                 }
+             } finally {
+                 Timber.i("Stopping MicroWakeWordEngine")
+-                microphoneInput.close()
+-                detector?.close()
++                try {
++                    detector.close()
++                } finally {
++                    microphoneInput.close()
++                }
+                 //emit(AudioResult.EngineStatus("Stopped"))
+             }
+         }
+@@ -151,6 +153,7 @@ open class MicroWakeWordEngine (
+             wakeWords[id]?.let { wakeWord ->
+                 runCatching {
+                     add(MicroWakeWord.fromWakeWord(wakeWord))
++                    Timber.i("Loaded microWakeWord model: %s", id)
+                 }.onFailure {
+                     Timber.e(it, "Error loading wake word: $id")
+                 }
+diff --git a/app/src/test/java/com/msp1974/vacompanion/wakeword/CloseableResourceTest.kt b/app/src/test/java/com/msp1974/vacompanion/wakeword/CloseableResourceTest.kt
+new file mode 100644
+index 0000000..dc3c152
+--- /dev/null
++++ b/app/src/test/java/com/msp1974/vacompanion/wakeword/CloseableResourceTest.kt
+@@ -0,0 +1,63 @@
++package com.msp1974.vacompanion.wakeword
++
++import kotlinx.coroutines.runBlocking
++import org.junit.Assert.*
++import org.junit.Test
++
++class CloseableResourceTest {
++    private class Resource(private val failClose: Boolean = false) : AutoCloseable {
++        var closes = 0
++        override fun close() {
++            closes++
++            if (failClose) throw IllegalStateException("close failed")
++        }
++    }
++
++    @Test fun stoppingClosesTheActiveDetectorOnce() = runBlocking {
++        val slot = CloseableResource<Resource>()
++        val detector = Resource()
++        slot.replace { detector }
++        assertSame(detector, slot.value)
++        slot.close()
++        slot.close()
++        assertEquals(1, detector.closes)
++    }
++
++    @Test fun replacingClosesOldDetectorAndRetainsNewOneUntilStop() = runBlocking {
++        val slot = CloseableResource<Resource>()
++        val first = Resource()
++        val second = Resource()
++        slot.replace { first }
++        slot.replace { second }
++        assertEquals(1, first.closes)
++        assertEquals(0, second.closes)
++        slot.close()
++        assertEquals(1, second.closes)
++    }
++
++    @Test fun failedReplacementDoesNotCloseOldDetectorTwice() = runBlocking {
++        val slot = CloseableResource<Resource>()
++        val first = Resource()
++        slot.replace { first }
++        try {
++            slot.replace { throw IllegalArgumentException("model failed to load") }
++            fail("Expected loading failure")
++        } catch (_: IllegalArgumentException) { }
++        slot.close()
++        assertEquals(1, first.closes)
++    }
++
++    @Test fun failedCloseDoesNotLoadReplacementOrCloseTwice() = runBlocking {
++        val slot = CloseableResource<Resource>()
++        val first = Resource(failClose = true)
++        slot.replace { first }
++        var created = false
++        try {
++            slot.replace { created = true; Resource() }
++            fail("Expected close failure")
++        } catch (_: IllegalStateException) { }
++        slot.close()
++        assertFalse(created)
++        assertEquals(1, first.closes)
++    }
++}
+diff --git a/app/src/test/java/com/msp1974/vacompanion/wakeword/WakeWordSelectionTest.kt b/app/src/test/java/com/msp1974/vacompanion/wakeword/WakeWordSelectionTest.kt
+new file mode 100644
+index 0000000..2bfb566
+--- /dev/null
++++ b/app/src/test/java/com/msp1974/vacompanion/wakeword/WakeWordSelectionTest.kt
+@@ -0,0 +1,20 @@
++package com.msp1974.vacompanion.wakeword
++import org.junit.Assert.*
++import org.junit.Test
++class WakeWordSelectionTest {
++    private val models = setOf("custom", "hey_jarvis")
++    @Test fun twoAvailableModels() = assertEquals(listOf("custom", "hey_jarvis"), WakeWordSelection.select("custom", "hey_jarvis", models))
++    @Test fun duplicateIsLoadedOnce() = assertEquals(listOf("custom"), WakeWordSelection.select("custom", "custom", models))
++    @Test fun absentOrUnknownSecondaryPreservesPrimary() {
++        assertEquals(listOf("custom"), WakeWordSelection.select("custom", null, models))
++        assertEquals(listOf("custom"), WakeWordSelection.select("custom", "missing", models))
++    }
++    @Test fun disablingPrimaryDisablesBoth() = assertTrue(WakeWordSelection.select("none", "hey_jarvis", models).isEmpty())
++    @Test fun crossModelCooldownAllowsNextUtterance() {
++        val gate = WakeWordCooldown()
++        assertTrue(gate.accept(100))
++        assertFalse(gate.accept(101))
++        assertFalse(gate.accept(2099))
++        assertTrue(gate.accept(2100))
++    }
++}

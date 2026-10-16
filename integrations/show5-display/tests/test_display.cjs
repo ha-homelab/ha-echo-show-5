@@ -98,6 +98,23 @@ test("URLs, foreign entities, roles, time zones and unsafe durations fail closed
   assert.equal(validateConfig({ ...CONFIG, cameraSeconds: 120 }).cameraSeconds, 120);
 });
 
+test("locale defaults preserve English and 24-hour display; labels never rewrite event identities", () => {
+  const original = validateConfig(CONFIG);
+  assert.equal(original.locale, "en-US");
+  assert.equal(original.hour12, false);
+  const localized = validateConfig({ ...CONFIG, locale: "ru", hour12: true,
+    cameras: { front: { entityId: "camera.front" }, porch: { entityId: "camera.porch", label: "Custom porch" } } });
+  assert.equal(localized.locale, "ru-RU");
+  assert.equal(localized.hour12, true);
+  assert.deepEqual(Object.keys(localized.cameras), ["front", "porch"]);
+  assert.deepEqual(localized.cameras.front, { entityId: "camera.front", label: "Перед домом" });
+  assert.equal(localized.cameras.porch.label, "Custom porch");
+  assert.equal(validateConfig({ ...CONFIG, locale: "https://invalid.example" }).locale, "en-US");
+  for (const hour12 of [null, 0, 1, "true", "false", []]) {
+    assert.throws(() => validateConfig({ ...CONFIG, hour12 }), /Clock format is invalid/);
+  }
+});
+
 test("URL selection allows only one front or porch role, never a URL", () => {
   assert.equal(roleFromSearch("?external_auth=1&camera=front"), "front");
   assert.equal(roleFromSearch("?camera=porch"), "porch");
@@ -343,7 +360,7 @@ test("decode failure clears a frame and destroy prevents any future activation",
 
 function fakeDocument() {
   const elements = {};
-  for (const id of ["clock-view", "camera-view", "camera-image", "camera-video", "camera-status", "clock-time", "clock-date"]) {
+  for (const id of ["display", "clock-view", "camera-view", "camera-image", "camera-video", "camera-status", "clock-time", "clock-date"]) {
     elements[id] = { hidden: false, textContent: "", listeners: {},
       pause() {},
       classList: { values: new Set(), add(v) { this.values.add(v); }, remove(v) { this.values.delete(v); }, contains(v) { return this.values.has(v); } },
@@ -366,6 +383,34 @@ test("DOM view keeps camera labels accessible and clears the image source on rem
   assert.equal(doc.elements["camera-image"].hidden, true);
   view.showUnavailable();
   assert.equal(doc.elements["camera-status"].textContent, "Camera unavailable");
+});
+
+test("all display messages and accessible names use the selected local catalog without camera overlays", () => {
+  const { messages } = require("../i18n.js");
+  for (const [locale, words] of Object.entries(messages)) {
+    const doc = fakeDocument();
+    const view = createView(doc, locale);
+    assert.equal(doc.title, words.title);
+    assert.match(doc.documentElement.lang, new RegExp("^" + locale));
+    assert.equal(doc.elements.display["aria-label"], words.display);
+    assert.equal(doc.elements["clock-view"]["aria-label"], words.clock);
+    assert.equal(doc.elements["camera-view"]["aria-label"], words.camera);
+    assert.equal(doc.elements["camera-image"].alt, words.cameraImage);
+    assert.equal(doc.elements["camera-video"]["aria-label"], words.cameraVideo);
+    view.showCamera(words.front);
+    assert.equal(doc.elements["camera-view"]["aria-label"], words.front);
+    assert.equal(doc.elements["camera-status"].textContent, words.loading);
+    view.showVideoLoading();
+    assert.equal(doc.elements["camera-status"].textContent, words.connecting);
+    view.showVideo();
+    assert.equal(doc.elements["camera-status"].hidden, true);
+    assert.equal(doc.elements["clock-view"].hidden, true);
+    assert.equal(doc.elements["camera-view"].textContent, "", "no visible title is added over video");
+    view.showDelayed();
+    assert.equal(doc.elements["camera-status"].textContent, words.delayed);
+    view.showUnavailable();
+    assert.equal(doc.elements["camera-status"].textContent, words.unavailable);
+  }
 });
 
 test("camera startup and retry never reveal a poster, and teardown masks before abort", async () => {
@@ -424,11 +469,11 @@ test("offscreen decode is abortable and never mutates the visible image", async 
   assert.equal(doc.elements["camera-image"].src, "blob:old");
 });
 
-test("browser bootstrap exposes only the display controls and delegates authenticated snapshots", async () => {
+function browserHarness(config = CONFIG, search = "?external_auth=1") {
   const document = fakeDocument(); const timers = new Timers();
   const calls = []; const events = []; const listeners = {}; const intervals = new Map();
   let intervalId = 0;
-  const sandbox = { document, SHOW5_DISPLAY_CONFIG: CONFIG, location: { search: "?external_auth=1" },
+  const sandbox = { document, SHOW5_DISPLAY_CONFIG: config, location: { search },
     Show5Auth: { fetchSnapshot(entityId, options) { calls.push({ entityId, options }); return new Promise(() => {}); } },
     URL: { createObjectURL() { return "blob:browser"; }, revokeObjectURL() {} }, URLSearchParams, AbortController,
     performance: { now: () => timers.time }, setTimeout: timers.set, clearTimeout: timers.clear,
@@ -436,7 +481,13 @@ test("browser bootstrap exposes only the display controls and delegates authenti
     addEventListener(name, fn) { listeners[name] = fn; }, dispatchEvent(event) { events.push(event.type); },
     Event: class { constructor(type) { this.type = type; } }
   };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, "../i18n.js"), "utf8"), sandbox);
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, "../display.js"), "utf8"), sandbox);
+  return { sandbox, document, timers, calls, events, listeners, intervals };
+}
+
+test("browser bootstrap exposes only the display controls and delegates authenticated snapshots", async () => {
+  const { sandbox, document, calls, events, listeners, intervals } = browserHarness();
   assert.deepEqual(Object.keys(sandbox.Show5Display).sort(), ["showCamera", "showClock"]);
   assert.ok(events.includes("show5-display-ready"));
   assert.match(document.elements["clock-time"].textContent, /^\d{2}:\d{2}$/);
@@ -451,17 +502,34 @@ test("browser bootstrap exposes only the display controls and delegates authenti
   assert.equal(document.elements["camera-view"].hidden, true);
 });
 
+test("browser bootstrap applies the configured locale without URL overrides or new network requests", () => {
+  for (const locale of ["en-GB", "ru-RU", "de-DE", "es-ES"]) {
+    const { sandbox, document, calls, listeners } = browserHarness({ ...CONFIG, locale, hour12: true },
+      "?external_auth=1&locale=ar&language=https://invalid.example/secret");
+    const words = require("../i18n.js").messages[locale.slice(0, 2)];
+    assert.equal(document.documentElement.lang, locale);
+    assert.equal(document.documentElement.dataset.hourCycle, "h12");
+    assert.match(document.documentElement.dataset.formatLocale, new RegExp("^" + locale.slice(0, 2)));
+    assert.equal(document.title, words.title);
+    assert.equal(calls.length, 0);
+    sandbox.Show5Display.showCamera("front");
+    assert.equal(calls[0].entityId, "camera.front");
+    assert.equal(document.elements["camera-status"].textContent, words.loading);
+    listeners.pagehide();
+  }
+});
+
 test("page assets are local, CSP disallows external scripts and camera CSS preserves aspect", () => {
   const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
-  assert.deepEqual([...html.matchAll(/<script src="([^"]+)" defer>/g)].map(x => x[1]), ["config.js?v=20261005-r9", "stream.js?v=20261005-r9", "auth.js?v=20261005-r9", "display.js?v=20261005-r9"]);
-  assert.match(html, /href="display.css\?v=20261005-r9"/);
+  assert.deepEqual([...html.matchAll(/<script src="([^"]+)" defer>/g)].map(x => x[1]), ["config.js?v=20261015-r11", "i18n.js?v=20261015-r11", "stream.js?v=20261015-r11", "auth.js?v=20261015-r11", "display.js?v=20261015-r11"]);
+  assert.match(html, /href="display.css\?v=20261015-r11"/);
   assert.match(html, /default-src 'none'/);
   assert.match(html, /script-src 'self'/);
   assert.match(html, /connect-src 'self'/);
   assert.match(html, /img-src 'self' blob:/);
   assert.doesNotMatch(html, /https?:\/\/|unsafe-inline|unsafe-eval|<iframe|<audio/);
   assert.match(html, /media-src 'self' blob:/);
-  assert.match(html, /<video id="camera-video" autoplay muted playsinline poster="blank-video.svg\?v=20261005-r9" disableremoteplayback hidden>/);
+  assert.match(html, /<video id="camera-video" aria-label="Camera video" autoplay muted playsinline poster="blank-video.svg\?v=20261015-r11" disableremoteplayback hidden>/);
   const css = fs.readFileSync(path.join(__dirname, "../display.css"), "utf8");
   assert.match(css, /object-fit:\s*cover/);
   assert.doesNotMatch(css, /@import|https?:\/\//);

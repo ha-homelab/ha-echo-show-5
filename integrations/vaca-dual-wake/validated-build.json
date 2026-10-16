@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "build_date": "2026-10-14",
+  "upstream_repository": "https://github.com/msp1974/ViewAssistCompanionApp",
+  "upstream_commit": "65906aebffd2f39772773b44729b22fd022a1f3c",
+  "patch_sha256": "906df87129c0a96c2e71fc66344ff498f63cee2ad069587b553f9b1320d461a1",
+  "application_id": "com.msp1974.vacompanion",
+  "version_name": "0.13.4+dualwake.1",
+  "version_code": 7001,
+  "abi": [
+    "armeabi-v7a"
+  ],
+  "apk_sha256": "5bcf5904031e6243162974baccb4cc19401290f4399a4106ddfd2f3aab642ee7",
+  "apk_bytes": 74587218,
+  "signing_certificate_sha256": "2cebae957468fdb54ffaa473548e9b5f7946f84b8645e3947ff73d2af29b9850",
+  "unit_tests": {
+    "passed": 5,
+    "failed": 0
+  },
+  "note": "Records the locally validated artifact, not a promise of byte-identical builds. Signing keys, APKs, models and device data are private and excluded from this repository."
+}

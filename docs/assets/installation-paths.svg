@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1220" height="930" viewBox="0 0 1220 930" role="img" aria-labelledby="title description">
+  <title id="title">Choose conversion or update from the verified device state</title>
+  <desc id="description">For a stock cronos device, identify it, unlock with the reviewed amonet release, independently verify TWRP, make a verified external backup and only then format and install LineageOS. The first backup occurs after unlock. For existing Android, record identity and back up application or configuration data, then update the same-signed APK or complete versioned display assets. An initial signer change needs a separate migration. Both paths end in device validation. Recover at the failing layer instead of automatically reflashing.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9Z" fill="#365a78"/></marker>
+    <style>
+      text { font-family: system-ui, -apple-system, sans-serif; fill: #152c40; }
+      .title { font-size: 29px; font-weight: 700; }
+      .subtitle { font-size: 18px; fill: #465e71; }
+      .heading { font-size: 23px; font-weight: 700; }
+      .body { font-size: 18px; }
+      .small { font-size: 16px; fill: #465e71; }
+      .box { fill: #fff; stroke: #b6c8d8; stroke-width: 2; rx: 12; }
+      .gate { fill: #fff2dd; stroke: #a8772e; stroke-width: 2; rx: 12; }
+      .result { fill: #e5f3ee; stroke: #4a8876; stroke-width: 2; rx: 12; }
+      .flow { fill: none; stroke: #365a78; stroke-width: 2.5; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect width="1220" height="930" fill="#f4f7fa"/>
+  <text x="40" y="50" class="title">Choose the path from the device's verified current state.</text>
+  <text x="40" y="82" class="subtitle">Show 5 Gen2 / cronos only · Full serial + physical target · Normal AC power + USB data for conversion</text>
+
+  <text x="40" y="131" class="heading">STOCK DEVICE · attended conversion</text>
+  <text x="660" y="131" class="heading">EXISTING ANDROID · scoped update</text>
+  <rect x="40" y="155" width="520" height="86" class="box"/>
+  <text x="64" y="189" class="body" font-weight="700">1. Verify identity, artifacts and host</text>
+  <text x="64" y="217" class="small">Observed port + full serial · reviewed amonet release</text>
+  <rect x="660" y="155" width="520" height="86" class="box"/>
+  <text x="684" y="189" class="body" font-weight="700">1. Record target + current configuration</text>
+  <text x="684" y="217" class="small">Package, signer, HA identity, models, home, permissions</text>
+  <path d="M300 241V268" class="flow"/><path d="M920 241V268" class="flow"/>
+
+  <rect x="40" y="273" width="520" height="86" class="gate"/>
+  <text x="64" y="307" class="body" font-weight="700">2. Unlock → independently verify TWRP</text>
+  <text x="64" y="335" class="small">Boot chain changes before the first backup</text>
+  <rect x="660" y="273" width="520" height="86" class="gate"/>
+  <text x="684" y="307" class="body" font-weight="700">2. Back up affected data + retain rollback</text>
+  <text x="684" y="335" class="small">Keep the signing key and all private data outside Git</text>
+  <path d="M300 359V386" class="flow"/><path d="M920 359V386" class="flow"/>
+
+  <rect x="40" y="391" width="520" height="105" class="gate"/>
+  <text x="64" y="425" class="body" font-weight="700">3. Capture + verify off-device backup</text>
+  <text x="64" y="453" class="small">Size, hashes, GPT and partition mapping</text>
+  <text x="64" y="478" class="small">No formatting until the backup gate passes</text>
+  <rect x="660" y="391" width="520" height="105" class="box"/>
+  <text x="684" y="425" class="body" font-weight="700">3. Apply only the intended change</text>
+  <text x="684" y="453" class="small">Same-signed APK update / complete static release</text>
+  <text x="684" y="478" class="small">Different signer: follow the separate migration guide</text>
+  <path d="M300 496V523" class="flow"/><path d="M920 496V523" class="flow"/>
+
+  <rect x="40" y="528" width="520" height="105" class="box"/>
+  <text x="64" y="562" class="body" font-weight="700">4. Install LineageOS, then applications</text>
+  <text x="64" y="590" class="small">Follow exact format/install stages and readback</text>
+  <text x="64" y="615" class="small">Authorize trusted ADB · authenticate to HA</text>
+  <rect x="660" y="528" width="520" height="105" class="box"/>
+  <text x="684" y="562" class="body" font-weight="700">4. Restart / select versioned home path</text>
+  <text x="684" y="590" class="small">Re-read models, assistant, permission and UI state</text>
+  <text x="684" y="615" class="small">Do not repeat unlock to repair an application</text>
+  <path d="M300 633V664H610V688" class="flow"/>
+  <path d="M920 633V664H610" fill="none" stroke="#365a78" stroke-width="2.5"/>
+
+  <rect x="210" y="693" width="800" height="100" class="result"/>
+  <text x="234" y="728" class="heading">Validate the selected device before updating another</text>
+  <text x="234" y="758" class="body">Installed state → transport → deliberate voice/video test → recovery</text>
+  <text x="234" y="781" class="small">App restart, Android reboot, power loss and multi-day soak are distinct tests.</text>
+
+  <rect x="40" y="824" width="1140" height="66" class="box"/>
+  <text x="64" y="851" class="body" font-weight="700">Recovery follows the failing layer.</text>
+  <text x="64" y="876" class="small">Restore configuration, static assets, app data or signed APK as appropriate. Uncertain firmware writes require independent probes.</text>
+  <text x="40" y="916" class="small">Navigation aid only: use the complete runbooks. A verified backup is not a tested universal return-to-stock procedure.</text>
+</svg>

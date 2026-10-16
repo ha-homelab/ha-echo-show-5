@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1260" height="910" viewBox="0 0 1260 910" role="img" aria-labelledby="title description">
+  <title id="title">Voice processing: local activation and three selectable assistants</title>
+  <desc id="description">Wake detection is local on the Show, with two models sharing one microphone and threshold. Home Assistant selects one pipeline. Local Russian Home uses FCC NVIDIA cloud recognition, HA intents or local Ollama dialogue, and local Piper Irina synthesis. FCC backup uses external recognition, an external text model through the hosted gateway for unmatched text, and external synthesis. Homeway is a separate cloud-backed assistant. Switching is manual and neither local wake detection nor a privately hosted gateway makes all processing offline.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9Z" fill="#365a78"/></marker>
+    <style>
+      text { font-family: system-ui, -apple-system, sans-serif; fill: #152c40; }
+      .title { font-size: 29px; font-weight: 700; }
+      .subtitle { font-size: 18px; fill: #465e71; }
+      .heading { font-size: 22px; font-weight: 700; }
+      .body { font-size: 18px; }
+      .small { font-size: 16px; fill: #465e71; }
+      .local { fill: #e5f3ee; stroke: #4a8876; stroke-width: 2; rx: 12; }
+      .cloud { fill: #fff1dc; stroke: #a8772e; stroke-width: 2; rx: 12; }
+      .neutral { fill: #eaf0f8; stroke: #6685a7; stroke-width: 2; rx: 12; }
+      .flow { fill: none; stroke: #365a78; stroke-width: 2.5; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect width="1260" height="910" fill="#f4f7fa"/>
+  <text x="40" y="50" class="title">Wake words are local. The selected pipeline decides the rest.</text>
+  <text x="40" y="81" class="subtitle">One pipeline per interaction · Manual switching · Both phrases activate the same selected assistant</text>
+
+  <rect x="40" y="115" width="555" height="125" class="local"/>
+  <text x="64" y="148" class="heading">ON THE SHOW · VACA + microWakeWord</text>
+  <text x="64" y="180" class="body">“Привет, мышка” + “Hey Jarvis” · private + built-in models</text>
+  <text x="64" y="210" class="small">One microphone · shared threshold 0.35 · cross-model cooldown</text>
+  <rect x="690" y="115" width="530" height="125" class="neutral"/>
+  <text x="714" y="148" class="heading">HOME ASSISTANT · satellite selection</text>
+  <text x="714" y="180" class="body">Choose an available assistant for this device</text>
+  <text x="714" y="210" class="small">Does not require new firmware or wake-word training</text>
+  <path d="M595 178H686" class="flow"/>
+
+  <text x="40" y="290" class="heading">1 · Local Russian Home — recorded Show configuration</text>
+  <text x="40" y="318" class="small">Cloud recognition remains required; local intents can avoid a language-model request.</text>
+  <rect x="40" y="342" width="350" height="126" class="cloud"/>
+  <text x="62" y="373" class="body" font-weight="700">CLOUD · speech recognition</text>
+  <text x="62" y="404" class="body">FCC / NVIDIA Parakeet</text>
+  <text x="62" y="438" class="small">Command audio leaves local systems</text>
+  <rect x="455" y="342" width="350" height="126" class="local"/>
+  <text x="477" y="373" class="body" font-weight="700">LOCAL · intent / dialogue</text>
+  <text x="477" y="404" class="body">HA intents or Ollama model</text>
+  <text x="477" y="438" class="small">echomuse-home:4b · controlled tools</text>
+  <rect x="870" y="342" width="350" height="126" class="local"/>
+  <text x="892" y="373" class="body" font-weight="700">LOCAL · speech synthesis</text>
+  <text x="892" y="404" class="body">Piper / Irina</text>
+  <text x="892" y="438" class="small">Answer audio returns through HA</text>
+  <path d="M390 403H451" class="flow"/><path d="M805 403H866" class="flow"/>
+
+  <text x="40" y="517" class="heading">2 · FCC Russian Backup — independent of Homeway speech</text>
+  <rect x="40" y="539" width="350" height="126" class="cloud"/>
+  <text x="62" y="571" class="body" font-weight="700">CLOUD · speech recognition</text>
+  <text x="62" y="602" class="body">FCC / NVIDIA Parakeet</text>
+  <text x="62" y="635" class="small">Operator-hosted protocol adapter</text>
+  <rect x="455" y="539" width="350" height="126" class="cloud"/>
+  <text x="477" y="571" class="body" font-weight="700">CLOUD · unmatched dialogue</text>
+  <text x="477" y="602" class="body">External free-tier text model</text>
+  <text x="477" y="635" class="small">Via hosted FCC; HA intents first</text>
+  <rect x="870" y="539" width="350" height="126" class="cloud"/>
+  <text x="892" y="571" class="body" font-weight="700">CLOUD · speech synthesis</text>
+  <text x="892" y="602" class="body">FCC / NVIDIA Chatterbox</text>
+  <text x="892" y="635" class="small">Provider availability / quotas apply</text>
+  <path d="M390 600H451" class="flow"/><path d="M805 600H866" class="flow"/>
+
+  <text x="40" y="714" class="heading">3 · Homeway — separately registered cloud-backed assistant</text>
+  <rect x="40" y="737" width="1180" height="85" class="cloud"/>
+  <text x="64" y="770" class="body">Homeway speech services + the configured conversation route → answer through HA</text>
+  <text x="64" y="800" class="small">Retain registration for manual return after recovery or allowance reset; verify the complete route first.</text>
+  <text x="40" y="858" class="small">Color + labels identify processing location. The diagram does not assert current provider health, quota or speech accuracy.</text>
+  <text x="40" y="884" class="small">Configuration baseline: October 14, 2026. Display locale and wake-model selection do not change the assistant pipeline.</text>
+</svg>
