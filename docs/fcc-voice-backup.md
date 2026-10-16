@@ -26,7 +26,7 @@ This pipeline uses:
   installed `EchoMuseGetState` handler, avoiding an LLM round trip.
 
 The model, tool permissions, infrastructure and current latency limitations
-are maintained in the [EchoMuse home-control guide](https://github.com/ha-homelab/ha-echomuse/blob/feat/russian-energy-assist/docs/home-control.md).
+are maintained in the [EchoMuse home-control guide](https://github.com/ha-homelab/ha-echomuse/blob/main/docs/home-control.md).
 This is not a fully offline voice pipeline: local dialogue and synthesis do
 not replace cloud recognition. There is no automatic cloud-LLM fallback for
 household requests in this pipeline.

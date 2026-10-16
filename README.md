@@ -87,10 +87,6 @@ python3 -m unittest discover -s integrations/show5-intercom/tests -v
 
 ## Related projects
 
-[Echo Dot 2 / EchoLocal](https://github.com/ha-homelab/ha-echo-dot) uses different hardware and a different conversion procedure. [EchoMuse](https://github.com/ha-homelab/ha-echomuse) maintains the local home-conversation route. [Amazon Echo Home Energy](https://github.com/4alvit/amazon-echo-home-voice) is a read-only Alexa skill for unmodified devices. The [HA Homelab directory](https://github.com/ha-homelab) lists related integrations.
-
-## Related projects
-
 - [EchoMuse on emOS](https://github.com/ha-homelab/ha-echomuse) covers a separate
   Dot software stack. Its firmware and access methods are not this Android Show route.
 
