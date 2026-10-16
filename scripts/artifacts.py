@@ -83,11 +83,11 @@ def fetch(kind):
     parsed = urlsplit(url)
     if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password:
         raise ValueError('HTTPS artifact URL without credentials required')
+    req = urllib.request.Request(item['url'], headers={'User-Agent': 'ha-echo-show-5-preparation'})
     p.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary = tempfile.mkstemp(prefix=p.name + '.', suffix='.partial', dir=p.parent)
     partial = Path(temporary)
     try:
-        req = urllib.request.Request(item['url'], headers={'User-Agent': 'ha-echo-show-5-preparation'})
         # Own the descriptor before opening the network stream, including on failure.
         with os.fdopen(descriptor, 'wb') as dst, open_source(req) as src:
             received = 0
