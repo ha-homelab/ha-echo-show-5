@@ -80,6 +80,30 @@ sentences and test both languages. Do not run two handlers for the same phrase.
 - Append a configured name, for example `на втором шоу`. Equivalent English
   commands and explicit names are included; spoken confirmations are Russian.
 
+The English play grammar also accepts `play something`, optionally with
+`please`, `from plex`, or a configured device name. This exact transcript was
+observed on a Russian EchoMuse pipeline even though the ASR request selected
+Russian. It means the same bounded Plex queue action as `play music`; it does
+not enable arbitrary providers, titles or unregistered destinations. Missing
+this phrase previously sent the request to the conversation model, which
+replied that it could not play music without calling the native music route.
+
+Short **`stop` / `стоп`** commands use the origin's Music Assistant player.
+`stop music`, `останови музыку` and `выключи музыку` use the same stop path;
+`pause` / `пауза` and `поставь на паузу музыку` use the separate pause path.
+Stop calls `media_player.media_stop` for a player reporting playing, buffering
+or paused. An idle player receives an already-stopped response without another
+service call; an unavailable player returns an error. An unknown origin never
+selects a different room. Requests such as `stop the heater` and `do not stop`
+do not match these exact music commands.
+
+This also handles the observed Russian-pipeline transcript `stop`, which
+previously went to the conversation model and prompted an unnecessary question
+about lights or heaters. With local intent preference enabled, the native
+route is checked before model reasoning, including a continuation of that
+existing conversation. Wake-word detection remains separate: on the tested
+EchoMuse units the phrase is **Hey Jarvis**, followed by the command.
+
 Commands without a name operate only on their registered origin. A Dot responds
 that it has no screen for screen commands. A Show returns from its previous
 owned app session before music starts/resumes. Switching to the clock, OTT or a
@@ -161,3 +185,19 @@ service failure, sentence recognition and unrelated commands remaining unmatched
 Then verify typed Assist with explicit targets, genuine satellite-origin requests,
 audible playback and stop/restore on each device. Keep a before snapshot, avoid
 interrupting other active players and restore the tested device's prior volume.
+
+### Short-stop validation — October 14, 2026
+
+All 18 focused routing/runtime tests passed in an isolated HA runtime with fake
+media services. They cover exact Russian/English recognition, origin isolation,
+non-music exclusions, unavailable players and service-failure propagation.
+The live HA package passed configuration validation and scripts/automations
+were reloaded. No firmware or wake threshold was changed.
+
+Replaying the recognized text `stop` in the affected Dot's existing conversation
+was handled locally in 0.352 seconds. Its native and Music Assistant player
+states both changed from playing to idle. A subsequent `стоп` in a fresh
+conversation returned the already-stopped response locally in 0.026 seconds.
+Music was left stopped. These timings exclude wake detection, ASR and speech
+playback; they verify command routing and observed player state. The offline
+Dot still needs an attended voice test after reconnecting.
