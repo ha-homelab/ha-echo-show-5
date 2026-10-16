@@ -45,7 +45,7 @@ Both converted Shows have **VACA `dualwake.2` and display `r11` installed**, wit
 
 On **both Shows**, three software microphone mute/unmute cycles and a normal app restart restored the two models and microphone capture. These are lifecycle observations; they do not prove spoken activation or audible answer quality.
 
-**Show 2 passed fresh playback checks for both cameras:** Porch at 1920×1080 and Front at 854×480. **Show 1 is being rechecked** after its first retry failed during signaling. An earlier apparent success may have relied on a retained frame counter; a nonzero historical count is not proof that frames are advancing now. Consult [Validation and evidence](Validation.md) for the final per-device record.
+**Fresh camera checks passed on both Shows:** Porch at 1920×1080 and Front at 854×480, followed by return to the clock. On Show 1, Porch needed an automatic second attempt after a startup timeout; an earlier attempt also failed signaling. Immediate startup and sustained reliability are not established. The revised check waits for the current stream to resolve and its frames to advance after clearing the previous camera. A nonzero historical frame count alone is not proof of current playback. See [Validation and evidence](Validation.md).
 
 Physical recognition of both deliberately spoken phrases, false-positive behavior, power-loss recovery and a multi-day soak remain separate acceptance work. A normal app restart is not an Android reboot or removal of AC power. Jitsi, music and OTT playback also need their own end-to-end checks; launching an application alone does not establish a successful call or stream.
 

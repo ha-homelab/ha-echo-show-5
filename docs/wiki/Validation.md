@@ -38,6 +38,15 @@ HA identities, **Local Russian Home**, **Irina**, threshold **0.35**, English
 were retained. Final HA checks reported both satellites idle, with mute and auto
 brightness off. These results do not establish physical phrase recognition.
 
+Fresh camera checks passed on **both Shows**: Porch at **1920×1080** and Front
+at **854×480**, with advancing decoded frames and return to the English clock.
+The check cleared the prior camera, required a newly resolved stream session,
+then observed its frame count increase with the video visible. On Show 1, Porch
+required an automatic second attempt after a startup timeout; an earlier sample
+failed signaling. This establishes recovery and playback during the samples,
+not immediate startup or sustained reliability. The earlier check could confuse
+retained element counters with the next camera and was replaced.
+
 HA experienced a separate server disk-pressure eviction during the rollout.
 Removing unused build cache allowed startup to complete; persistent data and
 backups were retained. The r11 fix covers the observed interval in which HTTP
