@@ -15,7 +15,7 @@ Empiece por la [wiki del proyecto](docs/wiki/Home.md). Para un dispositivo de f�
 - **Control desde HA:** anuncios, música, canales de TV predefinidos, nuestro cliente OTT-play FOSS sobre Capacitor, una ruta web OTT independiente y OttPlayer opcional. Home/Stop termina la actividad administrada. [Control remoto](docs/remote-endpoint.md).
 - **Llamadas mediante su propio Jitsi:** sala fija, política de entrada explícita, cesión del micrófono y restauración tras la llamada. El intercomunicador experimental de HA es una opción separada. [Llamadas](docs/wiki/Display-media-and-calls.md#jitsi-and-intercom).
 - **Selección del servicio de voz:** Homeway, la ruta FCC independiente en la nube, o diálogo local y Piper con reconocimiento de voz FCC en la nube. Se elige por satélite; no hay conmutación automática al fallar. [Cambiar de asistente](docs/wiki/Voice-and-wake-words.md#choose-and-switch-an-assistant).
-- **Idiomas:** README de entrada en inglés, ruso, alemán y español, y configuración propia del idioma del reloj. El idioma de pantalla no cambia el reconocimiento ni la frase de activación. [Cobertura de localización](docs/wiki/Localization.md).
+- **Idiomas:** README de entrada en inglés, ruso, alemán, español y francés, y configuración propia del idioma del reloj. El idioma de pantalla no cambia el reconocimiento ni la frase de activación. [Cobertura de localización](docs/wiki/Localization.md).
 
 ## Estado de las pruebas
 

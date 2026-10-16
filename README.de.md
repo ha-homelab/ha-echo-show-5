@@ -15,7 +15,7 @@ Beginnen Sie im [Projekt-Wiki](docs/wiki/Home.md). Für ein unverändertes Gerä
 - **HA-Fernbedienung:** Ansagen, Musik, fest konfigurierte TV-Streams, unser OTT-play-FOSS-Client auf Capacitor, ein separater OTT-Webzugang und optional OttPlayer. Home/Stop beendet die verwaltete Aktivität. [Fernsteuerung](docs/remote-endpoint.md).
 - **Anrufe über die eigene Jitsi-Installation:** fester Raum, ausdrücklich gewählte Beitrittsregel, Mikrofonübergabe und Wiederherstellung nach dem Anruf. Die experimentelle HA-Gegensprechanlage ist ein gesonderter Weg. [Anrufe](docs/wiki/Display-media-and-calls.md#jitsi-and-intercom).
 - **Sprachdienst auswählen:** Homeway, der unabhängige FCC-Cloud-Pfad oder lokaler Dialog und Piper mit FCC-Cloud-Spracherkennung. Die Auswahl gilt pro Satellit; es gibt kein automatisches Failover. [Umschalten](docs/wiki/Voice-and-wake-words.md#choose-and-switch-an-assistant).
-- **Sprachen:** Einstiegs-READMEs auf Englisch, Russisch, Deutsch und Spanisch sowie eine eigene Spracheinstellung für die Uhr. Bildschirm-, Erkennungs- und Aktivierungssprache sind unabhängig. [Lokalisierungsumfang](docs/wiki/Localization.md).
+- **Sprachen:** Einstiegs-READMEs auf Englisch, Russisch, Deutsch, Spanisch und Französisch sowie eine eigene Spracheinstellung für die Uhr. Bildschirm-, Erkennungs- und Aktivierungssprache sind unabhängig. [Lokalisierungsumfang](docs/wiki/Localization.md).
 
 ## Stand der Prüfung
 
