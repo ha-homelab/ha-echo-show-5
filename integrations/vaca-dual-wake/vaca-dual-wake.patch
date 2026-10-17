@@ -1,5 +1,5 @@
 diff --git a/app/build.gradle.kts b/app/build.gradle.kts
-index 4606ee9..9cf9f1a 100644
+index 4606ee9..983511c 100644
 --- a/app/build.gradle.kts
 +++ b/app/build.gradle.kts
 @@ -8,8 +8,6 @@ plugins {
@@ -34,8 +34,8 @@ index 4606ee9..9cf9f1a 100644
          targetSdk = 36
 -        versionName = "0.13.4"
 -        versionCode = code
-+        versionName = "0.13.4+myshka.5"
-+        versionCode = 7005
++        versionName = "0.13.4+myshka.6"
++        versionCode = 7006
          testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
      }
  
@@ -1445,6 +1445,202 @@ index 0000000..1afea0c
 +            assertEquals(1, endpoint.requests.get())
 +            rejected { get(endpoint.url()) }
 +            assertEquals(1, endpoint.requests.get())
++        }
++    }
++}
+diff --git a/app/src/main/java/com/msp1974/vacompanion/device/Volume.kt b/app/src/main/java/com/msp1974/vacompanion/device/Volume.kt
+index 939163f..03e895c 100644
+--- a/app/src/main/java/com/msp1974/vacompanion/device/Volume.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/device/Volume.kt
+@@ -55,7 +55,7 @@ internal class AudioVolumeManager(context: Context) {
+     }
+ 
+     fun setVolume(stream: Int, volume: Int) {
+-        audioManager.setStreamVolume(stream, min(getStreamMaxVolume(stream) ,volume).toInt(), 0)
++        audioManager.setStreamVolume(stream, min(getStreamMaxVolume(stream), volume), 0)
+     }
+ 
+     fun getVolume(stream: Int): Float {
+diff --git a/app/src/main/java/com/msp1974/vacompanion/utils/Helpers.kt b/app/src/main/java/com/msp1974/vacompanion/utils/Helpers.kt
+index 124dcb0..e27725f 100644
+--- a/app/src/main/java/com/msp1974/vacompanion/utils/Helpers.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/utils/Helpers.kt
+@@ -19,7 +19,7 @@ class Helpers {
+             NetworkInterface.getNetworkInterfaces()?.toList()?.map { networkInterface ->
+                 networkInterface.inetAddresses?.toList()?.find {
+                     !it.isLoopbackAddress && it is Inet4Address
+-                }?.let { return it.hostAddress }
++                }?.hostAddress?.let { return it }
+             }
+             return ""
+         }
+@@ -70,4 +70,4 @@ class Helpers {
+ 
+             }
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/app/src/main/java/com/msp1974/vacompanion/utils/ReleaseAssets.kt b/app/src/main/java/com/msp1974/vacompanion/utils/ReleaseAssets.kt
+new file mode 100644
+index 0000000..7309d5f
+--- /dev/null
++++ b/app/src/main/java/com/msp1974/vacompanion/utils/ReleaseAssets.kt
+@@ -0,0 +1,20 @@
++package com.msp1974.vacompanion.utils
++
++import kotlinx.serialization.json.JsonArray
++import kotlinx.serialization.json.JsonObject
++import kotlinx.serialization.json.JsonPrimitive
++
++/** Parse external release metadata without assuming every asset has the expected shape. */
++internal object ReleaseAssets {
++    fun apkDownload(release: JsonObject): String {
++        val assets = release["assets"] as? JsonArray ?: return ""
++        for (element in assets) {
++            val asset = element as? JsonObject ?: continue
++            val type = asset["content_type"] as? JsonPrimitive ?: continue
++            if (!type.isString || type.content != "application/vnd.android.package-archive") continue
++            val url = asset["browser_download_url"] as? JsonPrimitive ?: continue
++            if (url.isString && url.content.isNotBlank()) return url.content
++        }
++        return ""
++    }
++}
+diff --git a/app/src/main/java/com/msp1974/vacompanion/utils/Updater.kt b/app/src/main/java/com/msp1974/vacompanion/utils/Updater.kt
+index c385482..759a971 100644
+--- a/app/src/main/java/com/msp1974/vacompanion/utils/Updater.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/utils/Updater.kt
+@@ -35,20 +35,7 @@ class Updater(val context: Context) {
+ 
+     private fun getDownloadLink(data: JsonObject): String {
+         try {
+-            val assets = data.getOrDefault("assets", null)
+-            if (assets != null) {
+-                for (asset in assets as List<JsonObject>) {
+-                    if (asset.getOrDefault(
+-                            "content_type",
+-                            ""
+-                        ).toString()
+-                            .replace("\"", "") == "application/vnd.android.package-archive"
+-                    ) {
+-                        return asset.getOrDefault("browser_download_url", "").toString()
+-                                .replace("\"", "")
+-                    }
+-                }
+-            }
++            return ReleaseAssets.apkDownload(data)
+         } catch (e: Exception) {
+             log.e(e.message.toString())
+         }
+diff --git a/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/ml/OnnxModelRunner.kt b/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/ml/OnnxModelRunner.kt
+index 66fe8fd..94ecd22 100644
+--- a/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/ml/OnnxModelRunner.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/ml/OnnxModelRunner.kt
+@@ -60,8 +60,7 @@ internal class OnnxModelRunner(
+         try {
+             inputTensor = OnnxTensor.createTensor(env, inputArray)
+             session.run(mapOf(session.inputNames.first() to inputTensor)).use { outputs ->
+-                val result = outputs[0].value as Array<FloatArray>
+-                return result[0][0]
++                return scalarPrediction(outputs[0].value)
+             }
+         } catch (e: Exception) {
+             throw RuntimeException("Failed to run inference", e)
+@@ -73,4 +72,4 @@ internal class OnnxModelRunner(
+     override fun close() {
+         session.close()
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/ml/ScalarPrediction.kt b/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/ml/ScalarPrediction.kt
+new file mode 100644
+index 0000000..cb8d82f
+--- /dev/null
++++ b/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/ml/ScalarPrediction.kt
+@@ -0,0 +1,12 @@
++package com.msp1974.vacompanion.wakeword.openwakeword.ml
++
++/** A wake classifier returns exactly one finite probability for its single input batch. */
++internal fun scalarPrediction(value: Any?): Float {
++    val batch = value as? Array<*>
++    require(batch != null && batch.size == 1) { "Expected one classifier output batch" }
++    val scores = batch[0] as? FloatArray
++    require(scores != null && scores.size == 1) { "Expected one float classifier score" }
++    val score = scores[0]
++    require(score.isFinite() && score in 0.0f..1.0f) { "Classifier score is not a probability" }
++    return score
++}
+diff --git a/app/src/test/java/com/msp1974/vacompanion/utils/ReleaseAssetsTest.kt b/app/src/test/java/com/msp1974/vacompanion/utils/ReleaseAssetsTest.kt
+new file mode 100644
+index 0000000..f3bb7d5
+--- /dev/null
++++ b/app/src/test/java/com/msp1974/vacompanion/utils/ReleaseAssetsTest.kt
+@@ -0,0 +1,37 @@
++package com.msp1974.vacompanion.utils
++
++import kotlinx.serialization.json.Json
++import kotlinx.serialization.json.jsonObject
++import org.junit.Assert.assertEquals
++import org.junit.Test
++
++class ReleaseAssetsTest {
++    private fun download(json: String) = ReleaseAssets.apkDownload(Json.parseToJsonElement(json).jsonObject)
++    private val apk = """{"content_type":"application/vnd.android.package-archive","browser_download_url":"https://example.invalid/app.apk"}"""
++
++    @Test fun missingOrNonArrayAssetsReturnEmpty() {
++        for (json in listOf("{}", """{"assets":null}""", """{"assets":{}}""", """{"assets":"wrong"}""")) {
++            assertEquals("", download(json))
++        }
++    }
++
++    @Test fun malformedEntriesDoNotHideLaterApk() {
++        assertEquals("https://example.invalid/app.apk", download("""{"assets":[null,5,"bad",[],{},$apk]}"""))
++    }
++
++    @Test fun wrongContentTypesDoNotSelectAsset() {
++        assertEquals("", download("""{"assets":[{"content_type":[],"browser_download_url":"https://example.invalid/a"},{"content_type":"text/plain","browser_download_url":"https://example.invalid/b"}]}"""))
++    }
++
++    @Test fun emptyOrNonStringUrlsAreSkipped() {
++        for (url in listOf("null", "123", "[]", "{}", "\"\"", "\"  \"")) {
++            val bad = """{"content_type":"application/vnd.android.package-archive","browser_download_url":$url}"""
++            assertEquals("https://example.invalid/app.apk", download("""{"assets":[$bad,$apk]}"""))
++        }
++    }
++
++    @Test fun firstValidApkWins() {
++        val second = apk.replace("app.apk", "second.apk")
++        assertEquals("https://example.invalid/app.apk", download("""{"assets":[$apk,$second]}"""))
++    }
++}
+diff --git a/app/src/test/java/com/msp1974/vacompanion/wakeword/openwakeword/ml/ScalarPredictionTest.kt b/app/src/test/java/com/msp1974/vacompanion/wakeword/openwakeword/ml/ScalarPredictionTest.kt
+new file mode 100644
+index 0000000..2217f6b
+--- /dev/null
++++ b/app/src/test/java/com/msp1974/vacompanion/wakeword/openwakeword/ml/ScalarPredictionTest.kt
+@@ -0,0 +1,23 @@
++package com.msp1974.vacompanion.wakeword.openwakeword.ml
++
++import org.junit.Assert.assertEquals
++import org.junit.Assert.assertThrows
++import org.junit.Test
++
++class ScalarPredictionTest {
++    @Test fun acceptsSingleFiniteProbability() {
++        for (score in listOf(0.0f, 0.5f, 1.0f)) assertEquals(score, scalarPrediction(arrayOf(floatArrayOf(score))), 0.0f)
++    }
++
++    @Test fun rejectsWrongTypesAndDimensions() {
++        for (value in listOf(null, 1.0f, floatArrayOf(0.5f), emptyArray<FloatArray>(), arrayOf(floatArrayOf()), arrayOf(floatArrayOf(0.1f, 0.2f)), arrayOf(floatArrayOf(0.1f), floatArrayOf(0.2f)), arrayOf(doubleArrayOf(0.5)))) {
++            assertThrows(IllegalArgumentException::class.java) { scalarPrediction(value) }
++        }
++    }
++
++    @Test fun rejectsNonFiniteOrOutOfRangeScores() {
++        for (score in listOf(Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, -0.01f, 1.01f)) {
++            assertThrows(IllegalArgumentException::class.java) { scalarPrediction(arrayOf(floatArrayOf(score))) }
 +        }
 +    }
 +}

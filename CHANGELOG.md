@@ -19,6 +19,11 @@
 
 ### Fixed
 
+- Validate release JSON asset types and ONNX scalar probability outputs in VACA
+  `0.13.4+myshka.6` (7006); handle nullable IPv4 addresses and remove a redundant
+  volume conversion. Eight malformed-input JVM regressions supplement the
+  existing TLS/build checks. Android API deprecations remain visible.
+
 - Restore default certificate and hostname validation in the VACA application
   and custom-file downloader; require real TLS trust/rejection tests when
   building `0.13.4+myshka.5` (7005). Existing explicit compatibility opt-in
