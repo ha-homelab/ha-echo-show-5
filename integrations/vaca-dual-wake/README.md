@@ -4,7 +4,7 @@
 
 This Android patch extends [View Assist Companion App](https://github.com/msp1974/ViewAssistCompanionApp)
 at the pinned commit `65906aebffd2f39772773b44729b22fd022a1f3c`.
-The current source builds **`0.13.4+myshka.5` / version code `7005`** for ARMv7.
+The current source builds **`0.13.4+myshka.6` / version code `7006`** for ARMv7.
 It retains the optional two-model microWakeWord extension and adds an opt-in
 exact ONNX frontend for one privately trained activation model. These are
 alternative configurations, not three simultaneously active wake phrases.
@@ -69,6 +69,26 @@ built-in English phrase **“Hey Jarvis.”** The wake phrase, interface languag
 HA recognition language and reply voice are independent settings. Adding an
 English wake phrase does not switch a Russian assistant to English. Keep stable
 model IDs untranslated in configuration.
+
+## What changed in myshka.6
+
+Release asset selection now checks the JSON array, object and string types
+explicitly. A malformed item cannot abort discovery of a later valid APK.
+The ONNX classifier output must contain one finite float probability in a
+single batch; malformed shapes and non-finite values produce a clear failure
+instead of an unchecked cast or array access. A nullable network address is
+handled safely, and the redundant integer volume conversion is removed.
+Eight JVM regressions exercise valid and malformed release/model values. The
+builder requires those exact cases together with all three TLS tests and at
+least 29 passing, non-skipped JVM tests. This is source/build evidence only;
+it does not qualify a new device installation or acoustic model.
+
+The remaining Android API deprecation diagnostics stay visible. In particular,
+the legacy audio-routing, display/wake-lock and pre-Android-Q Wi-Fi branches
+support older devices; replacing them requires API-level-specific behavior
+checks. Compose tab, dark-mode and logger API migrations also remain tracked.
+This patch does not suppress those diagnostics or claim that all warnings are
+resolved.
 
 ## What changed in myshka.5
 
@@ -173,8 +193,8 @@ the patch, choose a new ignored work directory so the old build stays available.
 The builder runs JVM tests, verifies APK signature/package/version/ABI, checks
 source integrity again, and writes two private outputs:
 
-- `vaca-0.13.4-myshka.5.apk`
-- `vaca-0.13.4-myshka.5.json` — source and patch hashes, signing certificate,
+- `vaca-0.13.4-myshka.6.apk`
+- `vaca-0.13.4-myshka.6.json` — source and patch hashes, signing certificate,
   artifact hash/size, test results and an explicit “not deployed by build tool”
   status. It contains no password, token or device identity.
 
@@ -186,7 +206,7 @@ upstream in-app updater cannot replace this differently signed APK.
 ## Install a same-certificate update
 
 **An existing local installation with the original certificate can receive
-`myshka.5` as an ordinary update. Do not uninstall it.** Select the intended
+`myshka.6` as an ordinary update. Do not uninstall it.** Select the intended
 engine and private model using its runbook after verifying the new artifact.
 
 1. Select one device by its exact serial and verify its current package/version.

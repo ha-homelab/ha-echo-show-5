@@ -9,9 +9,9 @@ The October 16 work adds an exact ONNX feature pipeline for a privately trained 
 **Historical `.3` baseline: installed and verified on both Shows; physical speech acceptance pending.** VACA **`0.13.4+myshka.3` / `7003`** builds for ARMv7 with the retained signing certificate. Its **18 JVM tests pass without failures or skips**. Each Show independently passed Android numerical replay, three microphone mute/unmute cycles and a normal app restart. These results do not establish physical speech recognition. See the dated [build receipt](../../integrations/vaca-dual-wake/build-myshka.3.json) and device observations below.
 
 The current [source builder](../../integrations/vaca-dual-wake/README.md) targets
-`myshka.5` / `7005` with a TLS verification repair. This page preserves the
+`myshka.6` / `7006` with TLS and typed-input repairs. This page preserves the
 `.3`/`.4` deployment record; its installed-version checks are not evidence that
-`.5` has been deployed or accepted. Use the current build's verified version
+later source builds have been deployed or accepted. Use the current build's verified version
 and test receipt for any subsequent update.
 
 ## Why the audio path changed

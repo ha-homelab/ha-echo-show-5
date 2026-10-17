@@ -9,8 +9,8 @@
 The trial replaces the previous two-phrase configuration on both converted Shows with the updated **“Привет, мышка” / “Privet Myshka” as the only activation phrase**. “Hey Jarvis” is no longer an active wake model. The selected HA assistant pipeline, clock/display configuration and media settings were preserved; media playback was not re-tested in this rollout.
 
 The current [source builder](../integrations/vaca-dual-wake/README.md) adds the
-`myshka.5` / `7005` TLS verification repair. The `.4` receipts and rollout below
-remain historical device evidence; they are not acceptance of `.5`. Check the
+`myshka.6` / `7006` TLS and typed-input repairs. The `.4` receipts and rollout below
+remain historical device evidence; they do not establish acceptance of later source builds. Check the
 current builder's version, full test result and retained signing identity
 before a new update. No new device installation is implied.
 
