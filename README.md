@@ -18,7 +18,9 @@ Reuse an **Amazon Echo Show 5, second generation (2021), codename `cronos`**, as
 
 ## October 16: single-phrase ONNX trial
 
-**Build verified; device checks pending.** `0.13.4+myshka.3` / `7003` passed **18 JVM tests with no failures, errors or skips**. The opt-in trial will use only **“Привет, мышка”**, with the exact ONNX frontend and a **0.50** threshold (**5.0 in HA**). “Hey Jarvis” will be removed from the active selection; the separate Stop command remains. Android deployment, reference-output comparison and physical recognition are not yet confirmed. The two-model microWakeWord capability remains available, and its October 15 baseline is recorded below.
+**APK installed and reference replay passed on both Shows.** VACA `0.13.4+myshka.3` / `7003` passed **18 JVM tests**, and each Show passed **two Android instrumentation tests** using **four existing private fixtures: 294 embeddings, 234 classifier windows and 11 positive windows**. All threshold decisions matched the reference. File replay does not record the room or establish acoustic recognition.
+
+Both Shows are configured for only **“Привет, мышка”** through the exact ONNX frontend at **0.50** (**5.0 in HA**), with “Hey Jarvis” removed from the active selection and the separate Stop command retained. **Both passed three microphone mute/unmute cycles with verified capture closure/reopening, plus a normal app restart**, preserving HA settings, brightness, permissions and nonroot ADB. Spoken activation, audible responses, distance, Stop during playback, power-loss recovery and a multi-day soak remain pending. The two-model microWakeWord capability and its October 15 baseline remain documented below.
 
 [Wake-model rollout: process and results](docs/wiki/Wake-model-rollout.md) · [Technical guide](docs/openwakeword-myshka.md) · [Validation graphic](docs/assets/wake-validation.svg)
 

@@ -44,8 +44,32 @@ source-tree, patch, certificate and APK hashes independently of deployment.
 
 The [development-evaluation chart](../assets/wake-validation.svg) reports supplied
 model-development observations. It is not an acoustic benchmark on the Shows.
-Android replay and installed-state results must be recorded separately from
-these host checks. The earlier October 15 record below remains historical.
+Android replay and installed-state results are recorded separately below.
+The earlier October 15 record remains historical.
+
+## October 16 installed-state and replay checks
+
+Both Shows received **`0.13.4+myshka.3` / `7003`**, matching the APK and retained
+signing identity in the build receipt. Each passed both Android instrumentation
+tests: private manifest validation and replay of four existing audio fixtures.
+Each replay produced **294 embeddings and 234 classifier windows**, including
+**11 positive windows**; all threshold decisions matched the reference. Maximum
+absolute differences were **0.00007439** for embedding values and **0.000006885**
+for classifier scores. No new room recording was made for these tests.
+
+Each Show also passed **three software mute/unmute cycles and a normal app
+restart**, restoring the same single classifier at **0.50** with no secondary
+Jarvis selection. Actual microphone closure and recovery were checked; HA
+identity, selected assistant, display/media settings and permissions were retained.
+The [dated rollout record](Wake-model-rollout.md#october-16-device-observations)
+records the individual timing observations. The final candidate corrects quiet-loop
+coroutine starvation that had prevented a mute change from stopping capture.
+HA switch state alone was not used as proof that microphone capture had stopped.
+
+These checks do not establish physical wake recognition, audible replies, Stop
+during playback, fresh three-metre performance, power-loss recovery or a
+multi-day soak. The selected Assist pipeline is preserved; local wake detection
+does not move its cloud recognition step onto the Show.
 
 ## October 15 installed-state and recovery checks
 

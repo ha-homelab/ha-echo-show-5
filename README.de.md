@@ -12,7 +12,9 @@ Beginnen Sie im [Projekt-Wiki](docs/wiki/Home.md). Für ein unverändertes Gerä
 
 ## 16. Oktober: Versuch mit einer ONNX-Aktivierungsphrase
 
-**Build geprüft; Geräteprüfungen stehen noch aus.** `0.13.4+myshka.3` / `7003` bestand **18 JVM-Tests ohne Fehler oder übersprungene Tests**. Der neue optionale Pfad soll ausschließlich **„Привет, мышка“** mit dem passenden ONNX-Frontend und einem Schwellwert von **0,50** (**5,0 in HA**) verwenden. „Hey Jarvis“ wird aus der aktiven Auswahl entfernt; der separate Stop-Befehl bleibt erhalten. Installation, Vergleich mit den Referenzausgaben und tatsächlich gesprochene Aktivierung sind noch nicht bestätigt. Zwei microWakeWord-Modelle bleiben als Funktion verfügbar; der geprüfte Stand vom 15. Oktober ist unten dokumentiert.
+**APK auf beiden Shows installiert; Referenzvergleich auf beiden bestanden.** VACA `0.13.4+myshka.3` / `7003` bestand **18 JVM-Tests**. Jeder Show bestand außerdem **zwei Android-Instrumentierungstests** mit **vier vorhandenen privaten Testdateien: 294 Embeddings, 234 Klassifikatorfenster und 11 positive Fenster**. Alle Schwellwertentscheidungen entsprachen der Referenz. Die Dateiwiedergabe zeichnet den Raum nicht auf und belegt keine akustische Erkennung.
+
+Beide Shows sind ausschließlich für **„Привет, мышка“** mit dem exakten ONNX-Frontend und **0,50** (**5,0 in HA**) konfiguriert. „Hey Jarvis“ wurde aus der aktiven Auswahl entfernt; der separate Stop-Befehl bleibt. **Beide bestanden drei Mikrofon-Stummschaltzyklen mit geprüftem Schließen und Wiederöffnen der Erfassung sowie einen normalen App-Neustart.** HA-Einstellungen, Helligkeit, Berechtigungen und ADB ohne Root blieben erhalten. Gesprochene Aktivierung, hörbare Antworten, Entfernung, Stop während der Wiedergabe, Stromausfall und mehrtägiger Betrieb sind weiterhin ungeprüft. Die Funktion mit zwei microWakeWord-Modellen und der Stand vom 15. Oktober bleiben unten dokumentiert.
 
 [Modellumstellung: Ablauf und Ergebnisse](docs/wiki/Wake-model-rollout.md) · [Technische Anleitung](docs/openwakeword-myshka.md) · [Prüfdiagramm](docs/assets/wake-validation.svg)
 

@@ -7,7 +7,7 @@ This route targets **Echo Show 5 Gen2 / 2021 / cronos**, using **LineageOS / And
 ## Start with the wiki
 
 - [Wiki home](wiki/Home.md): choose the installation, operation or maintenance path.
-- [Wake-model rollout](wiki/Wake-model-rollout.md): the October 16 single-phrase ONNX trial, verified build, pending device checks and colorful process/evidence diagrams.
+- [Wake-model rollout](wiki/Wake-model-rollout.md): the October 16 single-phrase ONNX trial, verified device replay and lifecycle checks, remaining physical acceptance and process/evidence diagrams.
 - [Process and results](wiki/Process-and-results.md): conversion stages, current software changes, installed results and remaining acceptance work.
 - [Architecture](wiki/Architecture.md): device, HA and service boundaries, including local versus cloud speech processing.
 - [Validation and evidence](wiki/Validation.md): dated versions, automated checks, per-device observations and unverified behavior.
@@ -15,7 +15,9 @@ This route targets **Echo Show 5 Gen2 / 2021 / cronos**, using **LineageOS / And
 
 ## October 16 wake-model trial
 
-**Build verified; device checks pending.** `0.13.4+myshka.3` / `7003` passed 18 JVM tests with no failures, errors or skips. The opt-in configuration will use only **“Привет, мышка”** at **0.50** (**5.0 in HA**) with the exact ONNX frontend, removing “Hey Jarvis” from the active selection while retaining the separate Stop command. Installation, Android/reference comparison and physical activation are not yet confirmed. See the [rollout process](wiki/Wake-model-rollout.md) and [technical guide](openwakeword-myshka.md).
+**APK installed and reference replay passed on both Shows.** VACA `0.13.4+myshka.3` / `7003` passed 18 JVM tests. Each device also passed two Android instrumentation tests using four existing private fixtures: **294 embeddings, 234 classifier windows and 11 positive windows**, with all threshold decisions matching the reference. This is file-based inference evidence, not a room recording or acoustic acceptance.
+
+Both Shows are configured for only **“Привет, мышка”** at **0.50** (**5.0 in HA**) through the exact ONNX frontend, with “Hey Jarvis” removed from the active selection and the separate Stop command retained. **Both passed three microphone mute/unmute cycles with verified capture closure/reopening, plus a normal app restart.** HA settings, brightness, permissions and nonroot ADB were preserved. Spoken activation, audible answers, distance, Stop during playback, power-loss recovery and a multi-day soak remain pending. See the [rollout process](wiki/Wake-model-rollout.md) and [technical guide](openwakeword-myshka.md).
 
 ![One microphone feeds the exact ONNX activation pipeline and a separate Stop detector; 80 ms denotes an audio chunk, not measured wake latency.](assets/exact-oww-pipeline.svg)
 

@@ -2,9 +2,9 @@
 
 [Project overview](../README.md) · [Wake-model rollout](wiki/Wake-model-rollout.md) · [Voice and wake words](wiki/Voice-and-wake-words.md) · [Validation](wiki/Validation.md) · [Previous dual-wake build](../integrations/vaca-dual-wake/README.md)
 
-**Status — October 16, 2026: build verified.** VACA `0.13.4+myshka.3` / version code `7003` has been built, and **18 JVM tests passed with zero failures, errors or skips**. Android deployment, comparison with the reference output and physical Echo Show acceptance remain pending. This document records the verified build and the remaining rollout gates; it is not an installation receipt.
+**Status — October 16, 2026: installed, Android replay and lifecycle checks passed on both Shows.** VACA `0.13.4+myshka.3` / version code `7003` is installed on both devices, and **18 JVM tests passed with zero failures, errors or skips**. Each device passed two Android instrumentation tests, three actual microphone mute/unmute cycles and a normal app restart. Physical speech acceptance remains pending. The [dated device record](wiki/Wake-model-rollout.md#october-16-device-observations) separates these results.
 
-The authorized trial will replace the previous two-phrase configuration on both converted Shows with the updated **“Привет, мышка” / “Privet Myshka” as the only activation phrase**. “Hey Jarvis” must no longer be an active wake model. The selected HA assistant pipeline, clock/display configuration and media behavior are to be preserved.
+The trial replaces the previous two-phrase configuration on both converted Shows with the updated **“Привет, мышка” / “Privet Myshka” as the only activation phrase**. “Hey Jarvis” is no longer an active wake model. The selected HA assistant pipeline, clock/display configuration and media settings were preserved; media playback was not re-tested in this rollout.
 
 ## Process and current outcome
 
@@ -12,8 +12,8 @@ The [rollout guide](wiki/Wake-model-rollout.md) tracks the same stages with thei
 
 1. **Bind the model and preprocessing artifacts.** Identify the exact classifier and matching ONNX frontend files through the private manifest and checksums. This fixes the inputs to the trial; it does not establish recognition on Show hardware.
 2. **Build and test the Android implementation — verified.** The `7003` candidate is built and all 18 JVM tests pass. These checks cover exercised code behavior; they do not run the complete model through an Android microphone.
-3. **Compare Android inference with the reference — pending.** The prepared reference contains **four fixtures, 234 windows and 11 positive reference results**. Those are fixture/reference counts, not passed Android tests. Compare aligned output windows and classifier results before claiming parity.
-4. **Deploy and check lifecycle — pending.** Verify each device's APK, private artifacts, one-model selection, effective threshold, microphone capture and recovery after mute/unmute and app restart. Preserve its HA identity, pipeline and display/media settings.
+3. **Compare Android inference with the reference — passed on both Shows.** Each replay exercised **four existing private fixtures, 294 embeddings and 234 classifier windows**, including **11 positive windows**. All threshold decisions matched the reference. Maximum absolute differences were 0.00007439 for embeddings and 0.000006885 for scores.
+4. **Deploy and check lifecycle — passed on both Shows.** Each device passed three mute/unmute cycles and an app restart with actual capture closure/recovery and the same model. HA identities, pipeline and display/media settings were preserved.
 5. **Check attended use and duration — pending.** Deliberately test the intended phrase, the now-inactive alternative, Stop, a harmless request and the audible reply. A fresh three-metre test and longer observation remain separate acceptance work.
 
 ![Development evaluation: 23 of 24 owner clips and 798 of 800 synthetic positives detected; separate negative-clip and background results do not establish physical acceptance on the Shows.](assets/wake-validation.svg)
@@ -56,7 +56,7 @@ The new opt-in path uses `ExactOnnxFrontend` with the ONNX frontend artifacts wh
 4. Produce **96-value embeddings** and supply the classifier with the most recent **16 embeddings** in order.
 5. Run the frontend on the CPU using the verified ONNX artifacts, validate tensor shapes and retain the classifier score without the legacy two-decimal rounding path.
 
-The **80 ms value is a processing chunk size**, not a measured wake-detection or end-to-end response latency. These dimensions define feature alignment. Each running collection owns its native sessions and microphone cleanup. The verified JVM build does not replace the pending Android inference comparison, lifecycle checks or physical acceptance.
+The **80 ms value is a processing chunk size**, not a measured wake-detection or end-to-end response latency. These dimensions define feature alignment. Each running collection owns its native sessions and microphone cleanup. The verified JVM build and Android replay do not replace lifecycle checks or physical acceptance.
 
 The capture loop yields coroutine execution after every nonempty audio read, including quiet input that produces no detection event. This lets mute changes reach the active collection and release microphone/native resources. Checking the HA mute switch alone is insufficient: verify that capture actually stops, then resumes with the same model after unmuting.
 
@@ -94,7 +94,7 @@ Work on one explicitly identified Show first. Do not infer success on the second
 1. **Record and back up the current state.** Save the installed APK and certificate identity, a verified app-private backup, satellite identity, engine/model selection, HA threshold, optional secondary-model JSON, pipeline, dashboard path, permissions and media settings. Keep the backups private and verify their hashes.
 2. **Verify the new build.** Check package name, version `7003`, architecture and certificate against the installed app. Record the new APK hash and relevant build/test results. A same-certificate update should preserve app data; do not uninstall the working app as a routine update step.
 3. **Install the verified APK and private artifacts.** Apply the [same-certificate update](../integrations/vaca-dual-wake/README.md#install-a-same-certificate-update) using the explicit device selector and `adb install -r`; confirm the installed version is `7003`. Keep the existing wake selection during numerical replay. Place the classifier, matching ONNX frontend files and `exact-frontend.json` in app-private storage, verify their bytes and ownership, then run the staged private-fixture comparison with the matching test APK. Require both instrumentation tests to pass before switching. Remove temporary test artifacts after verification and retain the model files. Use authenticated nonroot ADB throughout.
-4. **Stop VACA before changing the engine.** Use the trusted ADB host and the already verified device selector to force-stop only `com.msp1974.vacompanion`. Do not restart Home Assistant. The observed upstream engine-selection path can construct a legacy openWakeWord engine with an empty model list between separate HA control writes and terminate the app. Muting alone does not prevent that constructor failure.
+4. **Wait for fresh initialization, then stop VACA before changing the engine.** After instrumentation, launch VACA and wait for the current process to finish satellite initialization and advertise the new model inventory to HA. A stale HA idle state alone is insufficient. Then use the trusted ADB host and verified device selector to force-stop only `com.msp1974.vacompanion`. Do not restart Home Assistant. The observed upstream engine-selection path can construct a legacy openWakeWord engine with an empty model list between separate HA control writes and terminate the app. Muting alone does not prevent that constructor failure.
 5. **Save the complete selection while VACA is stopped.** Remove `files/secondary-wake-word.json` after preserving its backup. Set the HA engine to **`openwakeword`**, not `openwakeword_rt`, select only the manifest-bound model, and set the HA threshold to **5.0** (effective **0.50**). The observed selector displays **`Privet Myshka Dab4A660248F Cal`**, derived from ID `privet_myshka_dab4a660248f_cal`, rather than the manifest's Russian phrase label. Confirm all three saved HA values before launching the app; do not treat an unavailable or rejected write as success.
 6. **Launch and verify preserved behavior.** Confirm the exact model ID in the load log, advancing samples, one active wake classifier, the existing HA satellite and selected pipeline, saved display page, and retained media settings. Changing activation does not require switching STT, conversation or TTS providers.
 7. **Exercise lifecycle recovery.** Check mute/unmute and a normal app restart. Confirm the same ONNX path reloads, microphone capture resumes, and native resources release on stop. Only then repeat the controlled update on the second Show.
@@ -103,7 +103,7 @@ If the verified build is unavailable or an identity/checksum check fails, the ro
 
 ## Acceptance and deployment record
 
-The current public record is **build verified; Android comparison and deployment pending**. The prepared four-fixture reference must not be reported as successful runtime parity. Update device outcomes only from per-device observations, with artifact versions and the test method:
+The current public record confirms the **build, both installations, both Android numerical comparisons and lifecycle checks on each device**. The [dated device record](wiki/Wake-model-rollout.md#october-16-device-observations) records timings and limitations. Update outcomes only from per-device observations, with artifact versions and the test method:
 
 - **Installed state:** expected APK/certificate; exact manifest and artifact checksums; `openwakeword`; one selected activation model; effective threshold 0.50; no secondary “Hey Jarvis” selection.
 - **Running state:** exact frontend loaded; microphone samples and classifier windows advancing; no fallback to a different engine; existing HA identity and pipeline connected.
@@ -112,7 +112,7 @@ The current public record is **build verified; Android comparison and deployment
 - **Stop and media:** verify the existing Stop action, then return to normal capture after assistant speech or media playback. A loaded stop model is not evidence that interruption was heard and acted upon.
 - **Distance and duration:** collect the fresh three-metre acceptance result and a suitable duration sample before making far-field or false-activation claims. Do not create recordings without an explicit reason and authorization.
 
-No installed-device result, acoustic acceptance, measured wake latency or power-cycle result is claimed by this build record. The central [validation page](wiki/Validation.md) should link the eventual per-device receipt without publishing private recordings or device identifiers.
+These installed-device and replay results do not establish acoustic acceptance, measured wake latency or power-cycle recovery. The central [validation page](wiki/Validation.md) links the dated observations without publishing private recordings or device identifiers.
 
 ## Rollback
 

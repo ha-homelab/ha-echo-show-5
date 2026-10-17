@@ -6,7 +6,9 @@ This wiki is versioned with the code under `docs/wiki/`. It describes the **Echo
 
 ## October 16: new wake-model trial
 
-**Build verified; device checks pending.** VACA `0.13.4+myshka.3` / `7003` passed 18 JVM tests with zero failures, errors or skips. The authorized opt-in trial will select only **“Привет, мышка”** at **0.50** (**5.0 in HA**) through the exact ONNX frontend. “Hey Jarvis” will leave the active selection; the separate Stop command remains. Android deployment, reference-output comparison and physical recognition are still unconfirmed.
+**APK installed and reference replay passed on both Shows.** VACA `0.13.4+myshka.3` / `7003` passed 18 JVM tests. Each device also passed two Android instrumentation tests using four existing private fixtures: **294 embeddings, 234 classifier windows and 11 positive windows**, with all threshold decisions matching the reference. This is file-based inference evidence, not a room recording or acoustic acceptance.
+
+Both Shows are configured for only **“Привет, мышка”** at **0.50** (**5.0 in HA**) through the exact ONNX frontend, with “Hey Jarvis” removed from the active selection and the separate Stop command retained. **Both passed three microphone mute/unmute cycles with verified capture closure/reopening, plus a normal app restart.** HA settings, brightness, permissions and nonroot ADB were preserved. Spoken activation, audible answers, distance, Stop during playback, power-loss recovery and a multi-day soak remain pending.
 
 ![One capture stream feeds the exact ONNX activation pipeline and the separate Stop detector. Audio chunk size does not measure wake latency.](../assets/exact-oww-pipeline.svg)
 
