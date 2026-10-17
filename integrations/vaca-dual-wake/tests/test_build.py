@@ -271,6 +271,13 @@ class ApkValidationTests(unittest.TestCase):
         with self.assertRaises(build.BuildError):
             self.validate()
 
+    def test_signer_mismatch_reports_only_public_certificate_identity(self):
+        self.signature = self.signature.replace('a' * 64, 'b' * 64)
+        with self.assertRaises(build.BuildError) as result:
+            self.validate()
+        self.assertIn('expected ' + self.fingerprint, str(result.exception))
+        self.assertIn('b' * 64, str(result.exception))
+
     def test_stale_version_is_rejected(self):
         self.manifest = self.manifest.replace('7002', '7001')
         with self.assertRaises(build.BuildError):

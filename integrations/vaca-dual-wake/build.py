@@ -190,7 +190,10 @@ def validate_apk(apk, sdk, signer):
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True).stdout
     fingerprints = re.findall(r'^Signer #\d+ certificate SHA-256 digest: (\w+)$', signature, re.M)
     if fingerprints != [signer]:
-        raise BuildError('Built APK signature differs from the expected update identity')
+        certificate_lines = [line for line in signature.splitlines() if 'certificate' in line]
+        raise BuildError('Built APK signature differs from the expected update identity: '
+                         f'expected {signer}; observed {fingerprints!r}; '
+                         f'verifier certificate lines {certificate_lines!r}')
     manifest = run(sdk_tool(sdk, 'aapt'), 'dump', 'badging', apk,
                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True).stdout
     package = re.search(r"^package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", manifest, re.M)
