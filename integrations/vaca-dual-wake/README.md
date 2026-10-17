@@ -4,7 +4,7 @@
 
 This Android patch extends [View Assist Companion App](https://github.com/msp1974/ViewAssistCompanionApp)
 at the pinned commit `65906aebffd2f39772773b44729b22fd022a1f3c`.
-The current source builds **`0.13.4+dualwake.2` / version code `7002`** for ARMv7.
+The current source builds **`0.13.4+dualwake.3` / version code `7003`** for ARMv7.
 The existing Home Assistant selector chooses the primary model; a private file
 adds a second microWakeWord model. Both listen simultaneously.
 
@@ -51,6 +51,23 @@ built-in English phrase **“Hey Jarvis.”** The wake phrase, interface languag
 HA recognition language and reply voice are independent settings. Adding an
 English wake phrase does not switch a Russian assistant to English. Keep stable
 model IDs untranslated in configuration.
+
+## What changed in dualwake.3
+
+The app no longer installs a global certificate-verification bypass at startup.
+Custom model/sound downloads now use the same explicit `ignoreSSLErrors` choice
+as authentication instead of unconditionally accepting every certificate. The
+default verifies certificate chains and hostnames. Prefer a valid certificate
+for the configured server; accepting an invalid certificate remains an explicit
+compatibility choice in the existing UI, with the risk of credential or download
+interception. It affects those configured clients, not the process-wide TLS factory.
+
+The builder requires real loopback TLS tests through the production Ktor client:
+untrusted certificate rejection before HTTP, trusted-name success, wrong-name
+rejection, and an explicit compatibility client that cannot weaken a later
+ordinary client. These are build tests, not device or acoustic acceptance.
+The [dualwake.2 patch](history/dualwake.2.patch) and its installed-device evidence
+remain historical records; this update does not install itself on any device.
 
 ## What changed in dualwake.2
 
@@ -100,7 +117,7 @@ its previous verified build record:
 
 ```bash
 python3 integrations/vaca-dual-wake/build.py \
-  --work-dir private/vaca-dual-wake-build-v2 \
+  --work-dir private/vaca-dual-wake-build-v3 \
   --signing-dir private/vaca-dual-wake-signing \
   --expected-signer-sha256 "$EXPECTED_SIGNER_SHA256"
 ```
@@ -117,7 +134,7 @@ create a new identity:
 
 ```bash
 python3 integrations/vaca-dual-wake/build.py \
-  --work-dir private/vaca-dual-wake-build-v2 \
+  --work-dir private/vaca-dual-wake-build-v3 \
   --signing-dir private/vaca-dual-wake-signing \
   --create-signing-key
 ```
@@ -138,8 +155,8 @@ the patch, choose a new ignored work directory so the old build stays available.
 The builder runs JVM tests, verifies APK signature/package/version/ABI, checks
 source integrity again, and writes two private outputs:
 
-- `vaca-0.13.4-dualwake.2.apk`
-- `vaca-0.13.4-dualwake.2.json` — source and patch hashes, signing certificate,
+- `vaca-0.13.4-dualwake.3.apk`
+- `vaca-0.13.4-dualwake.3.json` — source and patch hashes, signing certificate,
   artifact hash/size, test results and an explicit “not deployed by build tool”
   status. It contains no password, token or device identity.
 
@@ -150,8 +167,8 @@ upstream in-app updater cannot replace this differently signed APK.
 
 ## Install a same-certificate update
 
-**An existing `dualwake.1` installation with the original local certificate can
-receive `dualwake.2` as an ordinary update. Do not uninstall it.**
+**An existing `dualwake.1` or `dualwake.2` installation with the original local
+certificate can receive `dualwake.3` as an ordinary update. Do not uninstall it.**
 
 1. Select one device by its exact serial and verify its current package/version.
    Save a fresh private data/settings backup and keep the known-working APK.

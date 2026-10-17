@@ -244,7 +244,15 @@ class MetadataTests(unittest.TestCase):
             with self.assertRaises(build.BuildError):
                 build.test_totals(src)
             report.write_text('<testsuite tests="9" failures="0" errors="0" skipped="0"/>')
-            self.assertEqual(build.test_totals(src)['tests'], 9)
+            with self.assertRaises(build.BuildError):
+                build.test_totals(src)
+            tls = reports / 'TEST-tls.xml'
+            tls.write_text('<testsuite name="com.msp1974.vacompanion.device.authentication.HttpClientProviderTlsTest" tests="3" failures="0" errors="0" skipped="0">'
+                           '<testcase name="untrustedCertificateFailsBeforeHttp"/>'
+                           '<testcase name="matchingTrustedCertificateWorksAndWrongHostnameFails"/>'
+                           '<testcase name="explicitCompatibilityOptInIsPerClientOnly"/>'
+                           '</testsuite>')
+            self.assertEqual(build.test_totals(src)['tests'], 12)
 
 
 class ApkValidationTests(unittest.TestCase):
@@ -252,8 +260,8 @@ class ApkValidationTests(unittest.TestCase):
         self.fingerprint = 'a' * 64
         self.signature = 'Signer #1 certificate SHA-256 digest: ' + self.fingerprint + '\n'
         self.manifest = (
-            "package: name='com.msp1974.vacompanion' versionCode='7002' "
-            "versionName='0.13.4+dualwake.2' platformBuildVersionName='16'\n"
+            "package: name='com.msp1974.vacompanion' versionCode='7003' "
+            "versionName='0.13.4+dualwake.3' platformBuildVersionName='16'\n"
             "native-code: 'armeabi-v7a'\n"
         )
 
@@ -265,6 +273,27 @@ class ApkValidationTests(unittest.TestCase):
 
     def test_expected_signed_armv7_artifact_is_accepted(self):
         self.validate()
+
+    def test_sdk36_v2_signer_format_is_accepted(self):
+        self.signature = self.signature.replace('Signer #1', 'V2 Signer:')
+        self.validate()
+
+    def test_extra_or_unknown_signer_is_rejected(self):
+        for extra in (self.signature, self.signature.replace('Signer #1', 'Unknown Signer:'),
+                      self.signature.replace('a' * 64, 'b' * 64)):
+            with self.subTest(extra=extra):
+                original = self.signature
+                self.signature += extra
+                with self.assertRaises(build.BuildError):
+                    self.validate()
+                self.signature = original
+
+    def test_missing_or_malformed_digest_is_rejected(self):
+        for output in ('', 'V2 Signer: certificate SHA-256 digest: not-a-digest\n'):
+            with self.subTest(output=output):
+                self.signature = output
+                with self.assertRaises(build.BuildError):
+                    self.validate()
 
     def test_wrong_signer_is_rejected(self):
         self.signature = self.signature.replace('a' * 64, 'b' * 64)
@@ -279,7 +308,7 @@ class ApkValidationTests(unittest.TestCase):
         self.assertIn('b' * 64, str(result.exception))
 
     def test_stale_version_is_rejected(self):
-        self.manifest = self.manifest.replace('7002', '7001')
+        self.manifest = self.manifest.replace('7003', '7001')
         with self.assertRaises(build.BuildError):
             self.validate()
 

@@ -13,6 +13,11 @@
 
 ### Fixed
 
+- Restore default certificate and hostname validation in the VACA application
+  and custom-file downloader; require real TLS trust/rejection tests when
+  building `0.13.4+dualwake.3` (7003). Existing explicit compatibility opt-in
+  stays local to configured clients.
+
 - Bound artifact download writes to the pinned size, reject HTTPS downgrades and
   invalid metadata, use private unique temporary files and preserve concurrent
   destination files until their size, digest and archive checks pass.
