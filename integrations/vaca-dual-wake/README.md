@@ -4,7 +4,7 @@
 
 This Android patch extends [View Assist Companion App](https://github.com/msp1974/ViewAssistCompanionApp)
 at the pinned commit `65906aebffd2f39772773b44729b22fd022a1f3c`.
-The current source builds **`0.13.4+myshka.3` / version code `7003`** for ARMv7.
+The current source builds **`0.13.4+myshka.4` / version code `7004`** for ARMv7.
 It retains the optional two-model microWakeWord extension and adds an opt-in
 exact ONNX frontend for one privately trained activation model. These are
 alternative configurations, not three simultaneously active wake phrases.
@@ -12,8 +12,15 @@ alternative configurations, not three simultaneously active wake phrases.
 The new [Privet Myshka runbook](../../docs/openwakeword-myshka.md) and
 [illustrated process and results](../../docs/wiki/Wake-model-rollout.md) describe
 manifest binding, local Stop, numerical replay, installation gates and rollback.
-The [myshka.3 build receipt](build-myshka.3.json) records 18 passing JVM tests;
-device and acoustic acceptance are recorded separately.
+The [myshka.4 build receipt](build-myshka.4.json) records the verified build;
+device and acoustic acceptance are recorded separately. This revision keeps
+custom model inventory available when optional exact-frontend metadata is invalid.
+Actual exact-engine selection still requires all manifest and asset checks.
+
+The [myshka.3 receipt](build-myshka.3.json) and
+[archived patch](history/myshka.3.patch) preserve the preceding installation and
+its 18 passing JVM tests. Its numerical replay and lifecycle results remain
+dated evidence, not an implicit test of a different APK.
 
 ![One microphone feeds exact ONNX activation features and the local Stop detector.](../../docs/assets/exact-oww-pipeline.svg)
 
@@ -110,7 +117,7 @@ its previous verified build record:
 
 ```bash
 python3 integrations/vaca-dual-wake/build.py \
-  --work-dir private/vaca-myshka-build-v3 \
+  --work-dir private/vaca-myshka-build-v4 \
   --signing-dir private/vaca-dual-wake-signing \
   --expected-signer-sha256 "$EXPECTED_SIGNER_SHA256"
 ```
@@ -127,7 +134,7 @@ create a new identity:
 
 ```bash
 python3 integrations/vaca-dual-wake/build.py \
-  --work-dir private/vaca-myshka-build-v3 \
+  --work-dir private/vaca-myshka-build-v4 \
   --signing-dir private/vaca-dual-wake-signing \
   --create-signing-key
 ```
@@ -148,8 +155,8 @@ the patch, choose a new ignored work directory so the old build stays available.
 The builder runs JVM tests, verifies APK signature/package/version/ABI, checks
 source integrity again, and writes two private outputs:
 
-- `vaca-0.13.4-myshka.3.apk`
-- `vaca-0.13.4-myshka.3.json` — source and patch hashes, signing certificate,
+- `vaca-0.13.4-myshka.4.apk`
+- `vaca-0.13.4-myshka.4.json` — source and patch hashes, signing certificate,
   artifact hash/size, test results and an explicit “not deployed by build tool”
   status. It contains no password, token or device identity.
 
@@ -161,7 +168,7 @@ upstream in-app updater cannot replace this differently signed APK.
 ## Install a same-certificate update
 
 **An existing local installation with the original certificate can receive
-`myshka.3` as an ordinary update. Do not uninstall it.** Select the intended
+`myshka.4` as an ordinary update. Do not uninstall it.** Select the intended
 engine and private model using its runbook after verifying the new artifact.
 
 1. Select one device by its exact serial and verify its current package/version.

@@ -12,6 +12,12 @@ Beginnen Sie im [Projekt-Wiki](docs/wiki/Home.md). Für ein unverändertes Gerä
 
 ## 16. Oktober: Versuch mit einer ONNX-Aktivierungsphrase
 
+### Nachbesserung in PR #69: myshka.4
+
+**`0.13.4+myshka.4` / `7004` ist auf Show 2 installiert und lokal geprüft.** Das bisherige Signaturzertifikat bleibt erhalten, alle **18 JVM-Tests** bestehen. Show 2 bestand die gezielte Android-Regression für die Modellliste: **ein Test, fünf Metadatenfälle, 0,624 Sekunden**. Ungültige optionale Metadaten lassen eigene Modelle nicht mehr aus der Liste verschwinden; das Laden der Engine lehnt ungültige Dateien weiterhin ab. Show 2 bestand außerdem einen Zyklus mit tatsächlichem Schließen und Wiederöffnen der Mikrofonerfassung sowie einen normalen App-Neustart. Einstellungen, Helligkeit, Berechtigungen und authentifiziertes ADB ohne Root blieben erhalten. Die Prüfung des vollständigen Sprachablaufs steht aus. Show 1 ist nicht erreichbar und wurde zuletzt mit `.3` geprüft. Der nachfolgende `.3`-Referenzvergleich belegt keinen erneuten Vergleich unter `.4`.
+
+### Geprüfter Stand von myshka.3
+
 **APK auf beiden Shows installiert; Referenzvergleich auf beiden bestanden.** VACA `0.13.4+myshka.3` / `7003` bestand **18 JVM-Tests**. Jeder Show bestand außerdem **zwei Android-Instrumentierungstests** mit **vier vorhandenen privaten Testdateien: 294 Embeddings, 234 Klassifikatorfenster und 11 positive Fenster**. Alle Schwellwertentscheidungen entsprachen der Referenz. Die Dateiwiedergabe zeichnet den Raum nicht auf und belegt keine akustische Erkennung.
 
 Beide Shows sind ausschließlich für **„Привет, мышка“** mit dem exakten ONNX-Frontend und **0,50** (**5,0 in HA**) konfiguriert. „Hey Jarvis“ wurde aus der aktiven Auswahl entfernt; der separate Stop-Befehl bleibt. **Beide bestanden drei Mikrofon-Stummschaltzyklen mit geprüftem Schließen und Wiederöffnen der Erfassung sowie einen normalen App-Neustart.** HA-Einstellungen, Helligkeit, Berechtigungen und ADB ohne Root blieben erhalten. Gesprochene Aktivierung, hörbare Antworten, Entfernung, Stop während der Wiedergabe, Stromausfall und mehrtägiger Betrieb sind weiterhin ungeprüft. Die Funktion mit zwei microWakeWord-Modellen und der Stand vom 15. Oktober bleiben unten dokumentiert.

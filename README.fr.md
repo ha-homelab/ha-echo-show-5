@@ -12,6 +12,12 @@ Commencez par le [wiki du projet](docs/wiki/Home.md). Pour un appareil d’origi
 
 ## 16 octobre : essai avec une seule phrase ONNX
 
+### Correctif de la PR #69 : myshka.4
+
+**`0.13.4+myshka.4` / `7004` est installé et vérifié localement sur Show 2.** Le certificat de signature est conservé et les **18 tests JVM** passent. Show 2 a réussi la régression Android ciblée sur la liste des modèles : **un test, cinq cas de métadonnées, 0,624 seconde**. Des métadonnées facultatives invalides ne font plus disparaître les modèles personnalisés ; le moteur rejette toujours les fichiers invalides lors du chargement. Show 2 a également réussi un cycle de fermeture et de reprise réelle de la capture du microphone ainsi qu’un redémarrage normal de l’application. Les réglages, la luminosité, les autorisations et ADB authentifié sans root ont été conservés. La vérification vocale de bout en bout reste à faire. Show 1 est inaccessible et sa dernière version vérifiée reste `.3`. La comparaison de référence de `.3` ci-dessous ne démontre pas une nouvelle comparaison sous `.4`.
+
+### Bilan vérifié de myshka.3
+
 **APK installé sur les deux Shows ; comparaison avec la référence réussie sur chacun.** VACA `0.13.4+myshka.3` / `7003` a passé **18 tests JVM**. Chaque Show a également passé **deux tests d’instrumentation Android** avec **quatre fichiers privés existants : 294 embeddings, 234 fenêtres du classificateur et 11 fenêtres positives**. Toutes les décisions de seuil correspondent à la référence. La lecture de fichiers n’enregistre pas la pièce et ne démontre pas la reconnaissance acoustique.
 
 Les deux Shows sont configurés uniquement pour **« Привет, мышка »**, avec le prétraitement ONNX exact et un seuil de **0,50** (**5,0 dans HA**). « Hey Jarvis » a été retiré de la sélection active ; la commande Stop séparée est conservée. **Les deux ont passé trois cycles de coupure/réactivation du microphone avec fermeture et reprise de la capture vérifiées, ainsi qu’un redémarrage normal de l’application.** Les réglages HA, la luminosité, les autorisations et ADB sans root ont été conservés. L’activation parlée, la réponse audible, la distance, Stop pendant la lecture, les coupures de courant et plusieurs jours d’utilisation restent à vérifier. La fonction à deux modèles microWakeWord et le bilan du 15 octobre restent documentés ci-dessous.

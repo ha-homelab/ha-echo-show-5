@@ -6,7 +6,7 @@
 
 - Opt-in exact ONNX frontend for a private single-phrase Privet Myshka model,
   with hash-bound artifacts, deterministic streaming features and a local Stop
-  detector sharing the microphone. VACA build `0.13.4+myshka.3` (7003) retains
+  detector sharing the microphone. VACA build `0.13.4+myshka.4` (7004) retains
   the separate two-model microWakeWord configuration.
 - Private-fixture Android parity checks and nine additional JVM framing tests;
   the builder now requires at least eighteen passing JVM tests.
@@ -18,6 +18,9 @@
   dual-wake builder, including catalog, lifecycle and provenance regressions.
 
 ### Fixed
+
+- Retain custom wake models in the inventory when optional exact-frontend
+  display metadata fails validation; keep actual engine loading strict.
 
 - Yield during quiet exact-ONNX audio processing so microphone mute changes
   reach the active collection even when no detection events are emitted.

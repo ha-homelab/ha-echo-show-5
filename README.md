@@ -18,6 +18,12 @@ Reuse an **Amazon Echo Show 5, second generation (2021), codename `cronos`**, as
 
 ## October 16: single-phrase ONNX trial
 
+### PR #69 follow-up: myshka.4
+
+**`0.13.4+myshka.4` / `7004` is installed and locally verified on Show 2.** The original signing certificate is retained and all **18 JVM tests** pass. Show 2 passed the targeted Android inventory regression: **one test, five metadata cases, 0.624 seconds**. Invalid optional metadata no longer removes custom models from the list; actual engine loading still rejects invalid assets. Show 2 also passed one actual microphone close/reopen cycle and a normal app restart, preserving settings, brightness, permissions and authenticated nonroot ADB. End-to-end voice acceptance remains pending. Show 1 is unreachable and remains last verified on `.3`. The earlier `.3` replay below is separate evidence, not a new `.4` replay.
+
+### Verified myshka.3 baseline
+
 **APK installed and reference replay passed on both Shows.** VACA `0.13.4+myshka.3` / `7003` passed **18 JVM tests**, and each Show passed **two Android instrumentation tests** using **four existing private fixtures: 294 embeddings, 234 classifier windows and 11 positive windows**. All threshold decisions matched the reference. File replay does not record the room or establish acoustic recognition.
 
 Both Shows are configured for only **“Привет, мышка”** through the exact ONNX frontend at **0.50** (**5.0 in HA**), with “Hey Jarvis” removed from the active selection and the separate Stop command retained. **Both passed three microphone mute/unmute cycles with verified capture closure/reopening, plus a normal app restart**, preserving HA settings, brightness, permissions and nonroot ADB. Spoken activation, audible responses, distance, Stop during playback, power-loss recovery and a multi-day soak remain pending. The two-model microWakeWord capability and its October 15 baseline remain documented below.

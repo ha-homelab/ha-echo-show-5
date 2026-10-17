@@ -5,7 +5,7 @@
 <rect width="1440" height="155" fill="url(#banner)"/>
 <text x="44" y="36" font-size="15" fill="#d1e8ff" font-weight="700">VOICE / IMPLEMENTATION</text>
 <text x="44" y="84" font-size="35" fill="white" font-weight="750">One phrase. Exact features. One microphone.</text>
-<text x="44" y="126" font-size="19" fill="#e3efff" font-weight="400">Opt-in ONNX path · VACA myshka.3 · Logical processing diagram; not an acoustic acceptance result</text>
+<text x="44" y="126" font-size="19" fill="#e3efff" font-weight="400">Opt-in ONNX path · VACA myshka.3 / .4 · Logical processing diagram; not an acoustic acceptance result</text>
 <rect x="44" y="189" width="1352" height="60" rx="18" fill="#e7f5f1" stroke="#a7d9cb"/>
 <text x="70" y="228" font-size="17" fill="#087f76" font-weight="750">LOCAL ON THE SHOW</text>
 <text x="320" y="228" font-size="20" fill="#142b46" font-weight="400">Private manifest binds classifier + both frontend models to SHA-256 hashes.</text>

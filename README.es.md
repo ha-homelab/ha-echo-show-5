@@ -12,6 +12,12 @@ Empiece por la [wiki del proyecto](docs/wiki/Home.md). Para un dispositivo de f�
 
 ## 16 de octubre: prueba con una sola frase ONNX
 
+### Corrección del PR #69: myshka.4
+
+**`0.13.4+myshka.4` / `7004` está instalado y verificado localmente en Show 2.** Se conserva el certificado de firma y pasan las **18 pruebas JVM**. Show 2 superó la regresión específica del inventario Android: **una prueba, cinco casos de metadatos, 0,624 segundos**. Los metadatos opcionales inválidos ya no ocultan los modelos personalizados; el motor sigue rechazando los archivos inválidos al cargarlos. Show 2 también superó un ciclo de cierre y reapertura real de la captura del micrófono y un reinicio normal de la aplicación. Se conservaron los ajustes, el brillo, los permisos y ADB autenticado sin root. La prueba completa de voz sigue pendiente. Show 1 no está accesible y su última versión verificada es `.3`. La reproducción de referencia de `.3` que figura abajo no demuestra una nueva reproducción en `.4`.
+
+### Estado verificado de myshka.3
+
 **APK instalado en ambos Shows; comparación con la referencia superada en ambos.** VACA `0.13.4+myshka.3` / `7003` superó **18 pruebas JVM**. Cada Show superó **dos pruebas de instrumentación Android** con **cuatro archivos privados existentes: 294 embeddings, 234 ventanas del clasificador y 11 ventanas positivas**. Todas las decisiones del umbral coincidieron con la referencia. La reproducción de archivos no graba la habitación ni demuestra reconocimiento acústico.
 
 Ambos Shows están configurados únicamente para **«Привет, мышка»**, con el procesamiento ONNX exacto y un umbral de **0,50** (**5,0 en HA**). «Hey Jarvis» se ha retirado de la selección activa; se conserva el comando Stop independiente. **Ambos superaron tres ciclos de silenciar/reactivar el micrófono, verificando el cierre y la reapertura de la captura, y un reinicio normal de la aplicación.** Se conservaron los ajustes de HA, el brillo, los permisos y ADB sin root. Quedan pendientes la activación hablada, la respuesta audible, la distancia, Stop durante la reproducción, los cortes de corriente y varios días de uso. La capacidad de dos modelos microWakeWord y el estado del 15 de octubre se conservan más abajo.

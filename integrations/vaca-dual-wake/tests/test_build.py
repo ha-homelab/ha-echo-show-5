@@ -233,6 +233,7 @@ class MetadataTests(unittest.TestCase):
             build.normalize_fingerprint('not a fingerprint')
 
     def test_missing_or_failed_jvm_reports_are_rejected(self):
+        """Reject absent, failing or undersized JVM reports before accepting a full suite."""
         with tempfile.TemporaryDirectory() as directory:
             src = Path(directory)
             with self.assertRaises(build.BuildError):
@@ -252,11 +253,12 @@ class MetadataTests(unittest.TestCase):
 
 class ApkValidationTests(unittest.TestCase):
     def setUp(self):
+        """Create synthetic signer and current ARMv7 package metadata without opening an APK."""
         self.fingerprint = 'a' * 64
         self.signature = 'Signer #1 certificate SHA-256 digest: ' + self.fingerprint + '\n'
         self.manifest = (
-            "package: name='com.msp1974.vacompanion' versionCode='7003' "
-            "versionName='0.13.4+myshka.3' platformBuildVersionName='16'\n"
+            "package: name='com.msp1974.vacompanion' versionCode='7004' "
+            "versionName='0.13.4+myshka.4' platformBuildVersionName='16'\n"
             "native-code: 'armeabi-v7a'\n"
         )
 
@@ -270,12 +272,14 @@ class ApkValidationTests(unittest.TestCase):
         self.validate()
 
     def test_wrong_signer_is_rejected(self):
+        """Reject otherwise valid APK metadata signed by a different certificate."""
         self.signature = self.signature.replace('a' * 64, 'b' * 64)
         with self.assertRaises(build.BuildError):
             self.validate()
 
     def test_stale_version_is_rejected(self):
-        self.manifest = self.manifest.replace('7003', '7002')
+        """Reject a previous build version even when its signing identity and ABI match."""
+        self.manifest = self.manifest.replace('7004', '7003')
         with self.assertRaises(build.BuildError):
             self.validate()
 

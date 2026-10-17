@@ -1,5 +1,5 @@
 diff --git a/app/build.gradle.kts b/app/build.gradle.kts
-index 4606ee9..62c0ed5 100644
+index 4606ee9..9cf9f1a 100644
 --- a/app/build.gradle.kts
 +++ b/app/build.gradle.kts
 @@ -8,8 +8,6 @@ plugins {
@@ -34,8 +34,8 @@ index 4606ee9..62c0ed5 100644
          targetSdk = 36
 -        versionName = "0.13.4"
 -        versionCode = code
-+        versionName = "0.13.4+myshka.3"
-+        versionCode = 7003
++        versionName = "0.13.4+myshka.4"
++        versionCode = 7004
          testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
      }
  
@@ -52,10 +52,10 @@ index 4606ee9..62c0ed5 100644
          }
 diff --git a/app/src/androidTest/java/com/msp1974/vacompanion/wakeword/ExactFrontendParityTest.kt b/app/src/androidTest/java/com/msp1974/vacompanion/wakeword/ExactFrontendParityTest.kt
 new file mode 100644
-index 0000000..c77ac11
+index 0000000..d966e75
 --- /dev/null
 +++ b/app/src/androidTest/java/com/msp1974/vacompanion/wakeword/ExactFrontendParityTest.kt
-@@ -0,0 +1,120 @@
+@@ -0,0 +1,164 @@
 +package com.msp1974.vacompanion.wakeword
 +
 +import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -64,6 +64,8 @@ index 0000000..c77ac11
 +import ai.onnxruntime.OrtEnvironment
 +import ai.onnxruntime.OrtSession
 +import com.msp1974.vacompanion.wakeword.openwakeword.ExactWakeConfig
++import com.msp1974.vacompanion.wakeword.openwakeword.providers.OpenWakeWordCustomProvider
++import kotlinx.coroutines.runBlocking
 +import com.msp1974.vacompanion.wakeword.openwakeword.audio.ExactOnnxFrontend
 +import org.json.JSONObject
 +import org.junit.Assert.*
@@ -105,6 +107,48 @@ index 0000000..c77ac11
 +            data.getJSONObject("classifier").put("sha256", hash).put("file", "../test.onnx")
 +            manifest.writeText(data.toString())
 +            assertTrue(runCatching { ExactWakeConfig.load(directory, listOf("test")) }.isFailure)
++        } finally { directory.deleteRecursively() }
++    }
++
++    @Test fun invalidOptionalMetadataKeepsCustomModelsVisible() = runBlocking {
++        val context = InstrumentationRegistry.getInstrumentation().targetContext
++        val directory = File(context.cacheDir, "exact-discovery-check")
++        directory.deleteRecursively(); directory.mkdirs()
++        try {
++            File(directory, "frontend").mkdir()
++            val bytes = byteArrayOf(42)
++            val hash = java.security.MessageDigest.getInstance("SHA-256").digest(bytes)
++                .joinToString("") { "%02x".format(it.toInt() and 255) }
++            for (name in listOf("custom_model.onnx", "other_model.onnx",
++                "frontend/mel.onnx", "frontend/embedding.onnx")) {
++                File(directory, name).writeBytes(bytes)
++            }
++            fun asset(name: String) = JSONObject().put("file", name).put("sha256", hash)
++            val data = JSONObject().put("schema_version", 1).put("frontend", "openwakeword-80ms-v1")
++                .put("model_id", "custom_model").put("label", "Custom phrase")
++                .put("classifier", asset("custom_model.onnx")).put("mel", asset("mel.onnx"))
++                .put("embedding", asset("embedding.onnx"))
++            val manifest = File(directory, "exact-frontend.json")
++            val provider = OpenWakeWordCustomProvider(context, directory.toPath())
++            suspend fun labels() = provider.get().associate { it.id to it.wakeWord.wake_word }
++            val fallback = mapOf("custom_model" to "Custom Model", "other_model" to "Other Model")
++            assertEquals(fallback, labels()) // No optional manifest.
++            manifest.writeText(data.toString())
++            assertEquals(fallback + ("custom_model" to "Custom phrase"), labels())
++            assertNotNull(ExactWakeConfig.load(directory, listOf("custom_model")))
++
++            manifest.writeText("{broken JSON")
++            assertEquals(fallback, labels()) // Neither custom model disappears.
++            assertTrue(runCatching { ExactWakeConfig.load(directory, listOf("custom_model")) }.isFailure)
++
++            manifest.writeText(data.toString())
++            File(directory, "frontend/embedding.onnx").delete()
++            assertEquals(fallback, labels())
++            assertTrue(runCatching { ExactWakeConfig.load(directory, listOf("custom_model")) }.isFailure)
++
++            File(directory, "frontend/embedding.onnx").writeBytes(byteArrayOf(43))
++            assertEquals(fallback, labels())
++            assertTrue(runCatching { ExactWakeConfig.load(directory, listOf("custom_model")) }.isFailure)
 +        } finally { directory.deleteRecursively() }
 +    }
 +
@@ -899,7 +943,7 @@ index 0000000..39363dc
 +    }
 +}
 diff --git a/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/providers/OpenWakeWordCustomProvider.kt b/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/providers/OpenWakeWordCustomProvider.kt
-index 4f55e3a..e68c8c3 100644
+index 4f55e3a..420ab91 100644
 --- a/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/providers/OpenWakeWordCustomProvider.kt
 +++ b/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/providers/OpenWakeWordCustomProvider.kt
 @@ -1,6 +1,7 @@
@@ -910,13 +954,18 @@ index 4f55e3a..e68c8c3 100644
  import android.content.ContentResolver
  import android.content.Context
  import android.net.Uri
-@@ -37,7 +38,8 @@ class OpenWakeWordCustomProvider(
+@@ -37,7 +38,13 @@ class OpenWakeWordCustomProvider(
                      val id = model.substring(0, model.lastIndexOf(extension))
                      val wakeWord = WakeWord(
                          type = "open",
 -                        wake_word = id.replace("_", " ").capitalizeWords(),
-+                        wake_word = ExactWakeConfig.load(path.toFile(), listOf(id))?.label
-+                            ?: id.replace("_", " ").capitalizeWords(),
++                        // Display metadata is optional; engine loading still validates strictly.
++                        wake_word = try {
++                            ExactWakeConfig.load(path.toFile(), listOf(id))?.label
++                        } catch (error: Exception) {
++                            Timber.w(error, "Ignoring invalid optional wake-word metadata for %s", id)
++                            null
++                        } ?: id.replace("_", " ").capitalizeWords(),
                          model = model,
                          micro = OpenWakeWordAssetProvider.empty_micro
                      )

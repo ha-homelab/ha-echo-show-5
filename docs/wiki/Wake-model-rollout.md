@@ -4,7 +4,9 @@
 
 The October 16 work adds an exact ONNX feature pipeline for a privately trained **“Привет, Мышка” (Privet Myshka)** activation model. The intended configuration has one activation phrase. The bundled **Stop** command remains separate, consuming the same microphone samples. This page explains the change, the installation gates and what the evidence establishes.
 
-**Installed and verified on both Shows; physical speech acceptance pending.** VACA **`0.13.4+myshka.3` / `7003`** builds for ARMv7 with the retained signing certificate. Its **18 JVM tests pass without failures or skips**. Each Show independently passed Android numerical replay, three microphone mute/unmute cycles and a normal app restart. These results do not establish physical speech recognition. See the dated [build receipt](../../integrations/vaca-dual-wake/build-myshka.3.json) and device observations below.
+**PR #69 follow-up: `myshka.4` / `7004` is built with the retained certificate and 18 passing JVM tests.** The [new build receipt](../../integrations/vaca-dual-wake/build-myshka.4.json) identifies the artifact. It prevents invalid optional metadata from breaking custom-model enumeration while preserving strict engine validation. Show 2 has the same-certificate `.4` update and passed the targeted Android inventory regression (one test, five metadata cases, 0.624 seconds); one actual microphone close/reopen cycle and a normal app restart also passed. Settings, brightness, permissions and authenticated nonroot ADB were preserved; end-to-end voice acceptance remains pending. Show 1 is unreachable and remains last verified on `.3`. The full `.3` replay below is not a claim of a new `.4` replay.
+
+**Historical `.3` baseline: installed and verified on both Shows; physical speech acceptance pending.** VACA **`0.13.4+myshka.3` / `7003`** builds for ARMv7 with the retained signing certificate. Its **18 JVM tests pass without failures or skips**. Each Show independently passed Android numerical replay, three microphone mute/unmute cycles and a normal app restart. These results do not establish physical speech recognition. See the dated [build receipt](../../integrations/vaca-dual-wake/build-myshka.3.json) and device observations below.
 
 ## Why the audio path changed
 
@@ -21,9 +23,9 @@ The **80 ms** chunk size describes audio framing, not the time until an answer. 
 ![Six rollout gates: identify and back up, verify the signed build, replay fixtures, activate one phrase, check runtime and lifecycle, then repeat and document; failure returns to the saved state.](../assets/wake-rollout.svg)
 
 1. **Identify and preserve.** Confirm the exact device and save its app-private state, previous signed APK and HA settings. Keep verified backup copies on two hosts.
-2. **Build, inspect and install.** Verify the pinned source, complete patch, package, version, architecture and retained certificate. Apply the [same-certificate APK update](../../integrations/vaca-dual-wake/README.md#install-a-same-certificate-update) and confirm installed version `7003` before replay. Retain the old wake selection until replay succeeds.
-3. **Replay before relying on the microphone.** Compare Android embeddings and scores with the reference using existing private audio fixtures. This test reads files; it does not record the room.
-4. **Select the intended model with VACA stopped.** After replay, first wait for the current app process to finish satellite initialization and advertise its fresh model inventory to HA. Then stop VACA and save `openwakeword`, the manifest-bound model and HA threshold 5.0 in HA before relaunching it. Separate live writes can expose an empty model list and terminate the upstream listener. Remove the saved secondary-model selection so Jarvis is no longer active. Use the option actually advertised by HA: this integration title-cases the model ID rather than using the manifest’s Russian label.
+2. **Build, inspect and install.** Verify the pinned source, complete patch, package, version, architecture and retained certificate. Apply the [same-certificate APK update](../../integrations/vaca-dual-wake/README.md#install-a-same-certificate-update) and confirm installed version `7004` before its regression checks. Retain the old wake selection until the required regression checks succeed.
+3. **Run the checks appropriate to the change.** For an initial exact-frontend deployment or changed model assets, compare Android embeddings and scores with the reference using existing private audio fixtures. This reads files, not the room microphone. For `.3` → `.4` with the same verified assets, run the targeted inventory regression and update/lifecycle checks; keep the full `.3` replay recorded as historical evidence.
+4. **Preserve a correct selection; stop VACA before changing it.** After the checks, first wait for the current app process to finish satellite initialization and advertise its fresh model inventory to HA. The `.3` → `.4` inventory-only update does not require HA selection writes when `openwakeword`, the manifest-bound model, threshold 5.0 and absent secondary selection are already correct. If any selection needs changing, stop VACA first, save the complete selection and remove the secondary-model selection before relaunching. Separate live writes can expose an empty model list and terminate the upstream listener. Use the option actually advertised by HA: this integration title-cases the model ID rather than using the manifest’s Russian label.
 5. **Verify operation and preservation.** Observe advancing samples and classifier windows, measure processing time, exercise mute/unmute and app restart, and compare pipeline, permissions, screen and media settings.
 6. **Repeat on the second device.** Treat each Show as its own result. Remove temporary fixture/test-app artifacts afterward and preserve private recovery material.
 
@@ -37,7 +39,7 @@ The candidate's recorded evaluation detected **23/24 owner development clips** a
 
 These observations concern the supplied development material. The earlier eight far-field clips are now training data. They do not establish independent far-field success, and microphone equivalence between a Dot and a Show is unverified. **Fresh three-metre trials remain pending.** Model weights, examples, recordings and detailed household receipts stay private.
 
-## Build results and device acceptance
+## myshka.3 build results and device acceptance
 
 The source build passed **18 JVM tests**: the previous nine selection/lifecycle cases plus nine new framing/state cases. The new cases cover fragmented reads, overlap, normalization, warmup, reset and buffer ownership. Both Shows independently passed the Android replay of **four existing private fixtures, 294 embeddings and 234 classifier windows**, including **11 positive reference windows**.
 
@@ -58,6 +60,14 @@ Both Shows now have one selected activation classifier at **0.50** and no second
 On both Shows, cleanup removed the temporary fixture directory and instrumentation APK, re-verified the four private model/manifest files and confirmed the application was still running. Private recovery backups were retained off-device.
 
 **Still pending:** deliberate spoken activation and audible answers, Stop during playback, fresh three-metre trials, Android reboot/power-loss recovery and longer observation. No new microphone recording was collected, and no change to the selected STT, conversation or TTS provider was required.
+
+## myshka.4 follow-up
+
+The `.4` Android regression covers malformed optional JSON, a missing frontend and an asset mismatch. Model inventory must retain generated-label entries while exact-engine loading still rejects invalid assets. Show 2 passed the targeted Android test in 0.624 seconds, covering five metadata cases, after installing the same-certificate `.4` update. Show 2 also passed **one actual microphone close/reopen cycle** and a **normal app restart**. Observed processing times were **52.960 ms per 80 ms input chunk** after the cycle and **55.184 ms per 80 ms** after restart; these are short local processing observations, not wake or response latency. The single model at 0.50, absent secondary selection, HA configuration, manual brightness 255, permissions and authenticated nonroot ADB were preserved. End-to-end HA/TTS health and physical speech acceptance were not tested. Show 1 remains last verified on `.3` and has not been updated because it is unreachable.
+
+Final cleanup confirmed that the temporary fixture directory and instrumentation APK are absent, all four private model/manifest assets still match their expected hashes, and VACA remains running.
+
+The existing full fixture replay, timing measurements and three-cycle lifecycle tests above belong to `.3`. They are not silently re-attributed to `.4`. A targeted inventory regression or ordinary app update does not remeasure acoustic quality.
 
 ## Language and service boundaries
 
