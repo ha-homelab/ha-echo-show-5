@@ -34,8 +34,8 @@ index 4606ee9..9cf9f1a 100644
          targetSdk = 36
 -        versionName = "0.13.4"
 -        versionCode = code
-+        versionName = "0.13.4+myshka.4"
-+        versionCode = 7004
++        versionName = "0.13.4+myshka.5"
++        versionCode = 7005
          testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
      }
  
@@ -1219,5 +1219,232 @@ index 0000000..b2afe1b
 +        assertEquals(900, fixture.state.pendingSamples)
 +        assertEquals(0L, fixture.state.processedChunks)
 +        assertTrue(fixture.raw.isEmpty())
++    }
++}
+diff --git a/app/src/main/java/com/msp1974/vacompanion/VACAApplication.kt b/app/src/main/java/com/msp1974/vacompanion/VACAApplication.kt
+index a85f612..4796bfc 100644
+--- a/app/src/main/java/com/msp1974/vacompanion/VACAApplication.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/VACAApplication.kt
+@@ -14,15 +14,6 @@ import com.msp1974.vacompanion.utils.Helpers
+ import dagger.hilt.android.HiltAndroidApp
+ import timber.log.Timber
+ import timber.log.Timber.DebugTree
+-import java.security.KeyManagementException
+-import java.security.NoSuchAlgorithmException
+-import java.security.SecureRandom
+-import java.security.cert.CertificateException
+-import java.security.cert.X509Certificate
+-import javax.net.ssl.HttpsURLConnection
+-import javax.net.ssl.SSLContext
+-import javax.net.ssl.TrustManager
+-import javax.net.ssl.X509TrustManager
+ 
+ 
+ @HiltAndroidApp
+@@ -46,8 +37,6 @@ class VACAApplication: Application(), CameraXConfig.Provider {
+ 
+         Thread.setDefaultUncaughtExceptionHandler(AppExceptionHandler(this.applicationContext))
+ 
+-        disableSSLCertificateChecking()
+-
+         activityManager = ActivityManager(this)
+ 
+         // Create the notification channel (required for Android 8.0 and above)
+@@ -85,39 +74,6 @@ class VACAApplication: Application(), CameraXConfig.Provider {
+             .build()
+     }
+ 
+-    private fun disableSSLCertificateChecking() {
+-        val trustAllCerts: Array<TrustManager?> = arrayOf<TrustManager>(@SuppressLint("CustomX509TrustManager")
+-        object : X509TrustManager {
+-            override fun getAcceptedIssuers(): Array<X509Certificate?>? {
+-                return null
+-            }
+-
+-            @SuppressLint("TrustAllX509TrustManager")
+-            @Throws(CertificateException::class)
+-            override fun checkClientTrusted(arg0: Array<X509Certificate?>?, arg1: String?) {
+-                // Not implemented
+-            }
+-
+-            @SuppressLint("TrustAllX509TrustManager")
+-            @Throws(CertificateException::class)
+-            override fun checkServerTrusted(arg0: Array<X509Certificate?>?, arg1: String?) {
+-                // Not implemented
+-            }
+-        }) as Array<TrustManager?>
+-
+-        try {
+-            val sc = SSLContext.getInstance("TLS")
+-
+-            sc.init(null, trustAllCerts, SecureRandom())
+-
+-            HttpsURLConnection.setDefaultSSLSocketFactory(sc.socketFactory)
+-        } catch (e: KeyManagementException) {
+-            e.printStackTrace()
+-        } catch (e: NoSuchAlgorithmException) {
+-            e.printStackTrace()
+-        }
+-    }
+-
+     companion object {
+         @SuppressLint("StaticFieldLeak")
+         lateinit var activityManager: ActivityManager
+diff --git a/app/src/main/java/com/msp1974/vacompanion/utils/CustomFileDownloader.kt b/app/src/main/java/com/msp1974/vacompanion/utils/CustomFileDownloader.kt
+index f71268e..274d0e5 100644
+--- a/app/src/main/java/com/msp1974/vacompanion/utils/CustomFileDownloader.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/utils/CustomFileDownloader.kt
+@@ -46,7 +46,7 @@ sealed class DownloadStatus {
+  */
+ class CustomFileDownloader(private val context: Context, val deviceManager: DeviceManager) {
+ 
+-    private val client = HttpClientProvider(ignoreSslErrors = { true }).get()
++    private val client = HttpClientProvider(ignoreSslErrors = { deviceManager.config.ignoreSSLErrors }).get()
+ 
+     companion object {
+         const val CUSTOM_DIR = "custom"
+diff --git a/app/src/test/java/com/msp1974/vacompanion/device/authentication/HttpClientProviderTlsTest.kt b/app/src/test/java/com/msp1974/vacompanion/device/authentication/HttpClientProviderTlsTest.kt
+new file mode 100644
+index 0000000..1afea0c
+--- /dev/null
++++ b/app/src/test/java/com/msp1974/vacompanion/device/authentication/HttpClientProviderTlsTest.kt
+@@ -0,0 +1,139 @@
++package com.msp1974.vacompanion.device.authentication
++
++import io.ktor.client.request.get
++import io.ktor.client.statement.bodyAsText
++import kotlinx.coroutines.runBlocking
++import org.junit.Assert.assertEquals
++import org.junit.Assert.assertTrue
++import org.junit.Test
++import java.net.InetAddress
++import java.nio.file.Files
++import java.nio.file.Path
++import java.security.KeyStore
++import java.security.SecureRandom
++import java.util.concurrent.Executors
++import java.util.concurrent.TimeUnit
++import java.util.concurrent.atomic.AtomicInteger
++import javax.net.ssl.HttpsURLConnection
++import javax.net.ssl.KeyManagerFactory
++import javax.net.ssl.SSLContext
++import javax.net.ssl.SSLException
++import javax.net.ssl.SSLServerSocket
++import javax.net.ssl.SSLSocket
++import javax.net.ssl.TrustManagerFactory
++
++/** Real JVM TLS through the production Ktor Android engine. All keys are temporary fixtures. */
++class HttpClientProviderTlsTest {
++    private class Endpoint : AutoCloseable {
++        val directory: Path = Files.createTempDirectory("vaca-tls-test-")
++        val requests = AtomicInteger()
++        val trusted: SSLContext
++        private val executor = Executors.newSingleThreadExecutor()
++        private val server: SSLServerSocket
++
++        init {
++            val store = directory.resolve("fixture.p12")
++            // Public test-only password; no operator keystore is opened or changed.
++            val log = directory.resolve("keytool.log")
++            val command = ProcessBuilder(
++                Path.of(System.getProperty("java.home"), "bin", "keytool").toString(),
++                "-genkeypair", "-keystore", store.toString(), "-storetype", "PKCS12",
++                "-storepass", "test-only", "-alias", "fixture", "-keyalg", "RSA",
++                "-keysize", "2048", "-validity", "1", "-dname", "CN=localhost",
++                "-ext", "SAN=dns:localhost"
++            ).redirectErrorStream(true).redirectOutput(log.toFile()).start()
++            if (!command.waitFor(30, TimeUnit.SECONDS)) {
++                command.destroyForcibly()
++                error("Synthetic keytool timed out")
++            }
++            check(command.exitValue() == 0) { log.toFile().readText() }
++            val keys = KeyStore.getInstance("PKCS12")
++            Files.newInputStream(store).use { keys.load(it, "test-only".toCharArray()) }
++            val managers = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm())
++            managers.init(keys, "test-only".toCharArray())
++            val serverContext = SSLContext.getInstance("TLS")
++            serverContext.init(managers.keyManagers, null, SecureRandom())
++            val trust = KeyStore.getInstance(KeyStore.getDefaultType())
++            trust.load(null, null)
++            trust.setCertificateEntry("fixture", keys.getCertificate("fixture"))
++            val roots = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
++            roots.init(trust)
++            trusted = SSLContext.getInstance("TLS")
++            trusted.init(null, roots.trustManagers, SecureRandom())
++            server = serverContext.serverSocketFactory.createServerSocket(
++                0, 5, InetAddress.getByName("127.0.0.1")
++            ) as SSLServerSocket
++            executor.submit {
++                while (!server.isClosed) {
++                    try {
++                        (server.accept() as SSLSocket).use { socket ->
++                            socket.soTimeout = 3000
++                            val input = socket.inputStream.bufferedReader()
++                            val first = input.readLine()
++                            if (first != null) {
++                                requests.incrementAndGet()
++                                while (!input.readLine().isNullOrEmpty()) { /* headers */ }
++                                socket.outputStream.write(
++                                    "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok".toByteArray()
++                                )
++                                socket.outputStream.flush()
++                            }
++                        }
++                    } catch (_: java.io.IOException) { /* rejected handshake or fixture shutdown */ }
++                }
++            }
++        }
++
++        fun url(host: String = "localhost") = "https://$host:${server.localPort}/fixture"
++
++        override fun close() {
++            server.close()
++            executor.shutdownNow()
++            check(executor.awaitTermination(10, TimeUnit.SECONDS))
++            Files.walk(directory).use { paths ->
++                paths.sorted(Comparator.reverseOrder()).forEach { Files.delete(it) }
++            }
++        }
++    }
++
++    private fun get(url: String, ignore: Boolean = false): String = runBlocking {
++        HttpClientProvider { ignore }.get().use { client -> client.get(url).bodyAsText() }
++    }
++
++    private fun rejected(action: () -> Unit) {
++        val failure = runCatching(action).exceptionOrNull()
++        assertTrue("actual TLS validation must fail, not an unrelated setup error: $failure",
++            generateSequence(failure) { it.cause }.any { it is SSLException })
++    }
++
++    @Test fun untrustedCertificateFailsBeforeHttp() {
++        Endpoint().use { endpoint ->
++            rejected { get(endpoint.url()) }
++            assertEquals(0, endpoint.requests.get())
++        }
++    }
++
++    @Test fun matchingTrustedCertificateWorksAndWrongHostnameFails() {
++        Endpoint().use { endpoint ->
++            val previous = HttpsURLConnection.getDefaultSSLSocketFactory()
++            try {
++                HttpsURLConnection.setDefaultSSLSocketFactory(endpoint.trusted.socketFactory)
++                assertEquals("ok", get(endpoint.url()))
++                assertEquals(1, endpoint.requests.get())
++                rejected { get(endpoint.url("127.0.0.1")) }
++                assertEquals(1, endpoint.requests.get())
++            } finally {
++                HttpsURLConnection.setDefaultSSLSocketFactory(previous)
++            }
++        }
++    }
++
++    @Test fun explicitCompatibilityOptInIsPerClientOnly() {
++        Endpoint().use { endpoint ->
++            assertEquals("ok", get(endpoint.url("127.0.0.1"), ignore = true))
++            assertEquals(1, endpoint.requests.get())
++            rejected { get(endpoint.url()) }
++            assertEquals(1, endpoint.requests.get())
++        }
 +    }
 +}

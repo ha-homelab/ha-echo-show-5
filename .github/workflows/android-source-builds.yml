@@ -1,0 +1,74 @@
+name: Android source patch builds
+on:
+  workflow_call: {}
+permissions:
+  contents: read
+jobs:
+  build:
+    name: Build current ${{ matrix.patch }} patch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        patch: [vaca, ottplay]
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          packages: platform-tools
+      - name: Install the Android source prerequisites
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'cmake;3.22.1'
+      - name: Build and verify current VACA patch with an ephemeral test signing key
+        if: matrix.patch == 'vaca'
+        run: |
+          python3 integrations/vaca-dual-wake/build.py \
+            --work-dir "$RUNNER_TEMP/vaca-build" \
+            --signing-dir "$RUNNER_TEMP/vaca-test-signing" --create-signing-key
+      - name: Read exact historical OTT Android source
+        if: matrix.patch == 'ottplay'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: open-ott-play/ottplay-foss
+          ref: f8634903aa051592ccf15f675b8d8df3212fe502
+          path: .android-upstream
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: matrix.patch == 'ottplay'
+        with:
+          node-version: '22'
+      - name: Apply current patches, run their regressions and compile unsigned Full APK
+        if: matrix.patch == 'ottplay'
+        working-directory: .android-upstream
+        run: |
+          patch --batch -p1 < "$GITHUB_WORKSPACE/patches/ottplay-foss-capacitor-startup.patch"
+          patch --batch -p1 < "$GITHUB_WORKSPACE/patches/ottplay-foss-capacitor-remote-control.patch"
+          npm ci
+          node tests/test_show5_startup.cjs
+          node tests/test_show5_remote.cjs
+          node tests/test_command_server.cjs
+          node tests/test_port_engine_lifecycle.cjs
+          unset KEYSTORE_FILE KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD
+          npm run android:full:release
+          sha256sum android/app/build/outputs/apk/full/release/app-full-release-unsigned.apk
+      - name: Retain VACA source and build receipt only
+        if: matrix.patch == 'vaca'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vaca-source-build-receipt
+          path: ${{ runner.temp }}/vaca-build/*.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Remove ephemeral test signing identity
+        if: always() && matrix.patch == 'vaca'
+        run: rm -rf -- "$RUNNER_TEMP/vaca-test-signing"

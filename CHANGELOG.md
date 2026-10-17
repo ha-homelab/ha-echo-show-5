@@ -19,6 +19,11 @@
 
 ### Fixed
 
+- Restore default certificate and hostname validation in the VACA application
+  and custom-file downloader; require real TLS trust/rejection tests when
+  building `0.13.4+myshka.5` (7005). Existing explicit compatibility opt-in
+  stays local to configured clients.
+
 - Retain custom wake models in the inventory when optional exact-frontend
   display metadata fails validation; keep actual engine loading strict.
 

@@ -4,7 +4,7 @@
 
 This Android patch extends [View Assist Companion App](https://github.com/msp1974/ViewAssistCompanionApp)
 at the pinned commit `65906aebffd2f39772773b44729b22fd022a1f3c`.
-The current source builds **`0.13.4+myshka.4` / version code `7004`** for ARMv7.
+The current source builds **`0.13.4+myshka.5` / version code `7005`** for ARMv7.
 It retains the optional two-model microWakeWord extension and adds an opt-in
 exact ONNX frontend for one privately trained activation model. These are
 alternative configurations, not three simultaneously active wake phrases.
@@ -12,8 +12,9 @@ alternative configurations, not three simultaneously active wake phrases.
 The new [Privet Myshka runbook](../../docs/openwakeword-myshka.md) and
 [illustrated process and results](../../docs/wiki/Wake-model-rollout.md) describe
 manifest binding, local Stop, numerical replay, installation gates and rollback.
-The [myshka.4 build receipt](build-myshka.4.json) records the verified build;
-device and acoustic acceptance are recorded separately. This revision keeps
+The previous [myshka.4 build receipt](build-myshka.4.json) and
+[archived patch](history/myshka.4.patch) record that verified build;
+device and acoustic acceptance are recorded separately. That revision keeps
 custom model inventory available when optional exact-frontend metadata is invalid.
 Actual exact-engine selection still requires all manifest and asset checks.
 
@@ -69,6 +70,23 @@ HA recognition language and reply voice are independent settings. Adding an
 English wake phrase does not switch a Russian assistant to English. Keep stable
 model IDs untranslated in configuration.
 
+## What changed in myshka.5
+
+The app no longer installs a global certificate-verification bypass at startup.
+Custom model/sound downloads now use the same explicit `ignoreSSLErrors` choice
+as authentication instead of unconditionally accepting every certificate. The
+default verifies certificate chains and hostnames. Prefer a valid certificate
+for the configured server; accepting an invalid certificate remains an explicit
+compatibility choice in the existing UI, with the risk of credential or download
+interception. It affects those configured clients, not the process-wide TLS factory.
+
+The builder requires real loopback TLS tests through the production Ktor client:
+untrusted certificate rejection before HTTP, trusted-name success, wrong-name
+rejection, and an explicit compatibility client that cannot weaken a later
+ordinary client. These are build tests, not device or acoustic acceptance.
+The [dualwake.2 patch](history/dualwake.2.patch) and its installed-device evidence
+remain historical records; this update does not install itself on any device.
+
 ## What changed in dualwake.2
 
 The upstream microWakeWord engine created its detector in a local variable,
@@ -117,7 +135,7 @@ its previous verified build record:
 
 ```bash
 python3 integrations/vaca-dual-wake/build.py \
-  --work-dir private/vaca-myshka-build-v4 \
+  --work-dir private/vaca-myshka-build-v5 \
   --signing-dir private/vaca-dual-wake-signing \
   --expected-signer-sha256 "$EXPECTED_SIGNER_SHA256"
 ```
@@ -134,7 +152,7 @@ create a new identity:
 
 ```bash
 python3 integrations/vaca-dual-wake/build.py \
-  --work-dir private/vaca-myshka-build-v4 \
+  --work-dir private/vaca-myshka-build-v5 \
   --signing-dir private/vaca-dual-wake-signing \
   --create-signing-key
 ```
@@ -155,8 +173,8 @@ the patch, choose a new ignored work directory so the old build stays available.
 The builder runs JVM tests, verifies APK signature/package/version/ABI, checks
 source integrity again, and writes two private outputs:
 
-- `vaca-0.13.4-myshka.4.apk`
-- `vaca-0.13.4-myshka.4.json` — source and patch hashes, signing certificate,
+- `vaca-0.13.4-myshka.5.apk`
+- `vaca-0.13.4-myshka.5.json` — source and patch hashes, signing certificate,
   artifact hash/size, test results and an explicit “not deployed by build tool”
   status. It contains no password, token or device identity.
 
@@ -168,7 +186,7 @@ upstream in-app updater cannot replace this differently signed APK.
 ## Install a same-certificate update
 
 **An existing local installation with the original certificate can receive
-`myshka.4` as an ordinary update. Do not uninstall it.** Select the intended
+`myshka.5` as an ordinary update. Do not uninstall it.** Select the intended
 engine and private model using its runbook after verifying the new artifact.
 
 1. Select one device by its exact serial and verify its current package/version.

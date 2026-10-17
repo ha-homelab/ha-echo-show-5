@@ -14,8 +14,8 @@ import xml.etree.ElementTree as ET
 
 COMMIT = '65906aebffd2f39772773b44729b22fd022a1f3c'
 UPSTREAM = 'https://github.com/msp1974/ViewAssistCompanionApp.git'
-VERSION_NAME = '0.13.4+myshka.4'
-VERSION_CODE = 7004
+VERSION_NAME = '0.13.4+myshka.5'
+VERSION_CODE = 7005
 ROOT = Path(__file__).resolve().parents[2]
 PATCH = Path(__file__).with_name('vaca-dual-wake.patch')
 
@@ -188,9 +188,19 @@ def sdk_tool(sdk, name):
 def validate_apk(apk, sdk, signer):
     signature = run(sdk_tool(sdk, 'apksigner'), 'verify', '--verbose', '--print-certs', apk,
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True).stdout
-    fingerprints = re.findall(r'^Signer #\d+ certificate SHA-256 digest: (\w+)$', signature, re.M)
+    # SDK build-tools 36 prints the v2-only signer without a numbered prefix.
+    # Keep exact single-signer equality; unknown or extra digest lines fail closed.
+    digest_lines = [line for line in signature.splitlines()
+                    if 'certificate SHA-256 digest:' in line]
+    fingerprints = []
+    for line in digest_lines:
+        match = re.fullmatch(r'(?:Signer #\d+|V2 Signer:) certificate SHA-256 digest: ([0-9a-f]{64})', line)
+        fingerprints.append(match[1] if match else None)
     if fingerprints != [signer]:
-        raise BuildError('Built APK signature differs from the expected update identity')
+        certificate_lines = [line for line in signature.splitlines() if 'certificate' in line]
+        raise BuildError('Built APK signature differs from the expected update identity: '
+                         f'expected {signer}; observed {fingerprints!r}; '
+                         f'verifier certificate lines {certificate_lines!r}')
     manifest = run(sdk_tool(sdk, 'aapt'), 'dump', 'badging', apk,
                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True).stdout
     package = re.search(r"^package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", manifest, re.M)
@@ -204,12 +214,19 @@ def validate_apk(apk, sdk, signer):
 def test_totals(src):
     """Return JUnit totals after requiring the minimum suite with no failures or skips."""
     totals = dict(tests=0, failures=0, errors=0, skipped=0)
+    tls_tests = set()
     for report in (src / 'app/build/test-results/testDebugUnitTest').glob('TEST-*.xml'):
         suite = ET.parse(report).getroot()
+        if suite.get('name') == 'com.msp1974.vacompanion.device.authentication.HttpClientProviderTlsTest':
+            tls_tests.update(case.get('name') for case in suite.findall('testcase'))
         for key in totals:
             totals[key] += int(suite.get(key, '0'))
-    if totals['tests'] < 18 or totals['failures'] or totals['errors'] or totals['skipped']:
-        raise BuildError('Expected at least eighteen passing JVM tests and no failed/skipped tests')
+    required_tls = {'untrustedCertificateFailsBeforeHttp',
+                    'matchingTrustedCertificateWorksAndWrongHostnameFails',
+                    'explicitCompatibilityOptInIsPerClientOnly'}
+    if (totals['tests'] < 21 or totals['failures'] or totals['errors'] or totals['skipped']
+            or not required_tls.issubset(tls_tests)):
+        raise BuildError('Expected all three real TLS tests, twenty-one total JVM tests, and no failed/skipped tests')
     return totals
 
 
