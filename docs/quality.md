@@ -33,3 +33,14 @@ Android SDK; no device, deployment, microphone or model-accuracy acceptance is
 implied. The existing documented local commands remain usable. Rebuilding
 external unchanged ROMs or third-party APKs is not part of these owned-patch
 builds. Dependency vulnerability review remains a separate obligation.
+
+The required Android tool path uses FLOSS OpenJDK, Gradle/AGP/Kotlin,
+SDK build-tools (including AAPT and apksigner), the Android platform compile
+stubs, LLVM/NDK and CMake. The component NOTICE files and upstream licenses
+apply: [Android SDK terms section 3.5](https://developer.android.com/studio/terms)
+preserves the separate open-source licenses, including the
+[apksig license](https://android.googlesource.com/platform/tools/apksig/+/refs/heads/main/LICENSE)
+and [R8 license](https://r8.googlesource.com/r8/+/refs/heads/main/LICENSE).
+This covers the compiler, signing and packaging tools used by the source builds;
+it does not assert that every optional SDK package, OEM image, DRM component or
+Apple build tool is FLOSS.

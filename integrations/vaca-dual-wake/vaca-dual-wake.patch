@@ -1305,7 +1305,7 @@ index f71268e..274d0e5 100644
          const val CUSTOM_DIR = "custom"
 diff --git a/app/src/test/java/com/msp1974/vacompanion/device/authentication/HttpClientProviderTlsTest.kt b/app/src/test/java/com/msp1974/vacompanion/device/authentication/HttpClientProviderTlsTest.kt
 new file mode 100644
-index 0000000..fce65cb
+index 0000000..1afea0c
 --- /dev/null
 +++ b/app/src/test/java/com/msp1974/vacompanion/device/authentication/HttpClientProviderTlsTest.kt
 @@ -0,0 +1,139 @@
@@ -1357,7 +1357,7 @@ index 0000000..fce65cb
 +                command.destroyForcibly()
 +                error("Synthetic keytool timed out")
 +            }
-+            check(command.exitValue() == 0) { Files.readString(log) }
++            check(command.exitValue() == 0) { log.toFile().readText() }
 +            val keys = KeyStore.getInstance("PKCS12")
 +            Files.newInputStream(store).use { keys.load(it, "test-only".toCharArray()) }
 +            val managers = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm())
