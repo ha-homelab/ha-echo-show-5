@@ -10,9 +10,25 @@ Empiece por la [wiki del proyecto](docs/wiki/Home.md). Para un dispositivo de f�
 
 ![Arquitectura: Echo Show se conecta con HA; voz, cámaras y llamadas siguen rutas de datos separadas. Las etiquetas del diagrama están en inglés.](docs/assets/architecture.svg)
 
+## 16 de octubre: prueba con una sola frase ONNX
+
+### Corrección del PR #69: myshka.4
+
+**`0.13.4+myshka.4` / `7004` está instalado y verificado localmente en Show 2.** Se conserva el certificado de firma y pasan las **18 pruebas JVM**. Show 2 superó la regresión específica del inventario Android: **una prueba, cinco casos de metadatos, 0,624 segundos**. Los metadatos opcionales inválidos ya no ocultan los modelos personalizados; el motor sigue rechazando los archivos inválidos al cargarlos. Show 2 también superó un ciclo de cierre y reapertura real de la captura del micrófono y un reinicio normal de la aplicación. Se conservaron los ajustes, el brillo, los permisos y ADB autenticado sin root. La prueba completa de voz sigue pendiente. Show 1 no está accesible y su última versión verificada es `.3`. La reproducción de referencia de `.3` que figura abajo no demuestra una nueva reproducción en `.4`.
+
+### Estado verificado de myshka.3
+
+**APK instalado en ambos Shows; comparación con la referencia superada en ambos.** VACA `0.13.4+myshka.3` / `7003` superó **18 pruebas JVM**. Cada Show superó **dos pruebas de instrumentación Android** con **cuatro archivos privados existentes: 294 embeddings, 234 ventanas del clasificador y 11 ventanas positivas**. Todas las decisiones del umbral coincidieron con la referencia. La reproducción de archivos no graba la habitación ni demuestra reconocimiento acústico.
+
+Ambos Shows están configurados únicamente para **«Привет, мышка»**, con el procesamiento ONNX exacto y un umbral de **0,50** (**5,0 en HA**). «Hey Jarvis» se ha retirado de la selección activa; se conserva el comando Stop independiente. **Ambos superaron tres ciclos de silenciar/reactivar el micrófono, verificando el cierre y la reapertura de la captura, y un reinicio normal de la aplicación.** Se conservaron los ajustes de HA, el brillo, los permisos y ADB sin root. Quedan pendientes la activación hablada, la respuesta audible, la distancia, Stop durante la reproducción, los cortes de corriente y varios días de uso. La capacidad de dos modelos microWakeWord y el estado del 15 de octubre se conservan más abajo.
+
+[Cambio de modelo: proceso y resultados](docs/wiki/Wake-model-rollout.md) · [Guía técnica](docs/openwakeword-myshka.md) · [Gráfico de validación](docs/assets/wake-validation.svg)
+
+![Un micrófono alimenta el procesamiento ONNX exacto y el detector Stop separado. El bloque de audio de 80 ms no es una latencia de activación medida. Las etiquetas están en inglés.](docs/assets/exact-oww-pipeline.svg)
+
 ## Funciones
 
-- **Dos frases de activación simultáneas:** la extensión local de VACA usa un micrófono y dos modelos microWakeWord. La configuración documentada reconoce **«Привет, мышка»** y **«Hey Jarvis»**, con un umbral compartido de **0,35**. El modelo ruso privado no se distribuye. [Voz y modelos](docs/wiki/Voice-and-wake-words.md).
+- **Assist por voz:** la nueva opción ONNX usa una frase; sigue disponible la capacidad anterior de dos modelos microWakeWord. El estado verificado del 15 de octubre utiliza **«Привет, мышка»** y **«Hey Jarvis»** con **0,35**. En la prueba ONNX, **0,50** corresponde a otro modelo y no permite comparar directamente la sensibilidad. Los modelos privados no se distribuyen. [Voz y modelos](docs/wiki/Voice-and-wake-words.md).
 - **Interfaz para cinco pulgadas:** reloj grande, vídeo Front/Porch a pantalla completa al detectar movimiento, vista manual limitada en el tiempo y regreso al reloj. Se conserva la proporción; el vídeo aparece cuando hay un fotograma listo, sin el icono Play de Android deformado. [Pantalla](docs/wiki/Display-media-and-calls.md).
 - **Control desde HA:** anuncios, música, canales de TV predefinidos, nuestro cliente OTT-play FOSS sobre Capacitor, una ruta web OTT independiente y OttPlayer opcional. Home/Stop termina la actividad administrada. [Control remoto](docs/remote-endpoint.md).
 - **Llamadas mediante su propio Jitsi:** sala fija, política de entrada explícita, cesión del micrófono y restauración tras la llamada. El intercomunicador experimental de HA es una opción separada. [Llamadas](docs/wiki/Display-media-and-calls.md#jitsi-and-intercom).
@@ -21,11 +37,11 @@ Empiece por la [wiki del proyecto](docs/wiki/Home.md). Para un dispositivo de f�
 
 ## Estado de las pruebas
 
-**Actualización del 15 de octubre de 2026:** el parche compilado `dualwake.2` corrige la liberación de recursos del detector. La revisión de pantalla `20261015-r11` combina inglés, ruso, alemán y español con reintentos cuando el comando MQTT todavía no está disponible durante el arranque de HA. En **48 renderizados sintéticos de diseño en ordenador** no se observaron elementos recortados en los casos probados. Ambas actualizaciones están instaladas en los dos Shows. Cada dispositivo superó tres ciclos de silenciar/reactivar el micrófono por software y un reinicio de la aplicación; ambos modelos y la captura se recuperaron. El reconocimiento de frases pronunciadas sigue sin verificar; los detalles están en la [guía de validación](docs/wiki/Validation.md).
+**Estado verificado del 15 de octubre de 2026:** el parche compilado `dualwake.2` corrige la liberación de recursos del detector. La revisión de pantalla `20261015-r11` combina inglés, ruso, alemán y español con reintentos cuando el comando MQTT todavía no está disponible durante el arranque de HA. En **48 renderizados sintéticos de diseño en ordenador** no se observaron elementos recortados en los casos probados. En ese punto de verificación, ambas actualizaciones estaban instaladas en los dos Shows. Cada dispositivo superó tres ciclos de silenciar/reactivar el micrófono por software y un reinicio de la aplicación; ambos modelos y la captura se recuperaron. El reconocimiento de frases pronunciadas sigue sin verificar; los detalles están en la [guía de validación](docs/wiki/Validation.md).
 
 La referencia documentada del **14 de octubre de 2026** incluye dos Shows con Android 11 / LineageOS 18.1 no oficial. Ambos modelos de activación se cargaron después de un **reinicio normal de la aplicación**, se conservaron las identidades de HA y los anuncios consecutivos terminaron correctamente a nivel de servicio. Ambos dispositivos usan **Local Russian Home** y la voz **Irina**. El reconocimiento todavía envía audio a la nube. [Evidencia de compilación](integrations/vaca-dual-wake/README.md#historical-deployment-evidence--2026-10-14) · [historial de voz](docs/fcc-voice-backup.md).
 
-**Siguen pendientes la prueba deliberada de ambas frases junto al dispositivo, la calidad audible, la recuperación tras un corte de corriente y varios días de funcionamiento de la nueva compilación.** Una llamada API correcta o un modelo cargado no demuestran estos resultados. La [guía de validación](docs/wiki/Validation.md) distingue los alcances. La [referencia de conversión del 2 de octubre](docs/preparation-status.md) es histórica y contiene ajustes de voz que ya han cambiado.
+**Siguen pendientes la prueba deliberada de ambas frases junto al dispositivo, la calidad audible, la recuperación tras un corte de corriente y varios días de funcionamiento de la compilación `dualwake.2`.** Una llamada API correcta o un modelo cargado no demuestran estos resultados. La [guía de validación](docs/wiki/Validation.md) distingue los alcances. La [referencia de conversión del 2 de octubre](docs/preparation-status.md) es histórica y contiene ajustes de voz que ya han cambiado.
 
 ## Compatibilidad y preparación
 

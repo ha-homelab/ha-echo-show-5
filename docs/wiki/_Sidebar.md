@@ -1,7 +1,8 @@
 # Project wiki
 
 - [Home](Home.md)
-- [Process and results](Process-and-results.md)
+- [Wake-model rollout: process and results](Wake-model-rollout.md)
+- [Conversion process and results](Process-and-results.md)
 - [Architecture and data paths](Architecture.md)
 - [Installation and recovery](Installation-and-recovery.md)
 - [Voice and wake words](Voice-and-wake-words.md)

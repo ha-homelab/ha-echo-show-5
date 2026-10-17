@@ -2,9 +2,11 @@
 
 [Wiki home](Home.md) · [Validation and evidence](Validation.md) · [Architecture](Architecture.md)
 
-The project turns a supported **Echo Show 5 Gen2 (2021), `cronos`** into an Android room endpoint for Home Assistant. Firmware conversion happens once; the clock, voice client and integrations can then be updated independently. The current work adds two simultaneous wake models, fixes detector cleanup, localizes the clock interface and recovers from a specific Home Assistant startup race.
+The project turns a supported **Echo Show 5 Gen2 (2021), `cronos`** into an Android room endpoint for Home Assistant. Firmware conversion happens once; the clock, voice client and integrations can then be updated independently. The October 15 work added two simultaneous wake models, fixes detector cleanup, localizes the clock interface and recovers from a specific Home Assistant startup race.
 
 ![Six conversion stages and the installed result: LineageOS, VACA dualwake.2, display r11, two wake phrases and four available UI languages.](../assets/process-and-results.svg)
+
+For the **October 16 exact ONNX model trial**, see [Wake model rollout: process and results](Wake-model-rollout.md). It has its own processing diagram, installation gates and development-evaluation chart. The two-phrase settings and installed results below are the dated October 15 baseline, not a universal current configuration.
 
 ## From stock hardware to a reusable endpoint
 
@@ -12,7 +14,7 @@ The project turns a supported **Echo Show 5 Gen2 (2021), `cronos`** into an Andr
 2. **Unlock and independently verify recovery.** Use the guarded amonet route, then confirm the expected TWRP state. A script exit code does not replace that probe.
 3. **Verify a backup before formatting.** The first raw backup is necessarily after unlock. Copy and verify it off-device before formatting; it does not establish a tested universal stock-restoration method.
 4. **Install and initialize Android.** Boot LineageOS 18.1, finish setup, authorize the intended debugging host and sign in to Home Assistant.
-5. **Install and configure the voice client.** Preserve the satellite identity, app-private settings and signing material. The current local build runs the custom **“Привет, мышка”** model and built-in **“Hey Jarvis”** together at a shared **0.35** threshold. Both consume one microphone/frontend path.
+5. **Install and configure the voice client.** Preserve the satellite identity, app-private settings and signing material. The October 15 `dualwake.2` build ran the custom **“Привет, мышка”** model and built-in **“Hey Jarvis”** together at a shared **0.35** threshold. Both consume one microphone/frontend path.
 6. **Deploy the room interface as a versioned release.** Install all clock assets together, including the language catalog, and update the intended home-page path. Keep the previous complete release available for rollback. Then verify the device's connection, model lifecycle, cameras and return to the clock.
 
 Use [Installation and recovery](Installation-and-recovery.md) and the [full conversion runbook](../runbook.md) for operational commands and write gates. Updating an already converted device is not a reason to repeat unlock or formatting.
@@ -41,7 +43,7 @@ This fixes the client recovery behavior. It does not repair a full server disk o
 
 ## Verified results and remaining work
 
-Both converted Shows have **VACA `dualwake.2` and display `r11` installed**, with both activation models configured at **0.35**. English and 24-hour display formatting were retained.
+The October 15 checkpoint verified **VACA `dualwake.2` and display `r11` installed on both converted Shows**, with both activation models configured at **0.35**. English and 24-hour display formatting were retained.
 
 On **both Shows**, three software microphone mute/unmute cycles and a normal app restart restored the two models and microphone capture. These are lifecycle observations; they do not prove spoken activation or audible answer quality.
 

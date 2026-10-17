@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1000" viewBox="0 0 1440 1000" role="img" aria-labelledby="title description">
+<title id="title">Wake model development evidence and its limits</title><desc id="description">Recorded development evaluation: 23 of 24 owner clips and 798 of 800 synthetic clips detected. Zero triggers in 532 negative clips. Three events in 10.696 hours of background material. No events in a separate 3601.99-second control. These different datasets must not be aggregated. The earlier eight far-field recordings became training data; fresh independent three-metre Echo Show acceptance remains pending.</desc>
+<defs><linearGradient id="banner"><stop stop-color="#163b70"/><stop offset="0.5" stop-color="#563c88"/><stop offset="1" stop-color="#087f76"/></linearGradient><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#70849b"/></marker><style>text{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif} .arrow{fill:none;stroke:#70849b;stroke-width:3;marker-end:url(#arrow)}</style></defs>
+<rect width="1440" height="1000" fill="#f3f7fc"/>
+<rect width="1440" height="155" fill="url(#banner)"/>
+<text x="44" y="36" font-size="15" fill="#d1e8ff" font-weight="700">VOICE / DEVELOPMENT EVIDENCE</text>
+<text x="44" y="84" font-size="35" fill="white" font-weight="750">What the evaluation establishes</text>
+<text x="44" y="126" font-size="19" fill="#e3efff" font-weight="400">Recorded candidate results · Different datasets and units · These are not measurements of either Echo Show</text>
+<rect x="44" y="186" width="1352" height="347" rx="18" fill="#fff" stroke="#d7e1ed"/>
+<text x="72" y="230" font-size="16" fill="#2563eb" font-weight="750">POSITIVE CLIPS DETECTED</text>
+<text x="1366" y="230" font-size="16" fill="#536881" font-weight="400" text-anchor="end">Fraction of each dataset</text>
+<text x="72" y="297" font-size="23" fill="#142b46" font-weight="650">Owner / development</text>
+<text x="72" y="331" font-size="18" fill="#536881" font-weight="400">23 / 24 clips detected</text>
+<rect x="448" y="274" width="776" height="32" rx="9" fill="#e6edf5" stroke="#e6edf5"/>
+<rect x="448" y="274" width="743.6666666666666" height="32" rx="9" fill="#2563eb" stroke="#2563eb"/>
+<text x="1348" y="300" font-size="24" fill="#2563eb" font-weight="750" text-anchor="end">95.83%</text>
+<text x="72" y="418" font-size="23" fill="#142b46" font-weight="650">Synthetic examples</text>
+<text x="72" y="452" font-size="18" fill="#536881" font-weight="400">798 / 800 clips detected</text>
+<rect x="448" y="395" width="776" height="32" rx="9" fill="#e6edf5" stroke="#e6edf5"/>
+<rect x="448" y="395" width="774.06" height="32" rx="9" fill="#7753c8" stroke="#7753c8"/>
+<text x="1348" y="421" font-size="24" fill="#7753c8" font-weight="750" text-anchor="end">99.75%</text>
+<text x="72" y="502" font-size="18" fill="#536881" font-weight="400">Development overlap and synthetic data limit generalization to new speakers, rooms and microphones.</text>
+<rect x="44" y="561" width="424" height="211" rx="18" fill="#fff" stroke="#d7e1ed"/>
+<text x="68" y="601" font-size="15" fill="#087f76" font-weight="750">NEGATIVE CLIPS</text>
+<text x="68" y="654" font-size="39" fill="#087f76" font-weight="750">0 / 532</text>
+<text x="68" y="704" font-size="17" fill="#536881" font-weight="400">Triggered clips</text>
+<text x="68" y="733" font-size="17" fill="#536881" font-weight="400">Clip lengths differ from hour-based runs.</text>
+<rect x="508" y="561" width="424" height="211" rx="18" fill="#fff" stroke="#d7e1ed"/>
+<text x="532" y="601" font-size="15" fill="#a46007" font-weight="750">BACKGROUND RUN</text>
+<text x="532" y="654" font-size="39" fill="#a46007" font-weight="750">3 events</text>
+<text x="532" y="704" font-size="17" fill="#536881" font-weight="400">Over 10.696 hours</text>
+<text x="532" y="733" font-size="17" fill="#536881" font-weight="400">Do not merge into a clip accuracy score.</text>
+<rect x="972" y="561" width="424" height="211" rx="18" fill="#fff" stroke="#d7e1ed"/>
+<text x="996" y="601" font-size="15" fill="#7753c8" font-weight="750">SEPARATE CONTROL</text>
+<text x="996" y="654" font-size="39" fill="#7753c8" font-weight="750">0 events</text>
+<text x="996" y="704" font-size="17" fill="#536881" font-weight="400">Over 3601.99 seconds</text>
+<text x="996" y="733" font-size="17" fill="#536881" font-weight="400">One observed run; not a zero-risk claim.</text>
+<rect x="44" y="811" width="1352" height="141" rx="18" fill="#fff5e5" stroke="#e4c38e"/>
+<text x="72" y="854" font-size="18" fill="#a46007" font-weight="750">PENDING / INDEPENDENT HARDWARE ACCEPTANCE</text>
+<text x="72" y="891" font-size="20" fill="#536881" font-weight="400">Fresh 3 m trials on the Shows, deliberate spoken activation, Stop and playback coexistence.</text>
+<text x="72" y="920" font-size="20" fill="#536881" font-weight="400">The previous eight far-field clips are now training data. They cannot establish independent far-field success.</text>
+</svg>
