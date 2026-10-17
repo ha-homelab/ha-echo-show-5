@@ -14,8 +14,8 @@ import xml.etree.ElementTree as ET
 
 COMMIT = '65906aebffd2f39772773b44729b22fd022a1f3c'
 UPSTREAM = 'https://github.com/msp1974/ViewAssistCompanionApp.git'
-VERSION_NAME = '0.13.4+dualwake.3'
-VERSION_CODE = 7003
+VERSION_NAME = '0.13.4+myshka.5'
+VERSION_CODE = 7005
 ROOT = Path(__file__).resolve().parents[2]
 PATCH = Path(__file__).with_name('vaca-dual-wake.patch')
 
@@ -212,6 +212,7 @@ def validate_apk(apk, sdk, signer):
 
 
 def test_totals(src):
+    """Return JUnit totals after requiring the minimum suite with no failures or skips."""
     totals = dict(tests=0, failures=0, errors=0, skipped=0)
     tls_tests = set()
     for report in (src / 'app/build/test-results/testDebugUnitTest').glob('TEST-*.xml'):
@@ -223,9 +224,9 @@ def test_totals(src):
     required_tls = {'untrustedCertificateFailsBeforeHttp',
                     'matchingTrustedCertificateWorksAndWrongHostnameFails',
                     'explicitCompatibilityOptInIsPerClientOnly'}
-    if (totals['tests'] < 12 or totals['failures'] or totals['errors'] or totals['skipped']
+    if (totals['tests'] < 21 or totals['failures'] or totals['errors'] or totals['skipped']
             or not required_tls.issubset(tls_tests)):
-        raise BuildError('Expected all three real TLS tests, twelve total JVM tests, and no failed/skipped tests')
+        raise BuildError('Expected all three real TLS tests, twenty-one total JVM tests, and no failed/skipped tests')
     return totals
 
 

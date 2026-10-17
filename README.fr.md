@@ -10,9 +10,25 @@ Commencez par le [wiki du projet](docs/wiki/Home.md). Pour un appareil d’origi
 
 ![Architecture : le Show communique avec HA ; la voix, les caméras et les appels suivent des chemins distincts. Les légendes du diagramme sont en anglais.](docs/assets/architecture.svg)
 
+## 16 octobre : essai avec une seule phrase ONNX
+
+### Correctif de la PR #69 : myshka.4
+
+**`0.13.4+myshka.4` / `7004` est installé et vérifié localement sur Show 2.** Le certificat de signature est conservé et les **18 tests JVM** passent. Show 2 a réussi la régression Android ciblée sur la liste des modèles : **un test, cinq cas de métadonnées, 0,624 seconde**. Des métadonnées facultatives invalides ne font plus disparaître les modèles personnalisés ; le moteur rejette toujours les fichiers invalides lors du chargement. Show 2 a également réussi un cycle de fermeture et de reprise réelle de la capture du microphone ainsi qu’un redémarrage normal de l’application. Les réglages, la luminosité, les autorisations et ADB authentifié sans root ont été conservés. La vérification vocale de bout en bout reste à faire. Show 1 est inaccessible et sa dernière version vérifiée reste `.3`. La comparaison de référence de `.3` ci-dessous ne démontre pas une nouvelle comparaison sous `.4`.
+
+### Bilan vérifié de myshka.3
+
+**APK installé sur les deux Shows ; comparaison avec la référence réussie sur chacun.** VACA `0.13.4+myshka.3` / `7003` a passé **18 tests JVM**. Chaque Show a également passé **deux tests d’instrumentation Android** avec **quatre fichiers privés existants : 294 embeddings, 234 fenêtres du classificateur et 11 fenêtres positives**. Toutes les décisions de seuil correspondent à la référence. La lecture de fichiers n’enregistre pas la pièce et ne démontre pas la reconnaissance acoustique.
+
+Les deux Shows sont configurés uniquement pour **« Привет, мышка »**, avec le prétraitement ONNX exact et un seuil de **0,50** (**5,0 dans HA**). « Hey Jarvis » a été retiré de la sélection active ; la commande Stop séparée est conservée. **Les deux ont passé trois cycles de coupure/réactivation du microphone avec fermeture et reprise de la capture vérifiées, ainsi qu’un redémarrage normal de l’application.** Les réglages HA, la luminosité, les autorisations et ADB sans root ont été conservés. L’activation parlée, la réponse audible, la distance, Stop pendant la lecture, les coupures de courant et plusieurs jours d’utilisation restent à vérifier. La fonction à deux modèles microWakeWord et le bilan du 15 octobre restent documentés ci-dessous.
+
+[Changement de modèle : processus et résultats](docs/wiki/Wake-model-rollout.md) · [Guide technique](docs/openwakeword-myshka.md) · [Graphique de validation](docs/assets/wake-validation.svg)
+
+![Un microphone alimente le traitement ONNX exact et le détecteur Stop séparé. Le bloc audio de 80 ms ne représente pas une latence d’activation mesurée. Les légendes sont en anglais.](docs/assets/exact-oww-pipeline.svg)
+
 ## Fonctions
 
-- **Deux phrases d’activation simultanées :** l’extension VACA locale utilise un microphone et deux modèles microWakeWord. La configuration documentée associe **« Привет, мышка »** à **« Hey Jarvis »**, avec un seuil partagé de **0,35**. Le modèle russe privé n’est pas distribué. [Voix et modèles](docs/wiki/Voice-and-wake-words.md).
+- **Assist vocal :** le nouveau parcours ONNX utilise une phrase ; la fonction existante à deux modèles microWakeWord reste disponible. Le bilan du 15 octobre associe **« Привет, мышка »** et **« Hey Jarvis »** au seuil **0,35**. Le seuil ONNX **0,50** appartient à un autre modèle et ne permet pas de comparer directement la sensibilité. Les modèles privés ne sont pas distribués. [Voix et modèles](docs/wiki/Voice-and-wake-words.md).
 - **Une interface adaptée aux cinq pouces :** grande horloge, caméra en plein écran lors d’un mouvement, affichage manuel temporaire et retour à l’horloge. Le lecteur conserve les proportions et attend une image présentée avant de révéler la vidéo. [Écran, médias et appels](docs/wiki/Display-media-and-calls.md).
 - **Commande à distance depuis HA :** annonces, musique, flux TV configurés, client OTT-play-FOSS sur Capacitor, accès Web OTT séparé et OttPlayer en option. Home/Stop termine l’activité gérée. [Terminal à distance](docs/remote-endpoint.md).
 - **Appels sur votre installation Jitsi :** salle définie, règle de participation choisie explicitement et gestion du microphone pendant puis après l’appel. L’interphone HA expérimental est un parcours distinct. [Jitsi et interphone](docs/wiki/Display-media-and-calls.md#jitsi-and-intercom).
@@ -21,11 +37,11 @@ Commencez par le [wiki du projet](docs/wiki/Home.md). Pour un appareil d’origi
 
 ## État de la validation
 
-**Mise à jour du 15 octobre 2026 :** les deux Shows ont reçu **VACA `0.13.4+dualwake.2` / code `7002`** et l’interface **`20261015-r11`**. Le correctif Android libère correctement les ressources des détecteurs. L’interface réessaie les abonnements lorsqu’une commande MQTT n’est pas encore disponible pendant le démarrage de HA. Sur chaque appareil, **trois cycles logiciels de coupure/réactivation du microphone et un redémarrage normal de l’application** ont restauré les deux modèles et la capture du microphone. L’affichage reste en anglais, au format 24 heures.
+**Bilan vérifié du 15 octobre 2026 :** les deux Shows ont reçu **VACA `0.13.4+dualwake.2` / code `7002`** et l’interface **`20261015-r11`**. Le correctif Android libère correctement les ressources des détecteurs. L’interface réessaie les abonnements lorsqu’une commande MQTT n’est pas encore disponible pendant le démarrage de HA. Sur chaque appareil, **trois cycles logiciels de coupure/réactivation du microphone et un redémarrage normal de l’application** ont restauré les deux modèles et la capture du microphone. L’affichage reste en anglais, au format 24 heures.
 
 Les **48 rendus synthétiques sur navigateur de bureau** n’ont montré ni découpage des éléments ni retour à la ligne de l’horloge dans les cas testés. Ils ne prouvent pas le rendu de chaque langue sur Android. Les résultats des caméras, les versions installées et les limites des essais sont détaillés dans le [rapport de validation](docs/wiki/Validation.md) et le [récit du processus et des résultats](docs/wiki/Process-and-results.md).
 
-**La reconnaissance des deux phrases prononcées volontairement devant l’appareil, la qualité audible des réponses, la reprise après coupure de courant et la stabilité sur plusieurs jours restent à valider pour cette version.** Un modèle chargé ou un appel API réussi ne remplace pas ces essais. La reconnaissance vocale du parcours russe sélectionné envoie toujours l’audio dans le cloud ; le dialogue local et la synthèse locale ne rendent pas l’ensemble du parcours hors ligne. [Parcours vocaux](docs/fcc-voice-backup.md).
+**La reconnaissance des deux phrases prononcées volontairement devant l’appareil, la qualité audible des réponses, la reprise après coupure de courant et la stabilité sur plusieurs jours restent à valider pour la version `dualwake.2`.** Un modèle chargé ou un appel API réussi ne remplace pas ces essais. La reconnaissance vocale du parcours russe sélectionné envoie toujours l’audio dans le cloud ; le dialogue local et la synthèse locale ne rendent pas l’ensemble du parcours hors ligne. [Parcours vocaux](docs/fcc-voice-backup.md).
 
 Le [bilan de conversion du 2 octobre](docs/preparation-status.md) et les [observations du 14 octobre](integrations/vaca-dual-wake/README.md#historical-deployment-evidence--2026-10-14) restent des documents historiques, avec leurs propres versions et conditions de test.
 

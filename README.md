@@ -16,9 +16,25 @@ Reuse an **Amazon Echo Show 5, second generation (2021), codename `cronos`**, as
 
 [Conversion process and results](docs/wiki/Process-and-results.md) · [Startup recovery diagram](docs/assets/startup-recovery.svg) · [Validation chart](docs/assets/validation-checks.svg)
 
+## October 16: single-phrase ONNX trial
+
+### PR #69 follow-up: myshka.4
+
+**`0.13.4+myshka.4` / `7004` is installed and locally verified on Show 2.** The original signing certificate is retained and all **18 JVM tests** pass. Show 2 passed the targeted Android inventory regression: **one test, five metadata cases, 0.624 seconds**. Invalid optional metadata no longer removes custom models from the list; actual engine loading still rejects invalid assets. Show 2 also passed one actual microphone close/reopen cycle and a normal app restart, preserving settings, brightness, permissions and authenticated nonroot ADB. End-to-end voice acceptance remains pending. Show 1 is unreachable and remains last verified on `.3`. The earlier `.3` replay below is separate evidence, not a new `.4` replay.
+
+### Verified myshka.3 baseline
+
+**APK installed and reference replay passed on both Shows.** VACA `0.13.4+myshka.3` / `7003` passed **18 JVM tests**, and each Show passed **two Android instrumentation tests** using **four existing private fixtures: 294 embeddings, 234 classifier windows and 11 positive windows**. All threshold decisions matched the reference. File replay does not record the room or establish acoustic recognition.
+
+Both Shows are configured for only **“Привет, мышка”** through the exact ONNX frontend at **0.50** (**5.0 in HA**), with “Hey Jarvis” removed from the active selection and the separate Stop command retained. **Both passed three microphone mute/unmute cycles with verified capture closure/reopening, plus a normal app restart**, preserving HA settings, brightness, permissions and nonroot ADB. Spoken activation, audible responses, distance, Stop during playback, power-loss recovery and a multi-day soak remain pending. The two-model microWakeWord capability and its October 15 baseline remain documented below.
+
+[Wake-model rollout: process and results](docs/wiki/Wake-model-rollout.md) · [Technical guide](docs/openwakeword-myshka.md) · [Validation graphic](docs/assets/wake-validation.svg)
+
+![One microphone supplies the exact ONNX activation pipeline and the separate Stop detector. The 80 ms audio chunk is not a measured wake latency.](docs/assets/exact-oww-pipeline.svg)
+
 ## What it does
 
-- **Hands-free Assist:** the local VACA extension can listen for two microWakeWord models through one microphone. The recorded two-device configuration uses **“Привет, мышка”** and **“Hey Jarvis”**, with a shared **0.35** threshold. The private Russian model is not distributed. [Voice setup and switching](docs/wiki/Voice-and-wake-words.md).
+- **Hands-free Assist:** choose the opt-in single-phrase ONNX trial or the existing two-model microWakeWord capability. The recorded October 15 microWakeWord baseline uses **“Привет, мышка”** and **“Hey Jarvis”** at a shared **0.35** threshold; the new ONNX trial uses one phrase at **0.50**. These thresholds belong to different models and do not imply comparable sensitivity. Private models are not distributed. [Voice setup and switching](docs/wiki/Voice-and-wake-words.md).
 - **A screen suited to five inches:** a large clock, full-screen Front/Porch video on motion, bounded manual camera viewing and return to the clock. Video preserves proportions; the ready-frame gate suppresses Android's stretched play placeholder. [Display guide](docs/wiki/Display-media-and-calls.md).
 - **An HA remote endpoint:** announcements, music, fixed TV streams, our OTT-play FOSS Capacitor client, a separate OTT web route and optional OttPlayer. Home/Stop ends the owned activity and restores the clock. [Remote controls](docs/remote-endpoint.md).
 - **Calls on your Jitsi installation:** a fixed room, explicit join policy, microphone handoff and bounded cleanup. The standalone camera/intercom pilot remains a separate experimental option. [Calls and intercom](docs/wiki/Display-media-and-calls.md#jitsi-and-intercom).
@@ -27,7 +43,7 @@ Reuse an **Amazon Echo Show 5, second generation (2021), codename `cronos`**, as
 
 ## Current validation
 
-**October 15, 2026 update:** the built `dualwake.2` patch fixes detector cleanup, and display revision `20261015-r11` combines English, Russian, German and Spanish localization with retry handling when the MQTT command is not yet available during HA startup. A set of **48 synthetic desktop layout renders** showed no clipping in the exercised cases. Both updates are installed on both Shows. Each device passed three software microphone mute/unmute cycles and a normal app restart, restoring both models and capture. Physical phrase recognition remains unverified; see [current rollout evidence](docs/wiki/Validation.md).
+**October 15, 2026 baseline:** the built `dualwake.2` patch fixes detector cleanup, and display revision `20261015-r11` combines English, Russian, German and Spanish localization with retry handling when the MQTT command is not yet available during HA startup. A set of **48 synthetic desktop layout renders** showed no clipping in the exercised cases. Both updates were verified installed on both Shows at that checkpoint. Each device passed three software microphone mute/unmute cycles and a normal app restart, restoring both models and capture. Physical phrase recognition remains unverified; see [current rollout evidence](docs/wiki/Validation.md).
 
 The **October 14, 2026 deployment baseline** has two converted Shows on Android 11 / unofficial LineageOS 18.1, with both activation models loaded after a normal **application restart**, existing HA identities preserved and sequential HA announcements completed. Both use the **Local Russian Home** pipeline and **Irina** speech. Recognition still sends audio to the cloud. [Dual-wake build evidence](integrations/vaca-dual-wake/README.md#historical-deployment-evidence--2026-10-14) · [voice deployment history](docs/fcc-voice-backup.md).
 
@@ -65,7 +81,7 @@ Every device operation must use the **observed physical USB port and complete se
 - [Wiki home](docs/wiki/Home.md): task-based navigation, diagrams and terminology.
 - [Architecture and data paths](docs/wiki/Architecture.md): local/cloud boundaries, camera routing and Jitsi media.
 - [Installation, update and recovery](docs/wiki/Installation-and-recovery.md): stock conversion versus an existing Android installation, signing keys and rollback.
-- [Voice and two wake words](docs/wiki/Voice-and-wake-words.md): threshold semantics, model privacy, assistant switching and tests.
+- [Voice and wake-model choices](docs/wiki/Voice-and-wake-words.md): threshold semantics, model privacy, assistant switching and tests.
 - [Display, media and calls](docs/wiki/Display-media-and-calls.md): brightness, color, full-screen video and remote activities.
 - [Troubleshooting](docs/wiki/Troubleshooting.md): isolate the failing layer before reinstalling.
 - [Validation](docs/wiki/Validation.md): automated, service-level and physical acceptance.

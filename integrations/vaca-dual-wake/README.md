@@ -1,12 +1,29 @@
-# Two simultaneous wake words for VACA 0.13.4
+# Local wake engines for VACA 0.13.4
 
 [Project README](../../README.md) · [Private wake-word setup](../../docs/vaca-private-wakeword.md)
 
 This Android patch extends [View Assist Companion App](https://github.com/msp1974/ViewAssistCompanionApp)
 at the pinned commit `65906aebffd2f39772773b44729b22fd022a1f3c`.
-The current source builds **`0.13.4+dualwake.3` / version code `7003`** for ARMv7.
-The existing Home Assistant selector chooses the primary model; a private file
-adds a second microWakeWord model. Both listen simultaneously.
+The current source builds **`0.13.4+myshka.5` / version code `7005`** for ARMv7.
+It retains the optional two-model microWakeWord extension and adds an opt-in
+exact ONNX frontend for one privately trained activation model. These are
+alternative configurations, not three simultaneously active wake phrases.
+
+The new [Privet Myshka runbook](../../docs/openwakeword-myshka.md) and
+[illustrated process and results](../../docs/wiki/Wake-model-rollout.md) describe
+manifest binding, local Stop, numerical replay, installation gates and rollback.
+The previous [myshka.4 build receipt](build-myshka.4.json) and
+[archived patch](history/myshka.4.patch) record that verified build;
+device and acoustic acceptance are recorded separately. That revision keeps
+custom model inventory available when optional exact-frontend metadata is invalid.
+Actual exact-engine selection still requires all manifest and asset checks.
+
+The [myshka.3 receipt](build-myshka.3.json) and
+[archived patch](history/myshka.3.patch) preserve the preceding installation and
+its 18 passing JVM tests. Its numerical replay and lifecycle results remain
+dated evidence, not an implicit test of a different APK.
+
+![One microphone feeds exact ONNX activation features and the local Stop detector.](../../docs/assets/exact-oww-pipeline.svg)
 
 The [validated build record](validated-build.json) and
 [archived patch](history/dualwake.1.patch) describe the previously installed
@@ -14,12 +31,13 @@ The [validated build record](validated-build.json) and
 produces its own private JSON evidence file; building an APK does not prove
 installation or voice recognition.
 
-The [dualwake.2 build record](build-dualwake.2.json) contains the checked APK,
+The [dualwake.2 build record](build-dualwake.2.json) and
+[archived patch](history/dualwake.2.patch) preserve the previous version. The record contains the checked APK,
 patch, source-tree and certificate hashes from the October 15 build, with nine
 passing JVM tests. Its build-only status is intentional; installed-device
 results are recorded separately below when verified.
 
-## Configure two phrases
+## Configure two microWakeWord phrases
 
 Create `files/secondary-wake-word.json` inside VACA's **app-private data**:
 
@@ -46,13 +64,13 @@ published through Home Assistant's static file server.
   evidence that each model was actually loaded. A selected ID alone is not a
   successful loading check.
 
-The deployment uses the custom Russian phrase **«Привет, мышка»** and the
+The October 15 deployment used the custom Russian phrase **«Привет, мышка»** and the
 built-in English phrase **“Hey Jarvis.”** The wake phrase, interface language,
 HA recognition language and reply voice are independent settings. Adding an
 English wake phrase does not switch a Russian assistant to English. Keep stable
 model IDs untranslated in configuration.
 
-## What changed in dualwake.3
+## What changed in myshka.5
 
 The app no longer installs a global certificate-verification bypass at startup.
 Custom model/sound downloads now use the same explicit `ignoreSSLErrors` choice
@@ -117,7 +135,7 @@ its previous verified build record:
 
 ```bash
 python3 integrations/vaca-dual-wake/build.py \
-  --work-dir private/vaca-dual-wake-build-v3 \
+  --work-dir private/vaca-myshka-build-v5 \
   --signing-dir private/vaca-dual-wake-signing \
   --expected-signer-sha256 "$EXPECTED_SIGNER_SHA256"
 ```
@@ -134,7 +152,7 @@ create a new identity:
 
 ```bash
 python3 integrations/vaca-dual-wake/build.py \
-  --work-dir private/vaca-dual-wake-build-v3 \
+  --work-dir private/vaca-myshka-build-v5 \
   --signing-dir private/vaca-dual-wake-signing \
   --create-signing-key
 ```
@@ -155,8 +173,8 @@ the patch, choose a new ignored work directory so the old build stays available.
 The builder runs JVM tests, verifies APK signature/package/version/ABI, checks
 source integrity again, and writes two private outputs:
 
-- `vaca-0.13.4-dualwake.3.apk`
-- `vaca-0.13.4-dualwake.3.json` — source and patch hashes, signing certificate,
+- `vaca-0.13.4-myshka.5.apk`
+- `vaca-0.13.4-myshka.5.json` — source and patch hashes, signing certificate,
   artifact hash/size, test results and an explicit “not deployed by build tool”
   status. It contains no password, token or device identity.
 
@@ -167,8 +185,9 @@ upstream in-app updater cannot replace this differently signed APK.
 
 ## Install a same-certificate update
 
-**An existing `dualwake.1` or `dualwake.2` installation with the original local
-certificate can receive `dualwake.3` as an ordinary update. Do not uninstall it.**
+**An existing local installation with the original certificate can receive
+`myshka.5` as an ordinary update. Do not uninstall it.** Select the intended
+engine and private model using its runbook after verifying the new artifact.
 
 1. Select one device by its exact serial and verify its current package/version.
    Save a fresh private data/settings backup and keep the known-working APK.
@@ -181,10 +200,10 @@ certificate can receive `dualwake.3` as an ordinary update. Do not uninstall it.
    adb -s "$ANDROID_SERIAL" install -r "$APK"
    ```
 
-4. Launch VACA. Confirm its existing HA satellite reconnects, both configured
-   models load, and the microphone is active. Verify assistant, threshold,
+4. Launch VACA. Confirm its existing HA satellite reconnects, the configured
+   model or models load, and the microphone is active. Verify assistant, threshold,
    brightness, dashboard, permissions and special access remain as intended.
-5. Restart the app once and recheck both loads before updating another device.
+5. Restart the app once and recheck the expected loads before updating another device.
    Test each phrase physically when a listener is available.
 
 For a same-certificate debuggable rollback, preserve a current backup and try
@@ -264,8 +283,8 @@ checked first. No uninstall or firmware conversion was required.
 
 Both retained their HA satellite identity, Local Russian Home assistant,
 `privet_myshka_v1` primary and `hey_jarvis` secondary model, shared 0.35 threshold,
-and intended permissions. Current screen brightness is manual 100%; the older
-80% value below is historical. On each Show, three software mute/unmute cycles
+and intended permissions. At that checkpoint screen brightness was manual 100%; the older
+80% value above is historical. On each Show, three software mute/unmute cycles
 and one normal app restart restored both models and microphone capture without
 an operator prompt. Display revision `20261015-r11` is installed on both.
 

@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "upstream_repository": "https://github.com/msp1974/ViewAssistCompanionApp",
+  "upstream_commit": "65906aebffd2f39772773b44729b22fd022a1f3c",
+  "patched_source_tree": "5ef87036863b1210d40fec787ecbe96e3f935361",
+  "patch_sha256": "99ab0dfa196cfc21f66874b9036c488582744941aafdac1ed6b7e7ada6af4da4",
+  "application_id": "com.msp1974.vacompanion",
+  "version_name": "0.13.4+myshka.4",
+  "version_code": 7004,
+  "abi": [
+    "armeabi-v7a"
+  ],
+  "apk_sha256": "c362948f4853da44d6999c98e065084fb8d89a28d2812aa25be686078a49b750",
+  "apk_bytes": 74619982,
+  "signing_certificate_sha256": "2cebae957468fdb54ffaa473548e9b5f7946f84b8645e3947ff73d2af29b9850",
+  "unit_tests": {
+    "tests": 18,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "deployment_status": "not_deployed_by_build_tool",
+  "note": "Build evidence only; device installation and acoustic acceptance require separate validation.",
+  "validated_on": "2026-10-16"
+}

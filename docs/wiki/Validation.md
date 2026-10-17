@@ -24,6 +24,63 @@ Each result needs a dated target, exact artifact or revision, method and limitat
 
 **Localization source — October 15.** The display now has a four-language source layer and locale/hour-format configuration. A source test establishes catalog and formatting behavior; the deployment record must separately identify which static revision and locales were actually inspected on hardware. Do not promote a prepared revision to a hardware milestone solely because files exist.
 
+## PR #69 follow-up: myshka.4 build and Show 2 checks
+
+VACA **`0.13.4+myshka.4` / `7004`** has a verified build with the original retained signing certificate and **18 JVM tests passed, zero failures, errors or skips**. The [new build receipt](../../integrations/vaca-dual-wake/build-myshka.4.json) records its source, patch and APK hashes.
+
+This patch isolates invalid optional label metadata from custom-model enumeration. The exact-engine loader continues to reject invalid assets. Show 2 received the same-certificate update and passed the targeted Android inventory regression: **one test, five metadata cases, 0.624 seconds**. Show 2 also passed **one actual microphone close/reopen cycle** and a **normal app restart**, with short local processing observations of **52.960 ms** and **55.184 ms per 80 ms input chunk**, respectively. These are processing times, not wake or response latency. The single model at 0.50, absent secondary selection, HA configuration, manual brightness 255, permissions and authenticated nonroot ADB were preserved. End-to-end HA/TTS health and physical speech acceptance were not tested. Show 1 is unreachable and remains last verified on `.3`; no installation was performed there.
+
+Final cleanup confirmed that the temporary fixture directory and instrumentation APK are absent, all four private model/manifest assets still match their expected hashes, and VACA remains running.
+
+The `.3` replay counts, numerical differences and lifecycle observations below remain the historical evidence for that artifact. A new build does not turn those observations into a full `.4` replay.
+
+## October 16 exact ONNX source and publication checks
+
+The [single-phrase rollout](Wake-model-rollout.md) adds a hash-bound exact ONNX
+frontend in VACA **`0.13.4+myshka.3` / `7003`**. Its
+[build receipt](../../integrations/vaca-dual-wake/build-myshka.3.json) preserves
+source-tree, patch, certificate and APK hashes independently of deployment.
+
+- Actual Android build: **18 JVM tests**, with no failures, errors or skips.
+- Android builder host regressions: **31 passed**; the new APK version is
+  accepted and the old version is rejected. The minimum JVM count is now 18.
+- Repository Python suite: **182 tests**, no failures, **15 optional HA-runtime
+  skips**. Those skips do not establish live HA compatibility.
+- Source packaging: **six checks passed**, including isolated checks from the
+  generated archive and exclusion of private runtime artifacts.
+- Documentation: **72 Markdown/SVG files** passed local link/anchor and SVG
+  accessibility checks. All **three new SVGs** were rendered in Chrome and
+  visually inspected, with no observed clipping or external resource requests.
+
+The [development-evaluation chart](../assets/wake-validation.svg) reports supplied
+model-development observations. It is not an acoustic benchmark on the Shows.
+Android replay and installed-state results are recorded separately below.
+The earlier October 15 record remains historical.
+
+## October 16 installed-state and replay checks
+
+Both Shows received **`0.13.4+myshka.3` / `7003`**, matching the APK and retained
+signing identity in the build receipt. Each passed both Android instrumentation
+tests: private manifest validation and replay of four existing audio fixtures.
+Each replay produced **294 embeddings and 234 classifier windows**, including
+**11 positive windows**; all threshold decisions matched the reference. Maximum
+absolute differences were **0.00007439** for embedding values and **0.000006885**
+for classifier scores. No new room recording was made for these tests.
+
+Each Show also passed **three software mute/unmute cycles and a normal app
+restart**, restoring the same single classifier at **0.50** with no secondary
+Jarvis selection. Actual microphone closure and recovery were checked; HA
+identity, selected assistant, display/media settings and permissions were retained.
+The [dated rollout record](Wake-model-rollout.md#october-16-device-observations)
+records the individual timing observations. The final candidate corrects quiet-loop
+coroutine starvation that had prevented a mute change from stopping capture.
+HA switch state alone was not used as proof that microphone capture had stopped.
+
+These checks do not establish physical wake recognition, audible replies, Stop
+during playback, fresh three-metre performance, power-loss recovery or a
+multi-day soak. The selected Assist pipeline is preserved; local wake detection
+does not move its cloud recognition step onto the Show.
+
 ## October 15 installed-state and recovery checks
 
 Both Shows received VACA **`0.13.4+dualwake.2` / code `7002`** and the complete
@@ -102,7 +159,7 @@ The [contribution guide](../../CONTRIBUTING.md) and [CI workflow](../../.github/
 
 Use one identified device and a harmless read-only question. Preserve the previous configuration and keep recordings/transcripts private if any are deliberately collected.
 
-- Confirm installed revision, assistant selection, loaded primary and secondary models, unsilenced capture and no onboarding prompt.
+- Confirm installed revision, assistant selection, the intended active model or models, unsilenced capture and no onboarding prompt. For the single-phrase ONNX trial, confirm only the intended classifier is active and the secondary selection is absent.
 - Speak each wake phrase separately, wait for idle between trials, and record activation plus audible-answer outcome. Include negative phrases and background playback. Do not infer a rate from one successful utterance.
 - Show each configured camera, verify actual moving video, then check natural expiry and Home cleanup. Confirm voice capture afterward.
 - Play one permitted media item; confirm audible output and Stop. For a call, check both directions with a second participant and verify microphone restoration when ending.

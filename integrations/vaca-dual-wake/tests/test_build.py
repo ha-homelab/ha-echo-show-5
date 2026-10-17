@@ -233,6 +233,7 @@ class MetadataTests(unittest.TestCase):
             build.normalize_fingerprint('not a fingerprint')
 
     def test_missing_or_failed_jvm_reports_are_rejected(self):
+        """Reject absent, failing or undersized JVM reports before accepting a full suite."""
         with tempfile.TemporaryDirectory() as directory:
             src = Path(directory)
             with self.assertRaises(build.BuildError):
@@ -240,10 +241,13 @@ class MetadataTests(unittest.TestCase):
             reports = src / 'app/build/test-results/testDebugUnitTest'
             reports.mkdir(parents=True)
             report = reports / 'TEST-fixture.xml'
-            report.write_text('<testsuite tests="9" failures="1" errors="0" skipped="0"/>')
+            report.write_text('<testsuite tests="18" failures="1" errors="0" skipped="0"/>')
             with self.assertRaises(build.BuildError):
                 build.test_totals(src)
             report.write_text('<testsuite tests="9" failures="0" errors="0" skipped="0"/>')
+            with self.assertRaises(build.BuildError):
+                build.test_totals(src)
+            report.write_text('<testsuite tests="18" failures="0" errors="0" skipped="0"/>')
             with self.assertRaises(build.BuildError):
                 build.test_totals(src)
             tls = reports / 'TEST-tls.xml'
@@ -252,16 +256,17 @@ class MetadataTests(unittest.TestCase):
                            '<testcase name="matchingTrustedCertificateWorksAndWrongHostnameFails"/>'
                            '<testcase name="explicitCompatibilityOptInIsPerClientOnly"/>'
                            '</testsuite>')
-            self.assertEqual(build.test_totals(src)['tests'], 12)
+            self.assertEqual(build.test_totals(src)['tests'], 21)
 
 
 class ApkValidationTests(unittest.TestCase):
     def setUp(self):
+        """Create synthetic signer and current ARMv7 package metadata without opening an APK."""
         self.fingerprint = 'a' * 64
         self.signature = 'Signer #1 certificate SHA-256 digest: ' + self.fingerprint + '\n'
         self.manifest = (
-            "package: name='com.msp1974.vacompanion' versionCode='7003' "
-            "versionName='0.13.4+dualwake.3' platformBuildVersionName='16'\n"
+            "package: name='com.msp1974.vacompanion' versionCode='7005' "
+            "versionName='0.13.4+myshka.5' platformBuildVersionName='16'\n"
             "native-code: 'armeabi-v7a'\n"
         )
 
@@ -296,6 +301,7 @@ class ApkValidationTests(unittest.TestCase):
                     self.validate()
 
     def test_wrong_signer_is_rejected(self):
+        """Reject otherwise valid APK metadata signed by a different certificate."""
         self.signature = self.signature.replace('a' * 64, 'b' * 64)
         with self.assertRaises(build.BuildError):
             self.validate()
@@ -308,7 +314,8 @@ class ApkValidationTests(unittest.TestCase):
         self.assertIn('b' * 64, str(result.exception))
 
     def test_stale_version_is_rejected(self):
-        self.manifest = self.manifest.replace('7003', '7001')
+        """Reject a previous build version even when its signing identity and ABI match."""
+        self.manifest = self.manifest.replace('7005', '7004')
         with self.assertRaises(build.BuildError):
             self.validate()
 
