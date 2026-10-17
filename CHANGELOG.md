@@ -1,6 +1,14 @@
 # Changelog
 
-## [Unreleased]
+## [0.1.2] - 2026-10-17
+
+### Changed
+
+- Route short play and stop requests through native music controls, improve dual-wake lifecycle and add the exact ONNX wake frontend.
+- Update the FCC runtime and preserve its Python 3.11 dependency lock; improve speech contention handling and bounded energy context.
+- Validate the exact packaged display across supported browsers and operating systems. Preserve LF browser-asset bytes in Windows checkouts so strict archive verification succeeds without weakening the check.
+- Bound artifact downloads, preserve verified concurrent results and validate VACA release metadata and classifier output. Exercise both Android source builds in CI.
+- Expand localized setup and rollout documentation and license original tools under MIT while retaining upstream notices.
 
 ### Added
 
@@ -47,16 +55,6 @@
 - Reject unexpected source changes and missing/mismatched signing identities
   during Android builds. Preserve the existing key for ordinary APK updates.
 
-### Upgrade
-
-- Deploy clock revision `20261015-r11` with its new `i18n.js` asset and a fresh
-  entry/asset version. Existing settings retain English and 24-hour time.
-- Use the [same-signature update procedure](integrations/vaca-dual-wake/README.md)
-  for existing local builds. Initial migration from upstream has a different
-  signing identity and requires verified private data backup/restoration.
-- See [validation evidence](docs/wiki/Validation.md) for the distinction between
-  source checks, installed-state checks and pending physical voice acceptance.
-
 ### Documentation
 
 - Add three self-contained SVG diagrams for the exact audio pipeline, guarded
@@ -68,6 +66,22 @@
 - Distinguish the EchoLocal, EchoMuse and Android Show routes and label recorded
   validation as historical evidence rather than current device state.
 - Include the new documentation in the public source distribution.
+
+### Upgrade
+
+This is the integration-source suite, not a firmware image, APK, pretrained model or prebuilt container. Follow the existing component-specific build and installation instructions; preserve private credentials, local configuration and the previous accepted artifacts for rollback. Update matching component inputs together. Publication does not deploy services, flash a device or activate a new wake model.
+
+- Deploy clock revision `20261015-r11` with its new `i18n.js` asset and a fresh
+  entry/asset version. Existing settings retain English and 24-hour time.
+- Use the [same-signature update procedure](integrations/vaca-dual-wake/README.md)
+  for existing local builds. Initial migration from upstream has a different
+  signing identity and requires verified private data backup/restoration.
+- See [validation evidence](docs/wiki/Validation.md) for the distinction between
+  source checks, installed-state checks and pending physical voice acceptance.
+
+### Security
+
+The suite retains strict candidate-source byte checks and verifies download provenance and size bounds. VACA TLS defaults preserve verified transport. Browser, voice, source-build and loopback checks do not claim physical-device, acoustic, provider or production deployment acceptance.
 
 ## [0.1.1] - 2026-10-14
 
