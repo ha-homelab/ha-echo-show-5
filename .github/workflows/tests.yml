@@ -4,6 +4,10 @@ name: Tests
 permissions:
   contents: read
 jobs:
+  android-source-builds:
+    uses: ./.github/workflows/android-source-builds.yml
+    permissions:
+      contents: read
   browser-compatibility:
     name: Clock and authentication browser acceptance
     uses: victron-venus/venus-os-ci-toolkit/.github/workflows/typescript-ci.yml@5b72b09e8a6bf17b482124891f17fd9662182bf6
@@ -197,6 +201,7 @@ jobs:
     name: CI gate
     if: ${{ !cancelled() }}
     needs:
+    - android-source-builds
     - browser-compatibility
     - unit-tests
     - intercom-tests
