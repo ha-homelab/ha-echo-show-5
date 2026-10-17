@@ -25,8 +25,9 @@ class BrowserCandidateTests(unittest.TestCase):
         for name in self.names:
             file = self.root / name
             file.parent.mkdir(parents=True, exist_ok=True)
-            file.write_text(name)
+            file.write_bytes((name + '\n').encode('utf-8'))
         (self.root / 'release-files.json').write_text(json.dumps({'files': self.names}))
+        (self.root / '.gitattributes').write_bytes((candidate.ROOT / '.gitattributes').read_bytes())
         subprocess.run(['git', 'init', '-q', str(self.root)], check=True)
         subprocess.run(['git', '-C', str(self.root), 'add', '.'], check=True)
         subprocess.run(['git', '-C', str(self.root), '-c', 'commit.gpgsign=false', '-c', 'user.name=Fixture', '-c', 'user.email=test@example.invalid', 'commit', '-qm', 'fixture'], check=True)
@@ -60,6 +61,21 @@ class BrowserCandidateTests(unittest.TestCase):
         self.assertEqual(bound['candidateArtifactId'], '456')
         self.assertEqual(bound['sourceSha'], self.sha)
         self.assertEqual(bound['runAttempt'], '2')
+
+    def test_windows_autocrlf_checkout_preserves_exact_display_candidate_bytes(self):
+        # Recreate Windows Git's checkout conversion on any host. The archived
+        # LF bytes must still match every deployed browser asset byte-for-byte.
+        for name in candidate.FILES:
+            (self.root / 'integrations/show5-display' / name).unlink()
+        subprocess.run(
+            ['git', '-C', str(self.root), '-c', 'core.autocrlf=true',
+             'checkout-index', '--force', '--all'],
+            check=True,
+        )
+        self.prepare()
+        for name in candidate.FILES:
+            expected = ('integrations/show5-display/' + name + '\n').encode('utf-8')
+            self.assertEqual((self.root / 'display' / name).read_bytes(), expected)
 
     def test_foreign_source_run_attempt_and_missing_artifact_fail_before_output(self):
         for key, value in [('GITHUB_SHA', 'f' * 40), ('GITHUB_RUN_ID', '124'), ('GITHUB_RUN_ATTEMPT', '3'), ('CI_BROWSER_CANDIDATE_ARTIFACT_ID', '')]:
