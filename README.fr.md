@@ -10,6 +10,13 @@ Commencez par le [wiki du projet](docs/wiki/Home.md). Pour un appareil d’origi
 
 ![Architecture : le Show communique avec HA ; la voix, les caméras et les appels suivent des chemins distincts. Les légendes du diagramme sont en anglais.](docs/assets/architecture.svg)
 
+
+[![Écran de l’horloge en perspective](docs/assets/clock-hero.png)](docs/assets/clock-screenshot.jpg)
+
+La véritable page de l’horloge `20261015-r11`, capturée dans Chrome sur ordinateur
+à 960 × 480 avec la configuration d’exemple. Sans connexion à Home Assistant,
+caméra ni appareil. Cliquez pour voir l’original.
+
 ## 16 octobre : essai avec une seule phrase ONNX
 
 ### Correctif de la PR #69 : myshka.4

@@ -16,6 +16,13 @@ Reuse an **Amazon Echo Show 5, second generation (2021), codename `cronos`**, as
 
 [Conversion process and results](docs/wiki/Process-and-results.md) · [Startup recovery diagram](docs/assets/startup-recovery.svg) · [Validation chart](docs/assets/validation-checks.svg)
 
+
+[![Clock display in perspective](docs/assets/clock-hero.png)](docs/assets/clock-screenshot.jpg)
+
+The real display page (revision `20261015-r11`) captured in desktop Chrome at
+960 × 480 with the public example configuration. It shows only the local clock;
+no Home Assistant login, camera feed or device was used. Click for the flat original.
+
 ## October 16: single-phrase ONNX trial
 
 ### PR #69 follow-up: myshka.4
@@ -129,3 +136,7 @@ Original project code and documentation are available under the [MIT license](LI
 [Contribution guide](CONTRIBUTING.md) · [Security policy](SECURITY.md) ·
 [Governance](GOVERNANCE.md) · [Code of Conduct](CODE_OF_CONDUCT.md) ·
 [Roadmap](ROADMAP.md) · [Quality evidence and limits](docs/quality.md)
+
+## Screenshot artwork
+
+See [capture provenance and regeneration](docs/screenshot-artwork.md).
