@@ -10,6 +10,13 @@ Beginnen Sie im [Projekt-Wiki](docs/wiki/Home.md). Für ein unverändertes Gerä
 
 ![Architektur: Echo Show verbindet sich mit HA; Sprache, Kameras und Anrufe haben getrennte Datenwege. Die Grafik ist englisch beschriftet.](docs/assets/architecture.svg)
 
+
+[![Uhranzeige in Perspektive](docs/assets/clock-hero.png)](docs/assets/clock-screenshot.jpg)
+
+Die echte Uhrseite `20261015-r11`, aufgenommen in Desktop-Chrome mit
+960 × 480 und der Beispielkonfiguration. Ohne Home-Assistant-Anmeldung, Kamera
+oder Gerät. Ein Klick öffnet das flache Original.
+
 ## 16. Oktober: Versuch mit einer ONNX-Aktivierungsphrase
 
 ### Nachbesserung in PR #69: myshka.4

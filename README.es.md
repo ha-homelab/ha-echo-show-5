@@ -10,6 +10,13 @@ Empiece por la [wiki del proyecto](docs/wiki/Home.md). Para un dispositivo de f�
 
 ![Arquitectura: Echo Show se conecta con HA; voz, cámaras y llamadas siguen rutas de datos separadas. Las etiquetas del diagrama están en inglés.](docs/assets/architecture.svg)
 
+
+[![Pantalla del reloj en perspectiva](docs/assets/clock-hero.png)](docs/assets/clock-screenshot.jpg)
+
+La página real del reloj `20261015-r11`, capturada en Chrome de escritorio a
+960 × 480 con la configuración de ejemplo. Sin iniciar sesión en Home Assistant,
+ni usar cámara o dispositivo. Haz clic para ver el original.
+
 ## 16 de octubre: prueba con una sola frase ONNX
 
 ### Corrección del PR #69: myshka.4
