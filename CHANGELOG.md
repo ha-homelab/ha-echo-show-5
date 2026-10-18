@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.3] - 2026-10-18
+
+### Changed
+
+- Replace the obsolete Scorecard CI container with the reviewed, checksum-pinned scanner. Keep the upstream SARIF reporting policy, GitHub Security upload and retained report artifacts.
+- Synchronize the source-suite version; packaged runtime behavior is unchanged.
+
+### Upgrade
+
+Unpack the verified integration-source archive into a new directory. Preserve private configuration, audio, models and the previous accepted archive for rollback. Existing component versions and device installation procedures remain unchanged.
+
+### Security
+
+The replaced CI image contained 25 high-severity dependency findings in the recorded scan. The scanner replacement changes CI tooling, not the distributed application runtime. OpenSSF REST publication remains disabled as before. The released source suite excludes firmware, APKs, prebuilt containers and operator state. No device, audio or acoustic acceptance is claimed.
+
 ## [0.1.2] - 2026-10-17
 
 ### Changed
