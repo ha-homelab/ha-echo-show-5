@@ -17,17 +17,46 @@ La véritable page de l’horloge `20261015-r11`, capturée dans Chrome sur ordi
 à 960 × 480 avec la configuration d’exemple. Sans connexion à Home Assistant,
 caméra ni appareil. Cliquez pour voir l’original.
 
+## 19 octobre : deux phrases d’activation sur Show 1
+
+**Show 1 utilise maintenant `myshka.7` / `7007` avec « Привет, мышка » et « Hey Jarvis » activés.**
+Le traitement ONNX exact de Myshka conserve le seuil **0,50**. Jarvis applique
+son propre calibrage : la probabilité moyenne sur **cinq évaluations doit être
+strictement supérieure à 0,97**. Les deux utilisent un seul microphone ; Jarvis
+partage le MicroFrontend existant avec Stop, qui reste une commande de lecture
+indépendante.
+
+La compilation avec la signature précédente a réussi **42 tests JVM** ; Show 1
+a réussi **six tests Android**, **trois cycles de fermeture et de reprise réelles
+de la capture du microphone** et un **redémarrage de l’application**. Les deux
+modèles d’activation, Stop et l’authentification HTTPS ont été rétablis ; les
+réglages sont conservés. **Show 2 reste inaccessible ; sa dernière version
+vérifiée est `.4`.** Les tests synthétiques et les modèles chargés ne prouvent
+pas la reconnaissance vocale dans la pièce ; la vérification en conditions
+réelles reste à faire.
+
+[Activer ou retirer la deuxième phrase](docs/wiki/Mixed-wake-words.md) ·
+[Mesures et limites](docs/wiki/Validation.md#october-19-mixed-wake-checkpoint) ·
+[Schéma de traitement](docs/assets/mixed-wake-pipeline.svg), en anglais.
+Les cinq langues des README et les quatre langues de l’horloge restent inchangées.
+
+## 19 octobre : état précédent avec myshka.6
+
+À cette étape précédente, **VACA `0.13.4+myshka.6` / `7006`** a été installé sur Show 1 avec le certificat de signature précédent. **29 tests JVM** et **trois tests d’instrumentation Android** ont réussi. Lors de la lecture des quatre fichiers de test privés existants, toutes les décisions de seuil correspondaient à la référence. « Привет, мышка » au seuil **0,50** et le détecteur Stop séparé sont chargés ; la capture du microphone est active. Un cycle de coupure et de réactivation a confirmé la fermeture et la reprise de la capture, puis un redémarrage normal de l’application a confirmé une nouvelle authentification HTTPS ; les réglages HA, la luminosité manuelle à 255, les autorisations et ADB sécurisé sans root ont été conservés.
+
+Show 2 est actuellement inaccessible sur le réseau et dans HA ; sa dernière version vérifiée est **`.4`**. La vérification du serveur a obtenu une réponse à une requête textuelle traitée par les fonctions natives de HA et téléchargé la voix Silero ; la vérification complète du serveur, de la requête textuelle au téléchargement de la voix, a pris **4,481 s**. Cela ne prouve ni une réponse audible ni la reconnaissance de la phrase prononcée dans la pièce. **La vérification vocale en conditions réelles reste à faire.** Les résultats de cette étape et leurs limites figurent dans le [journal du 19 octobre](docs/wiki/Validation.md#october-19-current-checkpoint). Les résultats ci-dessous concernent les dates et versions indiquées.
+
 ## 16 octobre : essai avec une seule phrase ONNX
 
 ### Correctif de la PR #69 : myshka.4
 
-**`0.13.4+myshka.4` / `7004` est installé et vérifié localement sur Show 2.** Le certificat de signature est conservé et les **18 tests JVM** passent. Show 2 a réussi la régression Android ciblée sur la liste des modèles : **un test, cinq cas de métadonnées, 0,624 seconde**. Des métadonnées facultatives invalides ne font plus disparaître les modèles personnalisés ; le moteur rejette toujours les fichiers invalides lors du chargement. Show 2 a également réussi un cycle de fermeture et de reprise réelle de la capture du microphone ainsi qu’un redémarrage normal de l’application. Les réglages, la luminosité, les autorisations et ADB authentifié sans root ont été conservés. La vérification vocale de bout en bout reste à faire. Show 1 est inaccessible et sa dernière version vérifiée reste `.3`. La comparaison de référence de `.3` ci-dessous ne démontre pas une nouvelle comparaison sous `.4`.
+**`0.13.4+myshka.4` / `7004` est installé et vérifié localement sur Show 2.** Le certificat de signature est conservé et les **18 tests JVM** passent. Show 2 a réussi la régression Android ciblée sur la liste des modèles : **un test, cinq cas de métadonnées, 0,624 seconde**. Des métadonnées facultatives invalides ne font plus disparaître les modèles personnalisés ; le moteur rejette toujours les fichiers invalides lors du chargement. Show 2 a également réussi un cycle de fermeture et de reprise réelle de la capture du microphone ainsi qu’un redémarrage normal de l’application. Les réglages, la luminosité, les autorisations et ADB authentifié sans root ont été conservés. La vérification vocale de bout en bout reste à faire. Lors de la vérification du 16 octobre, Show 1 était inaccessible ; sa dernière version vérifiée à cette date était `.3`. La comparaison de référence de `.3` ci-dessous ne démontre pas une nouvelle comparaison sous `.4`.
 
 ### Bilan vérifié de myshka.3
 
 **APK installé sur les deux Shows ; comparaison avec la référence réussie sur chacun.** VACA `0.13.4+myshka.3` / `7003` a passé **18 tests JVM**. Chaque Show a également passé **deux tests d’instrumentation Android** avec **quatre fichiers privés existants : 294 embeddings, 234 fenêtres du classificateur et 11 fenêtres positives**. Toutes les décisions de seuil correspondent à la référence. La lecture de fichiers n’enregistre pas la pièce et ne démontre pas la reconnaissance acoustique.
 
-Les deux Shows sont configurés uniquement pour **« Привет, мышка »**, avec le prétraitement ONNX exact et un seuil de **0,50** (**5,0 dans HA**). « Hey Jarvis » a été retiré de la sélection active ; la commande Stop séparée est conservée. **Les deux ont passé trois cycles de coupure/réactivation du microphone avec fermeture et reprise de la capture vérifiées, ainsi qu’un redémarrage normal de l’application.** Les réglages HA, la luminosité, les autorisations et ADB sans root ont été conservés. L’activation parlée, la réponse audible, la distance, Stop pendant la lecture, les coupures de courant et plusieurs jours d’utilisation restent à vérifier. La fonction à deux modèles microWakeWord et le bilan du 15 octobre restent documentés ci-dessous.
+Au 16 octobre, les deux Shows étaient configurés uniquement pour **« Привет, мышка »**, avec le prétraitement ONNX exact et un seuil de **0,50** (**5,0 dans HA**). « Hey Jarvis » a été retiré de la sélection active ; la commande Stop séparée est conservée. **Les deux ont passé trois cycles de coupure/réactivation du microphone avec fermeture et reprise de la capture vérifiées, ainsi qu’un redémarrage normal de l’application.** Les réglages HA, la luminosité, les autorisations et ADB sans root ont été conservés. L’activation parlée, la réponse audible, la distance, Stop pendant la lecture, les coupures de courant et plusieurs jours d’utilisation restent à vérifier. La fonction à deux modèles microWakeWord et le bilan du 15 octobre restent documentés ci-dessous.
 
 [Changement de modèle : processus et résultats](docs/wiki/Wake-model-rollout.md) · [Guide technique](docs/openwakeword-myshka.md) · [Graphique de validation](docs/assets/wake-validation.svg)
 
@@ -35,7 +64,7 @@ Les deux Shows sont configurés uniquement pour **« Привет, мышка »
 
 ## Fonctions
 
-- **Assist vocal :** le nouveau parcours ONNX utilise une phrase ; la fonction existante à deux modèles microWakeWord reste disponible. Le bilan du 15 octobre associe **« Привет, мышка »** et **« Hey Jarvis »** au seuil **0,35**. Le seuil ONNX **0,50** appartient à un autre modèle et ne permet pas de comparer directement la sensibilité. Les modèles privés ne sont pas distribués. [Voix et modèles](docs/wiki/Voice-and-wake-words.md).
+- **Assist vocal :** détection ONNX exacte de **« Привет, мышка »** au seuil **0,50**, avec **« Hey Jarvis »** en option et sa propre décision temporelle calibrée. Le mode précédent à deux modèles microWakeWord reste disponible séparément. Les modèles privés ne sont pas distribués. [Voix et modèles](docs/wiki/Voice-and-wake-words.md).
 - **Une interface adaptée aux cinq pouces :** grande horloge, caméra en plein écran lors d’un mouvement, affichage manuel temporaire et retour à l’horloge. Le lecteur conserve les proportions et attend une image présentée avant de révéler la vidéo. [Écran, médias et appels](docs/wiki/Display-media-and-calls.md).
 - **Commande à distance depuis HA :** annonces, musique, flux TV configurés, client OTT-play-FOSS sur Capacitor, accès Web OTT séparé et OttPlayer en option. Home/Stop termine l’activité gérée. [Terminal à distance](docs/remote-endpoint.md).
 - **Appels sur votre installation Jitsi :** salle définie, règle de participation choisie explicitement et gestion du microphone pendant puis après l’appel. L’interphone HA expérimental est un parcours distinct. [Jitsi et interphone](docs/wiki/Display-media-and-calls.md#jitsi-and-intercom).

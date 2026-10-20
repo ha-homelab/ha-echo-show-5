@@ -10,7 +10,7 @@ These SVGs are editable repository source, not screenshots or automatically upda
 
 ## Process and recorded results
 
-- [Process and installed result](process-and-results.svg): the six-stage conversion journey, current APK/UI revisions, two activation phrases and localization scope.
+- [Process and installed result](process-and-results.svg): the six-stage conversion journey, the October 15 APK/UI revisions, two activation phrases and localization scope.
 - [Startup recovery](startup-recovery.svg): why authenticated HA startup can precede MQTT readiness, how temporary subscription failures retry, and why permission rejection stays blocked.
 - [Validation counts](validation-checks.svg): 109 Node display tests, 37 Python display tests, 31 Android-builder host tests and nine JVM tests. The 48 synthetic desktop renders are separate visual checks. Counts are not coverage percentages or performance measurements.
 
@@ -23,6 +23,18 @@ The [process and results page](../wiki/Process-and-results.md) supplies a text e
 - [Development evaluation](wake-validation.svg): positive clip fractions and separate negative observations. These are supplied development results, not acoustic measurements from either Show.
 
 The [wake-model rollout page](../wiki/Wake-model-rollout.md) provides text equivalents and the dated result. The older diagrams above remain snapshots of the October 15 dual-wake/display work; new source capability must not be confused with a verified installation.
+
+## Mixed activation — myshka.7
+
+- [Mixed wake pipeline](mixed-wake-pipeline.svg): one microphone supplies the
+  unchanged exact Myshka frontend and the existing MicroFrontend, shared by
+  optional bundled Hey Jarvis and Stop. Separate thresholds, the common cooldown
+  and the reversible app-private opt-in are explicit.
+
+The [mixed-wake guide](../wiki/Mixed-wake-words.md) supplies the text equivalent
+and acceptance procedure. This architecture diagram is not a build receipt,
+installed-device result or new latency/accuracy measurement. The October 16
+single-phrase diagrams above remain historical.
 
 ## Editing and verification
 

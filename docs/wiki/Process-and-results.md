@@ -2,6 +2,13 @@
 
 [Wiki home](Home.md) · [Validation and evidence](Validation.md) · [Architecture](Architecture.md)
 
+**Current mixed activation:** [myshka.7](Mixed-wake-words.md) keeps the exact
+Myshka path and adds optional bundled Hey Jarvis through the existing Stop
+frontend. Show 1's installation, Android tests and microphone lifecycle have
+[separate dated evidence](Validation.md#october-19-mixed-wake-checkpoint).
+This page preserves earlier single-phrase and conversion observations; they
+must not be relabeled as new build, device or acoustic results.
+
 The project turns a supported **Echo Show 5 Gen2 (2021), `cronos`** into an Android room endpoint for Home Assistant. Firmware conversion happens once; the clock, voice client and integrations can then be updated independently. The October 15 work added two simultaneous wake models, fixes detector cleanup, localizes the clock interface and recovers from a specific Home Assistant startup race.
 
 ![Six conversion stages and the installed result: LineageOS, VACA dualwake.2, display r11, two wake phrases and four available UI languages.](../assets/process-and-results.svg)

@@ -1,5 +1,5 @@
 diff --git a/app/build.gradle.kts b/app/build.gradle.kts
-index 4606ee9..983511c 100644
+index 4606ee9..84ee6cd 100644
 --- a/app/build.gradle.kts
 +++ b/app/build.gradle.kts
 @@ -8,8 +8,6 @@ plugins {
@@ -34,8 +34,8 @@ index 4606ee9..983511c 100644
          targetSdk = 36
 -        versionName = "0.13.4"
 -        versionCode = code
-+        versionName = "0.13.4+myshka.6"
-+        versionCode = 7006
++        versionName = "0.13.4+myshka.7"
++        versionCode = 7007
          testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
      }
  
@@ -235,10 +235,10 @@ index 4b12a5c..221e154 100644
              val data = DiagnosticInfo(
                  show = config.diagnosticsEnabled,
 diff --git a/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteWakeWorkHandler.kt b/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteWakeWorkHandler.kt
-index 21cb486..822987a 100644
+index 21cb486..a622424 100644
 --- a/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteWakeWorkHandler.kt
 +++ b/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteWakeWorkHandler.kt
-@@ -1,6 +1,11 @@
+@@ -1,6 +1,12 @@
  package com.msp1974.vacompanion.satellite
  
  import android.Manifest
@@ -247,10 +247,11 @@ index 21cb486..822987a 100644
 +import org.json.JSONObject
 +import com.msp1974.vacompanion.wakeword.WakeWordSelection
 +import com.msp1974.vacompanion.wakeword.WakeWordCooldown
++import com.msp1974.vacompanion.wakeword.WakeWordDetectionDecision
  import android.content.Context
  import com.msp1974.vacompanion.broadcasts.BroadcastSender
  import com.msp1974.vacompanion.device.DeviceManager
-@@ -60,6 +65,18 @@ abstract class SatelliteWakeWorkHandler(val context: Context, val deviceManager:
+@@ -60,6 +66,18 @@ abstract class SatelliteWakeWorkHandler(val context: Context, val deviceManager:
      private val detectionCooldowns = mutableMapOf<String, Long>()
      private val detectionCooldownMs: Long = 2000L
      private var lastWakeDetectionTimestamp = 0L
@@ -269,20 +270,31 @@ index 21cb486..822987a 100644
  
      suspend fun run() {
          val startTime = System.currentTimeMillis()
-@@ -89,7 +106,11 @@ abstract class SatelliteWakeWorkHandler(val context: Context, val deviceManager:
+@@ -89,7 +107,16 @@ abstract class SatelliteWakeWorkHandler(val context: Context, val deviceManager:
                          else -> WakeWordEngineModel.MICROWAKEWORD
                      }
                  )
 -                engine?.setActiveWakeWords(listOf(config.wakeWord))
-+                val secondary = if (config.wakeWordEngine == "microwakeword") secondaryWakeWord() else null
-+                activeWakeWordIds = WakeWordSelection.select(config.wakeWord, secondary,
++                val requestedSecondary = secondaryWakeWord()
++                val secondary = if (config.wakeWordEngine == "microwakeword") requestedSecondary else null
++                val engineWakeWordIds = WakeWordSelection.select(config.wakeWord, secondary,
 +                    engine!!.getAvailableWakeWords().map { it.id }.toSet())
-+                engine?.setActiveWakeWords(activeWakeWordIds)
-+                Timber.i("Active wake word models: %s; threshold=%s", activeWakeWordIds, config.wakeWordThreshold)
++                val exactAuxiliary = engine!!.selectExactAuxiliaryWakeWord(engineWakeWordIds, requestedSecondary)
++                activeWakeWordIds = engineWakeWordIds + listOfNotNull(exactAuxiliary)
++                engine?.setActiveWakeWords(engineWakeWordIds)
++                engine?.setExactAuxiliaryWakeWord(exactAuxiliary)
++                Timber.i("Active wake word models: %s; primary threshold=%s; auxiliary=%s",
++                    activeWakeWordIds, config.wakeWordThreshold, exactAuxiliary ?: "none")
                  engine?.setActiveStopWords(listOf("stop"))
                  runWakeWordDetection()
              }
-@@ -143,7 +164,7 @@ abstract class SatelliteWakeWorkHandler(val context: Context, val deviceManager:
+@@ -139,11 +166,12 @@ abstract class SatelliteWakeWorkHandler(val context: Context, val deviceManager:
+             when (it) {
+                 is WakeWordEngineProvider.AudioResult.WakeDetected -> {
+                     holdLastDetectionLevel(it.detection.score)
+-                    if (it.detection.score >= config.wakeWordThreshold) {
++                    if (WakeWordDetectionDecision.accept(
++                            it.detection.score, config.wakeWordThreshold, it.detection.modelDecision)) {
                          val now = System.currentTimeMillis()
                          val lastDetection = detectionCooldowns[it.detection.wakeWordId]
  
@@ -291,7 +303,7 @@ index 21cb486..822987a 100644
                              Timber.i("Wake word detected: ${it.detection.wakeWord}")
                              wakeWordDetected(it.detection, engine!!.isStreaming())
                              detectionCooldowns[it.detection.wakeWordId] = now
-@@ -203,7 +224,7 @@ abstract class SatelliteWakeWorkHandler(val context: Context, val deviceManager:
+@@ -203,7 +231,7 @@ abstract class SatelliteWakeWorkHandler(val context: Context, val deviceManager:
          lastWakeDetectionTimestamp = detection.timestamp
          firebase.logEvent(
              FirebaseManager.WAKE_WORD_DETECTED, mapOf(
@@ -325,38 +337,76 @@ index 0000000..d1fb752
 +    }
 +}
 diff --git a/app/src/main/java/com/msp1974/vacompanion/wakeword/WakeWordEngine.kt b/app/src/main/java/com/msp1974/vacompanion/wakeword/WakeWordEngine.kt
-index 22351e0..86e4bf7 100644
+index 22351e0..0b3168b 100644
 --- a/app/src/main/java/com/msp1974/vacompanion/wakeword/WakeWordEngine.kt
 +++ b/app/src/main/java/com/msp1974/vacompanion/wakeword/WakeWordEngine.kt
-@@ -1,6 +1,9 @@
+@@ -1,6 +1,10 @@
  package com.msp1974.vacompanion.wakeword
  
  import android.content.Context
 +import java.io.File
 +import com.msp1974.vacompanion.wakeword.openwakeword.ExactWakeConfig
 +import com.msp1974.vacompanion.wakeword.openwakeword.ExactOnnxWakeEngine
++import com.msp1974.vacompanion.wakeword.openwakeword.ExactAuxiliaryWakePolicy
  import com.msp1974.vacompanion.device.DeviceManager
  import com.msp1974.vacompanion.settings.APPConfig
  import com.msp1974.vacompanion.utils.Helpers.Companion.round
-@@ -48,6 +51,8 @@ open class WakeWordEngine(val context: Context, val deviceManager: DeviceManager
+@@ -16,6 +20,7 @@ open class WakeWordEngine(val context: Context, val deviceManager: DeviceManager
+     private var activeWakeWords: List<String> = listOf()
+     private var activeStopWords: List<String> = listOf()
+     private var engineInstance: WakeWordEngineProvider? = null
++    private var exactAuxiliaryWakeWord: String? = null
+ 
+     private val config: APPConfig = deviceManager.config
+ 
+@@ -48,6 +53,13 @@ open class WakeWordEngine(val context: Context, val deviceManager: DeviceManager
                      muted = config.isMuted)
              }
              WakeWordEngineModel.OPENWAKEWORD -> {
 +                val exact = ExactWakeConfig.load(File(context.filesDir, "custom/wakewords/openwakeword"), activeWakeWords)
-+                if (exact != null) return ExactOnnxWakeEngine(context, deviceManager, exact, config.isMuted)
++                if (exact != null) {
++                    require(exactAuxiliaryWakeWord == null ||
++                        ExactAuxiliaryWakePolicy.select(exact.modelId, exactAuxiliaryWakeWord, true) == exactAuxiliaryWakeWord)
++                    return ExactOnnxWakeEngine(context, deviceManager, exact, config.isMuted, exactAuxiliaryWakeWord)
++                }
++                require(exactAuxiliaryWakeWord == null) { "Auxiliary wake word requires a validated exact primary" }
                  return OpenWakeWordEngine(
                      context = context,
                      deviceManager = deviceManager,
-@@ -129,7 +134,7 @@ open class WakeWordEngine(val context: Context, val deviceManager: DeviceManager
+@@ -81,6 +93,19 @@ open class WakeWordEngine(val context: Context, val deviceManager: DeviceManager
+         activeWakeWords = value
+     }
+ 
++    /** Resolve separately so the exact manifest remains bound to exactly one primary. */
++    fun selectExactAuxiliaryWakeWord(primary: List<String>, requested: String?): String? {
++        if (engine != WakeWordEngineModel.OPENWAKEWORD) return null
++        val candidate = ExactAuxiliaryWakePolicy.select(primary.singleOrNull(), requested, true) ?: return null
++        val exact = ExactWakeConfig.load(File(context.filesDir, "custom/wakewords/openwakeword"), primary)
++            ?: return null
++        return ExactAuxiliaryWakePolicy.select(exact.modelId, candidate, true)
++    }
++
++    fun setExactAuxiliaryWakeWord(value: String?) {
++        exactAuxiliaryWakeWord = value
++    }
++
+     fun setActiveStopWords(value: List<String>) {
+         activeStopWords = value
+     }
+@@ -128,8 +153,10 @@ open class WakeWordEngine(val context: Context, val deviceManager: DeviceManager
+                             val detectInfo = WakeWordEngineProvider.WakeWordDetection(
                                  it.detection.wakeWordId,
                                  it.detection.wakeWord,
-                                 it.detection.score >= config.wakeWordThreshold,
+-                                it.detection.score >= config.wakeWordThreshold,
 -                                it.detection.score.round(2)
-+                                if (engineInstance is ExactOnnxWakeEngine) it.detection.score else it.detection.score.round(2)
++                                WakeWordDetectionDecision.accept(it.detection.score, config.wakeWordThreshold, it.detection.modelDecision),
++                                if (engineInstance is ExactOnnxWakeEngine) it.detection.score else it.detection.score.round(2),
++                                timestamp = it.detection.timestamp,
++                                modelDecision = it.detection.modelDecision
                              )
                              emit(WakeWordEngineProvider.AudioResult.WakeDetected(detectInfo))
                          }
-@@ -139,7 +144,7 @@ open class WakeWordEngine(val context: Context, val deviceManager: DeviceManager
+@@ -139,7 +166,7 @@ open class WakeWordEngine(val context: Context, val deviceManager: DeviceManager
                                  it.detection.wakeWordId,
                                  it.detection.wakeWord,
                                  it.detection.score >= config.wakeWordThreshold,
@@ -468,10 +518,10 @@ index 0102b64..996233e 100644
                  }
 diff --git a/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/ExactOnnxWakeEngine.kt b/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/ExactOnnxWakeEngine.kt
 new file mode 100644
-index 0000000..22bf424
+index 0000000..1fb3640
 --- /dev/null
 +++ b/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/ExactOnnxWakeEngine.kt
-@@ -0,0 +1,126 @@
+@@ -0,0 +1,133 @@
 +package com.msp1974.vacompanion.wakeword.openwakeword
 +
 +import android.Manifest
@@ -496,13 +546,15 @@ index 0000000..22bf424
 +import kotlinx.coroutines.flow.flow
 +import timber.log.Timber
 +
-+/** One classifier with the exact private ONNX frontend used during training.
++/** One classifier with the exact private ONNX frontend used during training,
++ * plus an optional bundled micro activation model on the existing Stop frontend.
 + * Resources belong to each collection, so cancellation cannot close another run.
 + * No microphone recordings or audio uploads are added by this implementation.
 + */
 +internal class ExactOnnxWakeEngine(
 +    private val context: Context, private val deviceManager: DeviceManager,
-+    private val assets: ExactWakeConfig, muted: Boolean
++    private val assets: ExactWakeConfig, muted: Boolean,
++    private val auxiliaryWakeWord: String? = null
 +) : WakeWordEngineProvider() {
 +    private val mutedState = MutableStateFlow(muted)
 +    override fun setMuted(value: Boolean) { mutedState.value = value }
@@ -519,13 +571,15 @@ index 0000000..22bf424
 +                    options.setIntraOpNumThreads(1); options.setInterOpNumThreads(1)
 +                    env.createSession(assets.classifier.absolutePath, options).use { classifier ->
 +                        require(classifier.inputNames.size == 1 && classifier.outputNames.size == 1)
-+                        LocalStopDetector.create(context).use { stopDetector ->
++                        LocalStopDetector.create(context, auxiliaryWakeWord).use { stopDetector ->
++                            Timber.i("Exact OWW activation models loaded: %s; local_stop=true",
++                                listOfNotNull(assets.modelId, auxiliaryWakeWord))
 +                            val microphone = MicrophoneInput(context, deviceManager)
 +                            val dsp = AudioDSP()
 +                            var samples = 0L; var windows = 0L; var inferenceNanos = 0L; var maxNanos = 0L
 +                            var nextReport = 16000L * 10
 +                            var previousScore = 0f
-+                            var previousStopScore = 0f
++                            val previousLocalScores = mutableMapOf<String, Float>()
 +                            var emptyReads = 0
 +                            try {
 +                                microphone.start()
@@ -549,7 +603,7 @@ index 0000000..22bf424
 +                                        emit(AudioResult.Audio(dsp.shortArrayToByteBuffer(audio), timestamp))
 +                                    }
 +                                    val begin = System.nanoTime()
-+                                    val stopDetections = stopDetector.process(audio)
++                                    val localDetections = stopDetector.process(audio)
 +                                    val scores = frontend.process(audio).map { features ->
 +                                        currentCoroutineContext().ensureActive()
 +                                        OnnxTensor.createTensor(env, features).use { input ->
@@ -565,11 +619,14 @@ index 0000000..22bf424
 +                                    val elapsed = System.nanoTime() - begin
 +                                    inferenceNanos += elapsed; maxNanos = maxOf(maxNanos, elapsed)
 +                                    windows += scores.size
-+                                    for (detection in stopDetections) {
-+                                        if (detection.score > 0.1f || previousStopScore > 0.1f) {
-+                                            emit(AudioResult.StopDetected(detection.copy(timestamp = timestamp)))
++                                    for (detection in localDetections) {
++                                        val previous = previousLocalScores[detection.wakeWordId] ?: 0f
++                                        if (detection.score > 0.1f || previous > 0.1f) {
++                                            emit(ExactAuxiliaryWakePolicy.route(
++                                                detection.copy(timestamp = timestamp), auxiliaryWakeWord)
++                                                ?: error("Unexpected local model result"))
 +                                        }
-+                                        previousStopScore = detection.score
++                                        previousLocalScores[detection.wakeWordId] = detection.score
 +                                    }
 +                                    for (score in scores) {
 +                                        if (score > 0.1f || previousScore > 0.1f) {
@@ -656,10 +713,10 @@ index 0000000..12119c1
 +}
 diff --git a/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/LocalStopDetector.kt b/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/LocalStopDetector.kt
 new file mode 100644
-index 0000000..9d34491
+index 0000000..04621c5
 --- /dev/null
 +++ b/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/LocalStopDetector.kt
-@@ -0,0 +1,68 @@
+@@ -0,0 +1,87 @@
 +package com.msp1974.vacompanion.wakeword.openwakeword
 +
 +import android.content.Context
@@ -672,12 +729,13 @@ index 0000000..9d34491
 +import timber.log.Timber
 +
 +/**
-+ * Existing bundled stop model on the same PCM as the activation detector.
-+ * Owns no microphone and loads no activation/wake model. One flow owns its lifetime.
++ * Existing bundled stop model and optional Jarvis model on the exact detector's PCM.
++ * Both micro models share one MicroFrontend. Owns no microphone.
 + */
 +internal class LocalStopDetector private constructor(
 +    private val detector: MicroWakeWordDetector,
 +    private val pcm: ByteBuffer,
++    val loadedModelIds: Set<String>,
 +) : AutoCloseable {
 +    private var closed = false
 +
@@ -702,25 +760,43 @@ index 0000000..9d34491
 +        pcm.clear()
 +        while (pcm.hasRemaining()) pcm.put(0.toByte())
 +        pcm.clear()
-+        // MicroWakeWordDetector owns and closes its MicroFrontend and stop model.
++        // MicroWakeWordDetector owns and closes its single MicroFrontend and every model.
 +        detector.close()
 +    }
 +
 +    companion object {
-+        suspend fun create(context: Context): LocalStopDetector {
-+            val entry = MicroWakeWordAssetProvider(context.assets, "microwakeword/stopWords")
++        suspend fun create(context: Context, auxiliaryWakeWord: String? = null): LocalStopDetector {
++            require(auxiliaryWakeWord == null || auxiliaryWakeWord == ExactAuxiliaryWakePolicy.HEY_JARVIS) {
++                "Unsupported exact auxiliary wake model"
++            }
++            val stop = MicroWakeWordAssetProvider(context.assets, "microwakeword/stopWords")
 +                .get().singleOrNull { it.id == "stop" }
 +                ?: error("Bundled local stop model is missing or ambiguous")
++            val auxiliary = auxiliaryWakeWord?.let { id ->
++                MicroWakeWordAssetProvider(context.assets, "microwakeword/wakeWords")
++                    .get().singleOrNull { it.id == id }
++                    ?: error("Bundled auxiliary wake model is missing or ambiguous")
++            }
++            val entries = listOfNotNull(stop, auxiliary)
 +            val pcm = ByteBuffer.allocateDirect(1280 * 2).order(ByteOrder.LITTLE_ENDIAN)
-+            val model = MicroWakeWord.fromWakeWord(entry)
++            val models = mutableListOf<MicroWakeWord>()
 +            val detector = try {
-+                MicroWakeWordDetector(listOf(model))
++                for (entry in entries) models.add(MicroWakeWord.fromWakeWord(entry))
++                MicroWakeWordDetector(models)
 +            } catch (error: Throwable) {
-+                try { model.close() } catch (closing: Throwable) { error.addSuppressed(closing) }
++                for (model in models.asReversed()) {
++                    try { model.close() } catch (closing: Throwable) { error.addSuppressed(closing) }
++                }
 +                throw error
 +            }
 +            return try {
-+                LocalStopDetector(detector, pcm).also { Timber.i("Loaded local stop model: stop") }
++                LocalStopDetector(detector, pcm, entries.map { it.id }.toSet()).also {
++                    Timber.i("Loaded local stop model: stop")
++                    auxiliary?.let { entry ->
++                        Timber.i("Loaded exact auxiliary wake model: %s; probability_cutoff=%s; sliding_window=%s; shared_micro_frontend=true",
++                            entry.id, entry.wakeWord.micro.probability_cutoff, entry.wakeWord.micro.sliding_window_size)
++                    }
++                }
 +            } catch (error: Throwable) {
 +                try { detector.close() } catch (closing: Throwable) { error.addSuppressed(closing) }
 +                throw error
@@ -1642,5 +1718,410 @@ index 0000000..2217f6b
 +        for (score in listOf(Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, -0.01f, 1.01f)) {
 +            assertThrows(IllegalArgumentException::class.java) { scalarPrediction(arrayOf(floatArrayOf(score))) }
 +        }
++    }
++}
+diff --git a/app/src/androidTest/java/com/msp1974/vacompanion/wakeword/ExactAuxiliaryParityTest.kt b/app/src/androidTest/java/com/msp1974/vacompanion/wakeword/ExactAuxiliaryParityTest.kt
+new file mode 100644
+index 0000000..797c36d
+--- /dev/null
++++ b/app/src/androidTest/java/com/msp1974/vacompanion/wakeword/ExactAuxiliaryParityTest.kt
+@@ -0,0 +1,198 @@
++package com.msp1974.vacompanion.wakeword
++
++import android.content.Context
++import androidx.test.ext.junit.runners.AndroidJUnit4
++import androidx.test.platform.app.InstrumentationRegistry
++import com.msp1974.vacompanion.wakeword.WakeWordEngineProvider.AudioResult
++import com.msp1974.vacompanion.wakeword.WakeWordEngineProvider.WakeWordDetection
++import com.msp1974.vacompanion.wakeword.microwakeword.microwakeword.MicroWakeWord
++import com.msp1974.vacompanion.wakeword.microwakeword.microwakeword.MicroWakeWordDetector
++import com.msp1974.vacompanion.wakeword.microwakeword.providers.MicroWakeWordAssetProvider
++import com.msp1974.vacompanion.wakeword.openwakeword.ExactAuxiliaryWakePolicy
++import com.msp1974.vacompanion.wakeword.openwakeword.LocalStopDetector
++import java.io.File
++import java.nio.ByteBuffer
++import java.nio.ByteOrder
++import kotlin.math.abs
++import kotlinx.coroutines.runBlocking
++import org.json.JSONArray
++import org.json.JSONObject
++import org.junit.Assert.*
++import org.junit.Test
++import org.junit.runner.RunWith
++
++/** Uses explicitly staged PCM only. Never opens a microphone or plays audio. */
++@RunWith(AndroidJUnit4::class)
++class ExactAuxiliaryParityTest {
++    private val jarvis = ExactAuxiliaryWakePolicy.HEY_JARVIS
++    private val chunks = intArrayOf(1, 127, 512, 1280, 2048, 2567, 83)
++
++    @Test fun auxiliaryLifecycleHonorsDisabledInvalidAndClosedStates() = runBlocking {
++        val context = InstrumentationRegistry.getInstrumentation().targetContext
++        for (invalid in listOf("", "none", "stop", "unknown")) {
++            assertTrue("Unsupported model must fail before loading: $invalid",
++                runCatching { LocalStopDetector.create(context, invalid) }.exceptionOrNull()
++                    is IllegalArgumentException)
++        }
++        for (secondary in listOf(null, jarvis, null)) {
++            val detector = LocalStopDetector.create(context, secondary)
++            try {
++                assertEquals(if (secondary == null) setOf("stop") else setOf("stop", jarvis),
++                    detector.loadedModelIds)
++                assertTrue(detector.process(ShortArray(0)).isEmpty())
++                assertTrue(detector.process(ShortArray(3200))
++                    .all { it.wakeWordId in detector.loadedModelIds })
++            } finally {
++                detector.close()
++                detector.close() // Lifecycle cleanup must be idempotent.
++            }
++            assertTrue(runCatching { detector.process(ShortArray(1)) }.exceptionOrNull()
++                is IllegalStateException)
++        }
++    }
++
++    @Test fun bundledModelsMatchIndependentFrontendsForPrivateFixtures() = runBlocking {
++        val context = InstrumentationRegistry.getInstrumentation().targetContext
++        val directory = File(context.filesDir, "exact-oww-check")
++        val cases = JSONObject(File(directory, "fixture.json").readText()).getJSONArray("cases")
++        assertTrue("Existing private parity fixtures are required", cases.length() > 0)
++        val receipt = JSONArray()
++        for (index in 0 until cases.length()) {
++            val row = cases.getJSONObject(index)
++            val pcm = readPcm(directory, row.getString("pcm"))
++            val stats = compareSharedWithIndependent(context, pcm)
++            receipt.put(stats.put("case", index).put("samples", pcm.size))
++        }
++        File(directory, "android-auxiliary-parity.json").writeText(receipt.toString(2))
++    }
++
++    @Test fun syntheticJarvisUsesActivationRouteAndTemporalDecision() = runBlocking {
++        val context = InstrumentationRegistry.getInstrumentation().targetContext
++        val directory = File(context.filesDir, "exact-oww-check")
++        val cases = JSONObject(File(directory, "auxiliary-fixtures.json").readText())
++            .getJSONArray("cases")
++        assertTrue("Explicitly staged synthetic Jarvis fixtures are required", cases.length() > 0)
++        val receipt = JSONArray()
++        var acceptedJarvisWindows = 0
++        for (index in 0 until cases.length()) {
++            val row = cases.getJSONObject(index)
++            assertEquals("Only positive Jarvis fixtures belong in this acceptance set",
++                jarvis, row.getString("expected"))
++            val pcm = readPcm(directory, row.getString("pcm"))
++            var accepted = 0
++            var highScoresRejected = 0
++            var maxScore = 0f
++            LocalStopDetector.create(context, jarvis).use { detector ->
++                feed(pcm) { fragment ->
++                    for (detection in detector.process(fragment)) {
++                        val routed = ExactAuxiliaryWakePolicy.route(detection, jarvis)
++                        if (detection.wakeWordId == "stop") {
++                            assertTrue(routed is AudioResult.StopDetected)
++                            continue
++                        }
++                        assertEquals(jarvis, detection.wakeWordId)
++                        assertTrue("Jarvis must never use StopDetected", routed is AudioResult.WakeDetected)
++                        val output = (routed as AudioResult.WakeDetected).detection
++                        assertEquals(detection.detected, output.modelDecision)
++                        val decision = WakeWordDetectionDecision.accept(
++                            output.score, 0.50f, output.modelDecision)
++                        assertEquals("Global Myshka threshold must not override Jarvis's temporal gate",
++                            detection.detected, decision)
++                        if (decision) accepted++
++                        if (!decision && detection.score >= 0.50f) highScoresRejected++
++                        maxScore = maxOf(maxScore, detection.score)
++                    }
++                }
++            }
++            acceptedJarvisWindows += accepted
++            receipt.put(JSONObject().put("id", row.getString("id"))
++                .put("samples", pcm.size).put("accepted_jarvis_windows", accepted)
++                .put("high_scores_rejected_by_temporal_gate", highScoresRejected)
++                .put("max_jarvis_score", maxScore.toDouble()))
++        }
++        // Write the diagnostic receipt even when available synthetic voices fail recognition.
++        File(directory, "android-auxiliary-activation.json").writeText(receipt.toString(2))
++        assertTrue("No synthetic Jarvis clip passed its calibrated temporal gate; see receipt",
++            acceptedJarvisWindows > 0)
++    }
++
++    private suspend fun independent(context: Context, id: String): MicroWakeWordDetector {
++        val path = if (id == "stop") "microwakeword/stopWords" else "microwakeword/wakeWords"
++        val entry = MicroWakeWordAssetProvider(context.assets, path).get().single { it.id == id }
++        val model = MicroWakeWord.fromWakeWord(entry)
++        return try {
++            MicroWakeWordDetector(listOf(model))
++        } catch (failure: Throwable) {
++            try { model.close() } catch (closing: Throwable) { failure.addSuppressed(closing) }
++            throw failure
++        }
++    }
++
++    private suspend fun compareSharedWithIndependent(context: Context, pcm: ShortArray): JSONObject {
++        val counts = mutableMapOf("stop" to 0, jarvis to 0)
++        var maxDelta = 0f
++        LocalStopDetector.create(context, jarvis).use { shared ->
++            independent(context, "stop").use { stop ->
++                independent(context, jarvis).use { wake ->
++                    feed(pcm) { fragment ->
++                        val actual = shared.process(fragment)
++                        val references = mapOf("stop" to processReference(stop, fragment),
++                            jarvis to processReference(wake, fragment))
++                        assertTrue(actual.all { it.wakeWordId in references })
++                        for ((id, expected) in references) {
++                            val observed = actual.filter { it.wakeWordId == id }
++                            assertEquals("Window count differs for $id", expected.size, observed.size)
++                            for (index in expected.indices) {
++                                val delta = abs(expected[index].score - observed[index].score)
++                                maxDelta = maxOf(maxDelta, delta)
++                                assertTrue("Shared frontend changes $id score by $delta", delta <= 0.000001f)
++                                assertEquals("Shared frontend changes $id temporal decision",
++                                    expected[index].detected, observed[index].detected)
++                            }
++                            counts[id] = counts.getValue(id) + expected.size
++                        }
++                    }
++                }
++            }
++        }
++        assertTrue("Stop reference produced no windows", counts.getValue("stop") > 0)
++        assertTrue("Jarvis reference produced no windows", counts.getValue(jarvis) > 0)
++        return JSONObject().put("stop_windows", counts.getValue("stop"))
++            .put("jarvis_windows", counts.getValue(jarvis))
++            .put("max_score_abs_delta", maxDelta.toDouble())
++    }
++
++    private fun processReference(detector: MicroWakeWordDetector, audio: ShortArray): List<WakeWordDetection> {
++        val output = mutableListOf<WakeWordDetection>()
++        var offset = 0
++        // Match only LocalStopDetector's bounded PCM transport, not its model selection/routing.
++        while (offset < audio.size) {
++            val end = minOf(audio.size, offset + 1280)
++            val buffer = ByteBuffer.allocateDirect((end - offset) * 2).order(ByteOrder.LITTLE_ENDIAN)
++            for (index in offset until end) buffer.putShort(audio[index])
++            buffer.flip()
++            output.addAll(detector.detect(buffer))
++            offset = end
++        }
++        return output
++    }
++
++    private fun feed(pcm: ShortArray, consume: (ShortArray) -> Unit) {
++        var offset = 0
++        var chunk = 0
++        while (offset < pcm.size) {
++            val end = minOf(pcm.size, offset + chunks[chunk++ % chunks.size])
++            consume(pcm.copyOfRange(offset, end))
++            offset = end
++        }
++    }
++
++    private fun readPcm(directory: File, name: String): ShortArray {
++        val file = File(directory, name).canonicalFile
++        require(file.parentFile == directory.canonicalFile) { "Fixture must be a direct child" }
++        val bytes = file.readBytes()
++        require(bytes.isNotEmpty() && bytes.size % 2 == 0) { "Expected nonempty PCM16LE" }
++        val buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
++        return ShortArray(buffer.remaining()).also { buffer.get(it) }
++    }
++}
+diff --git a/app/src/main/java/com/msp1974/vacompanion/wakeword/WakeWordDetectionDecision.kt b/app/src/main/java/com/msp1974/vacompanion/wakeword/WakeWordDetectionDecision.kt
+new file mode 100644
+index 0000000..c390aaa
+--- /dev/null
++++ b/app/src/main/java/com/msp1974/vacompanion/wakeword/WakeWordDetectionDecision.kt
+@@ -0,0 +1,7 @@
++package com.msp1974.vacompanion.wakeword
++
++/** Preserve a model's calibrated temporal decision instead of rethresholding its raw score. */
++object WakeWordDetectionDecision {
++    fun accept(score: Float, threshold: Float, modelDecision: Boolean? = null): Boolean =
++        score.isFinite() && score in 0f..1f && (modelDecision ?: (score >= threshold))
++}
+diff --git a/app/src/main/java/com/msp1974/vacompanion/wakeword/WakeWordEngineProvider.kt b/app/src/main/java/com/msp1974/vacompanion/wakeword/WakeWordEngineProvider.kt
+index c6db086..05d871a 100644
+--- a/app/src/main/java/com/msp1974/vacompanion/wakeword/WakeWordEngineProvider.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/wakeword/WakeWordEngineProvider.kt
+@@ -19,7 +19,9 @@ abstract class WakeWordEngineProvider {
+         val detected: Boolean,
+         val score: Float,
+         var vadScore: Float = 1.0f,
+-        val timestamp: Long = System.currentTimeMillis()
++        val timestamp: Long = System.currentTimeMillis(),
++        // Non-null only when the detector applies its own calibrated temporal gate.
++        val modelDecision: Boolean? = null
+     )
+ 
+     private val _isStreaming = AtomicBoolean(false)
+diff --git a/app/src/main/java/com/msp1974/vacompanion/wakeword/microwakeword/microwakeword/MicroWakeWordDetector.kt b/app/src/main/java/com/msp1974/vacompanion/wakeword/microwakeword/microwakeword/MicroWakeWordDetector.kt
+index 3bd549a..20665e8 100644
+--- a/app/src/main/java/com/msp1974/vacompanion/wakeword/microwakeword/microwakeword/MicroWakeWordDetector.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/wakeword/microwakeword/microwakeword/MicroWakeWordDetector.kt
+@@ -46,8 +46,13 @@ class MicroWakeWordDetector(private val wakeWords: List<MicroWakeWord>) : AutoCl
+     }
+ 
+     override fun close() {
+-        frontend.close()
+-        for (model in wakeWords)
+-            model.close()
++        var failure: Throwable? = null
++        try { frontend.close() } catch (error: Throwable) { failure = error }
++        for (model in wakeWords) {
++            try { model.close() } catch (error: Throwable) {
++                if (failure == null) failure = error else failure.addSuppressed(error)
++            }
++        }
++        failure?.let { throw it }
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/ExactAuxiliaryWakePolicy.kt b/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/ExactAuxiliaryWakePolicy.kt
+new file mode 100644
+index 0000000..152da76
+--- /dev/null
++++ b/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/ExactAuxiliaryWakePolicy.kt
+@@ -0,0 +1,26 @@
++package com.msp1974.vacompanion.wakeword.openwakeword
++
++import com.msp1974.vacompanion.wakeword.WakeWordEngineProvider
++
++/** The exact ONNX primary can optionally share its PCM with one bundled micro model. */
++internal object ExactAuxiliaryWakePolicy {
++    const val HEY_JARVIS = "hey_jarvis"
++
++    fun select(primary: String?, requested: String?, exactPrimary: Boolean): String? {
++        if (!exactPrimary || primary.isNullOrBlank() || primary == "none") return null
++        val candidate = requested?.trim()
++        return candidate?.takeIf { it == HEY_JARVIS && it != primary }
++    }
++
++    fun route(
++        detection: WakeWordEngineProvider.WakeWordDetection,
++        auxiliaryWakeWord: String?,
++    ): WakeWordEngineProvider.AudioResult? = when {
++        detection.wakeWordId == "stop" ->
++            WakeWordEngineProvider.AudioResult.StopDetected(detection.copy(modelDecision = null))
++        auxiliaryWakeWord == HEY_JARVIS && detection.wakeWordId == auxiliaryWakeWord ->
++            WakeWordEngineProvider.AudioResult.WakeDetected(
++                detection.copy(modelDecision = detection.detected))
++        else -> null
++    }
++}
+diff --git a/app/src/test/java/com/msp1974/vacompanion/wakeword/WakeWordDetectionDecisionTest.kt b/app/src/test/java/com/msp1974/vacompanion/wakeword/WakeWordDetectionDecisionTest.kt
+new file mode 100644
+index 0000000..b894a3c
+--- /dev/null
++++ b/app/src/test/java/com/msp1974/vacompanion/wakeword/WakeWordDetectionDecisionTest.kt
+@@ -0,0 +1,42 @@
++package com.msp1974.vacompanion.wakeword
++
++import org.junit.Assert.*
++import org.junit.Test
++
++class WakeWordDetectionDecisionTest {
++    @Test fun exactPrimaryKeepsInclusiveRawThreshold() {
++        assertFalse(WakeWordDetectionDecision.accept(0.4999f, 0.50f))
++        assertTrue(WakeWordDetectionDecision.accept(0.50f, 0.50f))
++        assertTrue(WakeWordDetectionDecision.accept(0.5001f, 0.50f))
++    }
++
++    @Test fun changingGlobalThresholdStillAppliesToModelsWithoutTemporalGate() {
++        assertTrue(WakeWordDetectionDecision.accept(0.4f, 0.35f))
++        assertFalse(WakeWordDetectionDecision.accept(0.4f, 0.50f))
++    }
++
++    @Test fun isolatedHighJarvisScoreCannotBypassTemporalGate() {
++        assertFalse(WakeWordDetectionDecision.accept(0.99f, 0.50f, false))
++        assertFalse(WakeWordDetectionDecision.accept(1f, 0f, false))
++    }
++
++    @Test fun calibratedTemporalDecisionIsNotRethresholded() {
++        assertTrue(WakeWordDetectionDecision.accept(0.98f, 0.99f, true))
++    }
++
++    @Test fun nonFiniteOrOutOfRangeScoresAreRejectedEvenWithModelApproval() {
++        for (score in listOf(Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY,
++            -0.0001f, 1.0001f)) {
++            for (decision in listOf(null, false, true)) {
++                assertFalse("Invalid score $score with model decision $decision",
++                    WakeWordDetectionDecision.accept(score, 0.50f, decision))
++            }
++        }
++    }
++
++    @Test fun validScoreBoundariesRemainAcceptedWhenAppropriate() {
++        assertTrue(WakeWordDetectionDecision.accept(0f, 0f))
++        assertTrue(WakeWordDetectionDecision.accept(1f, 1f))
++        assertFalse(WakeWordDetectionDecision.accept(0f, 0.50f))
++    }
++}
+diff --git a/app/src/test/java/com/msp1974/vacompanion/wakeword/openwakeword/ExactAuxiliaryWakePolicyTest.kt b/app/src/test/java/com/msp1974/vacompanion/wakeword/openwakeword/ExactAuxiliaryWakePolicyTest.kt
+new file mode 100644
+index 0000000..28293f4
+--- /dev/null
++++ b/app/src/test/java/com/msp1974/vacompanion/wakeword/openwakeword/ExactAuxiliaryWakePolicyTest.kt
+@@ -0,0 +1,64 @@
++package com.msp1974.vacompanion.wakeword.openwakeword
++
++import com.msp1974.vacompanion.wakeword.WakeWordEngineProvider.AudioResult
++import com.msp1974.vacompanion.wakeword.WakeWordEngineProvider.WakeWordDetection
++import org.junit.Assert.*
++import org.junit.Test
++
++class ExactAuxiliaryWakePolicyTest {
++    private val primary = "privet_myshka"
++    private val jarvis = ExactAuxiliaryWakePolicy.HEY_JARVIS
++
++    @Test fun exactPrimaryCanOptIntoBundledJarvis() {
++        assertEquals(jarvis, ExactAuxiliaryWakePolicy.select(primary, jarvis, true))
++        assertEquals(jarvis, ExactAuxiliaryWakePolicy.select(primary, "  $jarvis  ", true))
++    }
++
++    @Test fun missingDisabledAndUnknownSecondaryKeepAuxiliaryOff() {
++        for (secondary in listOf(null, "", " ", "none", "stop", "unknown", primary)) {
++            assertNull("Unexpected auxiliary: $secondary",
++                ExactAuxiliaryWakePolicy.select(primary, secondary, true))
++        }
++    }
++
++    @Test fun absentOrDisabledPrimaryCannotLeaveJarvisListeningAlone() {
++        for (disabled in listOf(null, "", " ", "none")) {
++            assertNull(ExactAuxiliaryWakePolicy.select(disabled, jarvis, true))
++        }
++    }
++
++    @Test fun legacyOrDuplicatePrimaryCannotEnableExactAuxiliary() {
++        assertNull(ExactAuxiliaryWakePolicy.select(primary, jarvis, false))
++        assertNull(ExactAuxiliaryWakePolicy.select(jarvis, jarvis, true))
++    }
++
++    @Test fun stopAlwaysUsesStopRouteAndRetainsLegacyThresholdSemantics() {
++        val input = WakeWordDetection("stop", "Stop", false, 0.75f,
++            timestamp = 123L, modelDecision = false)
++        for (secondary in listOf(null, jarvis)) {
++            val routed = ExactAuxiliaryWakePolicy.route(input, secondary)
++            assertTrue(routed is AudioResult.StopDetected)
++            val output = (routed as AudioResult.StopDetected).detection
++            assertEquals(input.copy(modelDecision = null), output)
++        }
++    }
++
++    @Test fun jarvisUsesWakeRouteAndPreservesBothTemporalDecisions() {
++        for (detected in listOf(false, true)) {
++            val input = WakeWordDetection(jarvis, "Hey Jarvis", detected, 0.99f,
++                timestamp = 456L)
++            val routed = ExactAuxiliaryWakePolicy.route(input, jarvis)
++            assertTrue(routed is AudioResult.WakeDetected)
++            val output = (routed as AudioResult.WakeDetected).detection
++            assertEquals(input.copy(modelDecision = detected), output)
++        }
++    }
++
++    @Test fun disabledAndUnknownModelsCannotGenerateActivationEvents() {
++        val input = WakeWordDetection(jarvis, "Hey Jarvis", true, 0.99f)
++        assertNull(ExactAuxiliaryWakePolicy.route(input, null))
++        assertNull(ExactAuxiliaryWakePolicy.route(input, "unknown"))
++        assertNull(ExactAuxiliaryWakePolicy.route(input.copy(wakeWordId = primary), jarvis))
++        assertNull(ExactAuxiliaryWakePolicy.route(input.copy(wakeWordId = "unknown"), jarvis))
 +    }
 +}

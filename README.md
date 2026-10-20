@@ -23,17 +23,49 @@ The real display page (revision `20261015-r11`) captured in desktop Chrome at
 960 × 480 with the public example configuration. It shows only the local clock;
 no Home Assistant login, camera feed or device was used. Click for the flat original.
 
+## October 19: two activation phrases on Show 1
+
+**Show 1 now runs `myshka.7` / `7007` with “Привет, мышка” and “Hey Jarvis” enabled.**
+The exact Myshka ONNX path stays at **0.50**. Bundled Jarvis uses its own gate:
+mean probability **strictly greater than 0.97 over five evaluations**. One
+microphone feeds both; Jarvis shares the existing MicroFrontend with local
+Stop, which remains a separate playback command.
+
+The same-signer build passed **42 JVM tests**, and Show 1 passed **six Android
+tests**, **three actual microphone mute/unmute cycles** and an **app restart**.
+Both activation models, Stop and HTTPS authentication recovered; existing
+settings were preserved. **Show 2 remains unavailable, last verified on `.4`.**
+Synthetic tests and loaded models do not establish spoken recognition in a
+room; physical voice acceptance remains pending.
+
+[Enable or remove the second phrase](docs/wiki/Mixed-wake-words.md) ·
+[Measured results and limits](docs/wiki/Validation.md#october-19-mixed-wake-checkpoint) ·
+[Processing diagram](docs/assets/mixed-wake-pipeline.svg).
+The five README languages and four runtime UI languages remain unchanged.
+
+## October 19: earlier myshka.6 checkpoint
+
+**At this earlier checkpoint, Show 1 received the retained-key `myshka.6` / `7006` update.** All **29 JVM tests**
+and **three Android instrumentation tests** passed; the existing private fixtures
+matched the reference. HA HTTPS authentication with certificate verification,
+the single **“Привет, мышка”** model at **0.50**, local Stop and microphone inference
+were observed after installation. One actual microphone mute/unmute cycle and
+a normal app restart passed with settings preserved. **Show 2 is currently unreachable** and remains
+last verified on `.4`. Physical speech acceptance is still pending. See the
+[dated validation record](docs/wiki/Validation.md#october-19-current-checkpoint)
+for the separate device and voice-backend results.
+
 ## October 16: single-phrase ONNX trial
 
 ### PR #69 follow-up: myshka.4
 
-**`0.13.4+myshka.4` / `7004` is installed and locally verified on Show 2.** The original signing certificate is retained and all **18 JVM tests** pass. Show 2 passed the targeted Android inventory regression: **one test, five metadata cases, 0.624 seconds**. Invalid optional metadata no longer removes custom models from the list; actual engine loading still rejects invalid assets. Show 2 also passed one actual microphone close/reopen cycle and a normal app restart, preserving settings, brightness, permissions and authenticated nonroot ADB. End-to-end voice acceptance remains pending. Show 1 is unreachable and remains last verified on `.3`. The earlier `.3` replay below is separate evidence, not a new `.4` replay.
+**`0.13.4+myshka.4` / `7004` is installed and locally verified on Show 2.** The original signing certificate is retained and all **18 JVM tests** pass. Show 2 passed the targeted Android inventory regression: **one test, five metadata cases, 0.624 seconds**. Invalid optional metadata no longer removes custom models from the list; actual engine loading still rejects invalid assets. Show 2 also passed one actual microphone close/reopen cycle and a normal app restart, preserving settings, brightness, permissions and authenticated nonroot ADB. End-to-end voice acceptance remains pending. At that October 16 checkpoint, Show 1 was unreachable and remained last verified on `.3`. The earlier `.3` replay below is separate evidence, not a new `.4` replay.
 
 ### Verified myshka.3 baseline
 
 **APK installed and reference replay passed on both Shows.** VACA `0.13.4+myshka.3` / `7003` passed **18 JVM tests**, and each Show passed **two Android instrumentation tests** using **four existing private fixtures: 294 embeddings, 234 classifier windows and 11 positive windows**. All threshold decisions matched the reference. File replay does not record the room or establish acoustic recognition.
 
-Both Shows are configured for only **“Привет, мышка”** through the exact ONNX frontend at **0.50** (**5.0 in HA**), with “Hey Jarvis” removed from the active selection and the separate Stop command retained. **Both passed three microphone mute/unmute cycles with verified capture closure/reopening, plus a normal app restart**, preserving HA settings, brightness, permissions and nonroot ADB. Spoken activation, audible responses, distance, Stop during playback, power-loss recovery and a multi-day soak remain pending. The two-model microWakeWord capability and its October 15 baseline remain documented below.
+At the October 16 checkpoint, both Shows were configured for only **“Привет, мышка”** through the exact ONNX frontend at **0.50** (**5.0 in HA**), with “Hey Jarvis” removed from the active selection and the separate Stop command retained. **Both passed three microphone mute/unmute cycles with verified capture closure/reopening, plus a normal app restart**, preserving HA settings, brightness, permissions and nonroot ADB. Spoken activation, audible responses, distance, Stop during playback, power-loss recovery and a multi-day soak remain pending. The two-model microWakeWord capability and its October 15 baseline remain documented below.
 
 [Wake-model rollout: process and results](docs/wiki/Wake-model-rollout.md) · [Technical guide](docs/openwakeword-myshka.md) · [Validation graphic](docs/assets/wake-validation.svg)
 
@@ -41,14 +73,14 @@ Both Shows are configured for only **“Привет, мышка”** through th
 
 ## What it does
 
-- **Hands-free Assist:** choose the opt-in single-phrase ONNX trial or the existing two-model microWakeWord capability. The recorded October 15 microWakeWord baseline uses **“Привет, мышка”** and **“Hey Jarvis”** at a shared **0.35** threshold; the new ONNX trial uses one phrase at **0.50**. These thresholds belong to different models and do not imply comparable sensitivity. Private models are not distributed. [Voice setup and switching](docs/wiki/Voice-and-wake-words.md).
+- **Hands-free Assist:** exact ONNX **“Привет, мышка”** at **0.50**, with optional bundled **“Hey Jarvis”** using its own calibrated temporal gate. The older two-model microWakeWord mode remains available separately. Private models are not distributed. [Voice setup and switching](docs/wiki/Voice-and-wake-words.md).
 - **A screen suited to five inches:** a large clock, full-screen Front/Porch video on motion, bounded manual camera viewing and return to the clock. Video preserves proportions; the ready-frame gate suppresses Android's stretched play placeholder. [Display guide](docs/wiki/Display-media-and-calls.md).
 - **An HA remote endpoint:** announcements, music, fixed TV streams, our OTT-play FOSS Capacitor client, a separate OTT web route and optional OttPlayer. Home/Stop ends the owned activity and restores the clock. [Remote controls](docs/remote-endpoint.md).
 - **Calls on your Jitsi installation:** a fixed room, explicit join policy, microphone handoff and bounded cleanup. The standalone camera/intercom pilot remains a separate experimental option. [Calls and intercom](docs/wiki/Display-media-and-calls.md#jitsi-and-intercom).
 - **Choice of voice backend:** Homeway, independent FCC cloud speech/conversation, or local Russian conversation and Piper speech with FCC cloud recognition. Selection is per satellite; fallback is manual. [Privacy boundaries and outage procedure](docs/wiki/Voice-and-wake-words.md#choose-and-switch-an-assistant).
 - **Localization:** English, Russian, German, Spanish and French project entry points, plus the clock interface's own locale configuration. Interface language, speech language and wake model are independent. Detailed technical runbooks and wiki pages are maintained in English. [Coverage and contribution rules](docs/wiki/Localization.md).
 
-## Current validation
+## Earlier display and voice validation
 
 **October 15, 2026 baseline:** the built `dualwake.2` patch fixes detector cleanup, and display revision `20261015-r11` combines English, Russian, German and Spanish localization with retry handling when the MQTT command is not yet available during HA startup. A set of **48 synthetic desktop layout renders** showed no clipping in the exercised cases. Both updates were verified installed on both Shows at that checkpoint. Each device passed three software microphone mute/unmute cycles and a normal app restart, restoring both models and capture. Physical phrase recognition remains unverified; see [current rollout evidence](docs/wiki/Validation.md).
 

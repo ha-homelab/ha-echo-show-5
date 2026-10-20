@@ -4,6 +4,141 @@
 
 Each result needs a dated target, exact artifact or revision, method and limitation. Avoid a single “everything works” claim that mixes an automated test with an earlier physical observation on another build.
 
+## October 19: mixed-wake checkpoint
+
+This checkpoint uses America/Los_Angeles dates; its machine receipts are from
+October 20 UTC.
+
+The [mixed-wake implementation](Mixed-wake-words.md) adds optional Hey Jarvis
+to the unchanged exact Myshka path. The retained-key **`0.13.4+myshka.7` / `7007`**
+build passed **42 JVM tests**, with no failures, errors or skips. The builder's
+**35 host regressions** and **six source-package checks** passed. Its
+[build receipt](../../integrations/vaca-dual-wake/build-myshka.7.json)
+records the artifact, source, patch and signing identity.
+
+Before installation, VACA was stopped for a consistent private app-data backup;
+copies on two hosts were verified by hash. The previous `.6` APK was retained.
+
+**Show 1 received the same-signer `.7` update and passed all six Android
+instrumentation tests in 19.668 seconds.** Its fresh process authenticated to
+HA over HTTPS. Replay of the existing Myshka fixtures produced **294 embeddings,
+234 classifier windows and 11 positive windows**, with every threshold decision
+matching the reference. Maximum absolute differences were **0.00007439** for
+embeddings and **0.0000068844** for classifier scores. Processing 23.520 seconds of fixture audio took
+**14.544 seconds**, including initialization; this is not wake latency.
+
+The shared Stop/Jarvis frontend matched independently constructed reference
+detectors over **2,344 windows per model**, with **zero score difference**.
+Three of four synthetic Jarvis voices produced accepted windows: **Samantha 8,
+Karen 8 and Moira 8**. Daniel produced none; its maximum score was **0.9609375**,
+below the calibrated 0.97 boundary. In total, **24 activation windows** passed
+the temporal gate, and **24 high-score windows were correctly rejected** by that
+gate. This checks routing and preservation of the model's decision. It is not
+100% recognition, a room recording or acoustic acceptance of either phrase.
+
+The enabled mixed configuration loaded exact Myshka at **0.50**, bundled Jarvis
+with its **five-evaluation mean strictly greater than 0.97** gate, and the
+separate Stop detector. **Three actual microphone mute/unmute cycles passed**:
+each stopped capture and restored all three models. Mean processing after the
+cycles was **53.664, 52.448 and 52.320 ms per 80 ms input chunk**. A normal app
+restart restored the same configuration, completed fresh HTTPS token refresh
+with certificate validation, and averaged **56.472 ms per 80 ms input**. These
+are short local processing observations, not wake/response latency or a soak.
+
+HA controls, the selected Local Russian Home pipeline, permissions, default
+launcher, manual brightness 255 and authenticated nonroot ADB were preserved.
+The final check found **exactly one unsilenced VACA microphone capture** and
+both activation models selected. The instrumentation APK, temporary fixtures
+and test caches were absent; all four private model/manifest files retained
+their expected hashes. No new room audio was recorded or played, and no
+shared speech-backend configuration was changed.
+
+**Show 2 remains unavailable and last verified on `.4`.** Physical recognition,
+audible replies, Stop during playback, distance, power-loss recovery and a
+longer soak remain separate acceptance work. Historical `.3`/`.4`/`.6` results
+below remain separate evidence.
+
+<a id="october-19-current-checkpoint"></a>
+
+## October 19: earlier myshka.6 checkpoint
+
+Dates in this checkpoint use America/Los_Angeles; the machine receipts are from
+October 20 UTC. The retained-key **`0.13.4+myshka.6` / `7006`** build passed
+**29 JVM tests, with no failures, errors or skips**, including the TLS and malformed
+input regressions. Its source tree, patch hash and test totals match the successful
+hosted source build. The [build receipt](../../integrations/vaca-dual-wake/build-myshka.6.json)
+identifies the locally signed artifact; the hosted test signer is a different
+identity and was not used to update either device.
+
+**Show 1 received `.6` as an in-place update from `.3`.** Its fresh private
+application backup was copied to two hosts and hash-verified before installation.
+Three Android instrumentation tests passed, including optional-metadata
+enumeration and replay of four existing private fixtures: **294 embeddings,
+234 classifier windows and 11 positive windows**, with every threshold decision
+matching the reference. Maximum absolute differences were **0.00007439** for
+embeddings and **0.000006885** for classifier scores. Replay of 23.520 seconds of
+audio took **14.759 seconds**, including fixture initialization. This is file
+inference evidence, not a new microphone recording or acoustic acceptance.
+
+The fresh `.6` process authenticated to HA over HTTPS with certificate checks
+enabled, loaded **Privet Myshka at 0.50** and the separate local Stop detector,
+and resumed microphone inference. The current assistant selection and its
+**Silero** voice were preserved; the older Irina records below remain historical.
+
+One software mute/unmute cycle closed and restored actual microphone capture.
+A normal application restart restored the listener and completed fresh HTTPS
+authentication. Mean local processing was **51.224 ms per 80 ms input** after
+the mute cycle and **56.608 ms per 80 ms** after restart; these short observations
+are not wake or response latency. Current HA settings, manual brightness 255,
+screen timeout, permissions, default launcher and authenticated nonroot ADB
+were preserved. The secondary wake selection remained absent.
+
+Final cleanup confirmed that temporary fixtures and the instrumentation APK
+were absent, all four private model/manifest assets matched their expected
+hashes, and the updated application remained running.
+
+**Show 2 was unavailable during this check.** Its reserved network address did
+not answer, no active DHCP lease or resolved ARP neighbor was found, and all
+46 of its HA entities were unavailable. The existing static reservation was
+retained. This does not distinguish power loss from a Wi-Fi problem. Its last
+verified installation remains `.4`; no new installation, microphone or display
+claim is made for it.
+
+**The HA backend was checked without playing audio.** A Russian text request for
+the first heater's power completed through a native HA intent and the current
+Silero TTS provider; the response audio downloaded successfully in **4.481 seconds**
+overall. A separate arithmetic request reached the conversation stage but ended
+after **45.278 seconds without an intent result or TTS output**, under the probe's
+explicit 45-second deadline. This is not evidence of a production timeout setting.
+A `run-end` event alone is not a successful answer.
+
+One repeat with the resident Ollama model and a 120-second probe budget
+**succeeded**: the model answered “Четыре.” (“Four.”), the intent and TTS events
+completed at **43.045 seconds**, and **8,876 bytes** of speech were downloaded by
+**56.570 seconds**. The response came from the conversation model rather than a
+native intent. HA-to-Ollama HTTP checks completed in about half a second; logs
+showed slow CPU prompt processing: only 1,024 of 1,418 prompt tokens were cached,
+leaving 394 to evaluate.
+
+A subsequent **new arithmetic question**, after that completed request, reused
+**1,407 of 1,419 prompt tokens**. It produced the first model output at **3.515
+seconds**, completed the intent/TTS events at **8.479 seconds**, and downloaded
+**22,484 bytes** of correct Russian speech by **12.495 seconds**. Configuration
+and model selection were unchanged. This improvement reflects prompt-cache
+state, not an applied optimization or a guaranteed response time. A resident
+model alone does not establish a warm prompt cache; the first request and
+requests with changed context can be substantially slower.
+
+The installed HA default pipeline timeout was **300 seconds**, unchanged.
+The native-intent timing must not be presented as model latency, and TTS URL
+availability must not be presented as completed speech delivery. These checks
+did not exercise speech recognition, the Show microphone or audible playback.
+Pipeline definitions were unchanged.
+
+Physical wake recognition, audible replies, Stop during playback, fresh
+three-metre tests, power-loss recovery and a longer soak remain separate
+acceptance work.
+
 ## Evidence ladder
 
 1. **Source checks:** syntax, unit tests, generated configuration validation and dependency checks. These establish expected code behavior under the exercised inputs.
@@ -26,9 +161,9 @@ Each result needs a dated target, exact artifact or revision, method and limitat
 
 ## PR #69 follow-up: myshka.4 build and Show 2 checks
 
-VACA **`0.13.4+myshka.4` / `7004`** has a verified build with the original retained signing certificate and **18 JVM tests passed, zero failures, errors or skips**. The [new build receipt](../../integrations/vaca-dual-wake/build-myshka.4.json) records its source, patch and APK hashes.
+At the October 16 checkpoint, VACA **`0.13.4+myshka.4` / `7004`** had a verified build with the original retained signing certificate and **18 JVM tests passed, zero failures, errors or skips**. The [build receipt](../../integrations/vaca-dual-wake/build-myshka.4.json) records its source, patch and APK hashes.
 
-This patch isolates invalid optional label metadata from custom-model enumeration. The exact-engine loader continues to reject invalid assets. Show 2 received the same-certificate update and passed the targeted Android inventory regression: **one test, five metadata cases, 0.624 seconds**. Show 2 also passed **one actual microphone close/reopen cycle** and a **normal app restart**, with short local processing observations of **52.960 ms** and **55.184 ms per 80 ms input chunk**, respectively. These are processing times, not wake or response latency. The single model at 0.50, absent secondary selection, HA configuration, manual brightness 255, permissions and authenticated nonroot ADB were preserved. End-to-end HA/TTS health and physical speech acceptance were not tested. Show 1 is unreachable and remains last verified on `.3`; no installation was performed there.
+This patch isolates invalid optional label metadata from custom-model enumeration. The exact-engine loader continues to reject invalid assets. Show 2 received the same-certificate update and passed the targeted Android inventory regression: **one test, five metadata cases, 0.624 seconds**. Show 2 also passed **one actual microphone close/reopen cycle** and a **normal app restart**, with short local processing observations of **52.960 ms** and **55.184 ms per 80 ms input chunk**, respectively. These are processing times, not wake or response latency. The single model at 0.50, absent secondary selection, HA configuration, manual brightness 255, permissions and authenticated nonroot ADB were preserved. End-to-end HA/TTS health and physical speech acceptance were not tested. At that October 16 checkpoint, Show 1 was unreachable and remained last verified on `.3`; no installation was performed there.
 
 Final cleanup confirmed that the temporary fixture directory and instrumentation APK are absent, all four private model/manifest assets still match their expected hashes, and VACA remains running.
 

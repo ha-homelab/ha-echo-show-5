@@ -4,10 +4,26 @@
 
 This Android patch extends [View Assist Companion App](https://github.com/msp1974/ViewAssistCompanionApp)
 at the pinned commit `65906aebffd2f39772773b44729b22fd022a1f3c`.
-The current source builds **`0.13.4+myshka.6` / version code `7006`** for ARMv7.
-It retains the optional two-model microWakeWord extension and adds an opt-in
-exact ONNX frontend for one privately trained activation model. These are
-alternative configurations, not three simultaneously active wake phrases.
+The **`myshka.7`** source adds an optional bundled Hey Jarvis activation
+model alongside the exact ONNX frontend for private Myshka. It also retains the
+earlier two-model microWakeWord configuration as a separate mode. Local Stop
+is a playback-control command, not an activation phrase.
+
+**The ARMv7 `0.13.4+myshka.7` / `7007` build passed 42 JVM tests.**
+The [retained-key build receipt](build-myshka.7.json) records the source, artifact,
+signer and test identities.
+**Show 1 received `.7` with both activation models enabled** and passed six
+Android tests, three actual microphone mute/unmute cycles and an app restart.
+Fresh HTTPS authentication and retained settings were verified. Show 2 remains
+unavailable, last verified on `.4`. Physical voice acceptance remains pending;
+see the [current device evidence](../../docs/wiki/Validation.md#october-19-mixed-wake-checkpoint).
+The preceding installed checkpoint was **`0.13.4+myshka.6` / `7006`**.
+
+The [earlier October 19 retained-key build receipt](build-myshka.6.json) records **29
+passing JVM tests**. Show 1 received this update and passed three Android tests;
+Show 2 was unavailable and remains last verified on `.4`. See the
+[dated device and backend results](../../docs/wiki/Validation.md#october-19-current-checkpoint)
+for runtime checks and the remaining physical acceptance work.
 
 The new [Privet Myshka runbook](../../docs/openwakeword-myshka.md) and
 [illustrated process and results](../../docs/wiki/Wake-model-rollout.md) describe
@@ -23,7 +39,10 @@ The [myshka.3 receipt](build-myshka.3.json) and
 its 18 passing JVM tests. Its numerical replay and lifecycle results remain
 dated evidence, not an implicit test of a different APK.
 
-![One microphone feeds exact ONNX activation features and the local Stop detector.](../../docs/assets/exact-oww-pipeline.svg)
+The [mixed-wake runbook](../../docs/wiki/Mixed-wake-words.md) describes the `.7`
+opt-in, independent thresholds and acceptance sequence.
+
+![One microphone feeds unchanged exact ONNX Myshka and the existing MicroFrontend shared by optional Hey Jarvis and local Stop. Processing architecture, not a deployment receipt.](../../docs/assets/mixed-wake-pipeline.svg)
 
 The [validated build record](validated-build.json) and
 [archived patch](history/dualwake.1.patch) describe the previously installed
@@ -37,7 +56,36 @@ patch, source-tree and certificate hashes from the October 15 build, with nine
 passing JVM tests. Its build-only status is intentional; installed-device
 results are recorded separately below when verified.
 
-## Configure two microWakeWord phrases
+## Configure exact Myshka plus bundled Hey Jarvis
+
+With `.7`, retain `openwakeword`, primary
+`privet_myshka_dab4a660248f_cal`, its valid exact manifest/assets and HA threshold
+**5.0** (effective **0.50**). Stop VACA and add the existing app-private
+`files/secondary-wake-word.json`:
+
+```json
+{"id": "hey_jarvis"}
+```
+
+Restart VACA and verify loaded models and capture. The auxiliary is enabled
+only when the exact primary's manifest validates. Blank/`none` primary,
+unknown/duplicate auxiliary IDs and other generic engines do not enable this
+mixed path. The HA selector still exposes the primary model only.
+
+Myshka keeps its exact ONNX frontend unchanged. Hey Jarvis shares the **existing**
+`MicroWakeWordDetector` / `MicroFrontend` with Stop, using the same PCM from the
+one microphone capture. Jarvis retains its bundled calibration: mean probability
+over **five model evaluations strictly greater than 0.97**. This gate remains
+separate from the HA primary threshold. Either activation uses the same
+assistant and common two-second cooldown; Stop does not start an assistant.
+
+To disable the auxiliary, stop VACA, remove the secondary JSON and restart.
+This restores exact Myshka-only behavior without an APK downgrade. Preserve a
+previous file first if returning to a different recorded configuration.
+See the [full runbook](../../docs/wiki/Mixed-wake-words.md) for signed updates,
+backups, lifecycle checks, private fixtures and limits of acoustic evidence.
+
+## Configure two microWakeWord phrases — separate legacy mode
 
 Create `files/secondary-wake-word.json` inside VACA's **app-private data**:
 
@@ -51,14 +99,15 @@ model available to the selected engine. Custom model files remain in
 published through Home Assistant's static file server.
 
 - Both models share one microphone, feature extractor, assistant pipeline and
-  threshold. The existing deployment uses **0.35**, shown as **3.5** on the HA
+  threshold. The October 15 deployment used **0.35**, shown as **3.5** on the HA
   control's 0–10 scale.
 - A two-second cooldown applies across activation models, preventing two
   detections from the same utterance from immediately launching two requests.
 - A duplicate or unknown secondary ID is ignored. An empty primary or the
   primary value `none` disables both. If a nonempty primary is unavailable, a
   valid secondary may still load; inspect both the selected and loaded models.
-- Other wake engines retain their single-model behavior. The HA selector still
+- Apart from the explicit `.7` mixed exact path described above, other wake
+  engines retain their single-model behavior. The HA selector still
   shows only the primary model; it does not provide a second model selector.
 - Diagnostics list selected IDs. Successful model-load logs provide separate
   evidence that each model was actually loaded. A selected ID alone is not a
@@ -70,6 +119,15 @@ HA recognition language and reply voice are independent settings. Adding an
 English wake phrase does not switch a Russian assistant to English. Keep stable
 model IDs untranslated in configuration.
 
+## What changed in myshka.7
+
+The mixed path adds bundled Jarvis without replacing the exact Myshka classifier
+or creating another microphone or MicroFrontend. A model decision travels
+through both event handlers so the primary HA slider cannot turn a rejected
+Jarvis score into an activation. Selection, routing and calibrated decision
+regressions add 13 JVM tests; the builder requires all 42 tests to pass without
+skips. Existing TLS and manifest validation remain intact.
+
 ## What changed in myshka.6
 
 Release asset selection now checks the JSON array, object and string types
@@ -78,8 +136,8 @@ The ONNX classifier output must contain one finite float probability in a
 single batch; malformed shapes and non-finite values produce a clear failure
 instead of an unchecked cast or array access. A nullable network address is
 handled safely, and the redundant integer volume conversion is removed.
-Eight JVM regressions exercise valid and malformed release/model values. The
-builder requires those exact cases together with all three TLS tests and at
+Eight JVM regressions exercise valid and malformed release/model values. At that checkpoint, the
+builder required those exact cases together with all three TLS tests and at
 least 29 passing, non-skipped JVM tests. This is source/build evidence only;
 it does not qualify a new device installation or acoustic model.
 
@@ -155,7 +213,7 @@ its previous verified build record:
 
 ```bash
 python3 integrations/vaca-dual-wake/build.py \
-  --work-dir private/vaca-myshka-build-v5 \
+  --work-dir private/vaca-myshka-build-v7 \
   --signing-dir private/vaca-dual-wake-signing \
   --expected-signer-sha256 "$EXPECTED_SIGNER_SHA256"
 ```
@@ -172,7 +230,7 @@ create a new identity:
 
 ```bash
 python3 integrations/vaca-dual-wake/build.py \
-  --work-dir private/vaca-myshka-build-v5 \
+  --work-dir private/vaca-myshka-build-v7 \
   --signing-dir private/vaca-dual-wake-signing \
   --create-signing-key
 ```
@@ -193,8 +251,8 @@ the patch, choose a new ignored work directory so the old build stays available.
 The builder runs JVM tests, verifies APK signature/package/version/ABI, checks
 source integrity again, and writes two private outputs:
 
-- `vaca-0.13.4-myshka.6.apk`
-- `vaca-0.13.4-myshka.6.json` — source and patch hashes, signing certificate,
+- `vaca-0.13.4-myshka.7.apk`
+- `vaca-0.13.4-myshka.7.json` — source and patch hashes, signing certificate,
   artifact hash/size, test results and an explicit “not deployed by build tool”
   status. It contains no password, token or device identity.
 
@@ -206,7 +264,7 @@ upstream in-app updater cannot replace this differently signed APK.
 ## Install a same-certificate update
 
 **An existing local installation with the original certificate can receive
-`myshka.6` as an ordinary update. Do not uninstall it.** Select the intended
+`myshka.7` as an ordinary update. Do not uninstall it.** Select the intended
 engine and private model using its runbook after verifying the new artifact.
 
 1. Select one device by its exact serial and verify its current package/version.

@@ -1,5 +1,35 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Optional **Hey Jarvis** activation alongside the existing exact ONNX
+  **Privet Myshka** path in VACA `0.13.4+myshka.7` (7007). One microphone
+  supplies both paths; Jarvis shares the existing MicroFrontend with local
+  Stop. Stop remains a separate playback command.
+- Preserve Jarvis's calibrated decision: mean probability over five model
+  evaluations must be strictly greater than 0.97. Myshka retains its separate
+  0.50 threshold, and both activation phrases share the existing cooldown.
+- Require 42 passing JVM tests, including auxiliary selection, routing and
+  decision-preservation regressions. Add Android checks for shared-frontend
+  parity, synthetic Jarvis activation and detector cleanup.
+
+### Documentation
+
+- Add a reversible mixed-wake setup and acceptance guide, an accessible SVG
+  processing diagram, and updated entry points in all five README languages.
+- Separate current build and device evidence from the earlier single-phrase
+  checkpoints. Synthetic replay does not establish spoken recognition in a room.
+
+### Upgrade
+
+Build with the retained application signing identity, preserve a verified
+private backup, and follow the [mixed-wake update procedure](docs/wiki/Mixed-wake-words.md).
+The optional secondary selection can be removed without downgrading the APK
+or replacing the exact Myshka model. Existing TLS verification, primary manifest
+validation and selected Home Assistant speech services remain unchanged.
+
 ## [0.1.3] - 2026-10-18
 
 ### Changed
