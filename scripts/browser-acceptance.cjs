@@ -110,7 +110,8 @@ async function main() {
     page.on('response', response => {
       if (response.status() >= 400) unexpected.push(response.status() + ' ' + response.url());
     });
-    await page.clock.install({time:new Date('2026-10-15T21:34:00Z')});
+    // pauseAt() installs the clock already paused. A separate ticking install
+    // at the same timestamp can advance past the target before this call.
     await page.clock.pauseAt(new Date('2026-10-15T21:34:00Z'));
     const state = () => page.evaluate(() => window.Show5Auth?.status().connection);
     const waitState = value => eventually(state,value,'Actual authentication state');
