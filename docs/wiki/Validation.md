@@ -4,6 +4,59 @@
 
 Each result needs a dated target, exact artifact or revision, method and limitation. Avoid a single “everything works” claim that mixes an automated test with an earlier physical observation on another build.
 
+<a id="october-20-lifecycle-checkpoint"></a>
+
+## October 20: myshka.8 lifecycle checkpoint
+
+The retained-signer **`0.13.4+myshka.8` / `7008`** build passed **54 JVM tests**,
+with no failures, errors or skips. The [build receipt](../../integrations/vaca-dual-wake/build-myshka.8.json)
+binds its source, patch, APK and signing identity. This update waits for the
+previous listener's cleanup before replacement and handles disabled or missing
+OpenWakeWord primary selections without creating an engine. The legacy
+microWakeWord available-secondary fallback remains intentional.
+
+**Show 1 received the in-place update after a fresh stopped-app backup was
+verified on two hosts.** The previous `.7` APK and app data were retained.
+All **six Android tests passed in 19.933 seconds**. Existing Myshka fixture
+replay produced **294 embeddings, 234 classifier windows and 11 positive
+windows**, with every threshold decision matching the reference. Maximum
+absolute differences remained **0.00007439** for embeddings and **0.0000068844**
+for scores. The 23.520 seconds of fixture audio took **14.603 seconds** including
+initialization; this is local test processing time, not wake latency.
+
+Shared Stop/Jarvis processing matched independent reference detectors over
+**2,344 windows per model with zero score difference**. The four existing
+synthetic Jarvis files yielded **24 accepted activation windows**: Samantha,
+Karen and Moira produced eight each; Daniel produced none (maximum 0.9609375).
+The temporal rule rejected 24 other high-score windows. No new room recording
+or audio playback was used.
+
+The new **in-process configuration checks passed without changing the Android
+process**. HA threshold changes **5.0 → 5.1 → 5.0** closed the old microphone
+before each replacement model load. Selecting the advertised **None** primary
+produced a stopped handler, zero microphone captures and no replacement engine.
+Restoring the original primary restored both activation models and one capture.
+The sampled processing means were **53.008, 52.384 and 51.904 ms per 80 ms
+input**, respectively; the original threshold and all HA controls were restored.
+
+**Three actual microphone mute/unmute cycles and a normal app restart passed.**
+The cycle means were **51.864, 51.584, 52.400 ms per 80 ms input**; the restart mean was
+**56.976 ms per 80 ms**. Fresh HTTPS authentication succeeded with certificate
+verification. Exact Myshka remained at **0.50** (HA **5.0**), while Jarvis retained
+its strict five-evaluation mean **> 0.97** and local Stop remained separate.
+
+The final check found **one unsilenced microphone capture**. HA identity and
+controls, Local Russian Home, permissions, default launcher, manual brightness
+255, private asset hashes and authenticated nonroot ADB were preserved.
+Temporary fixtures, test caches and the instrumentation package were removed.
+No shared voice service was changed.
+
+One bounded network check found **Show 2 still unavailable**; its last verified
+build remains `.4`, and its current installed state is unknown while offline.
+Physical spoken recognition, audible replies, distance, Stop during playback,
+power-loss recovery and a longer soak remain separate acceptance work. The
+historical `.7` results below are retained with their original date and scope.
+
 ## October 19: mixed-wake checkpoint
 
 This checkpoint uses America/Los_Angeles dates; its machine receipts are from
@@ -288,7 +341,7 @@ python3 -m unittest discover -s integrations/show5-display/tests -p 'test_*.py' 
 python3 -m unittest discover -s integrations/show5-intercom/tests -v
 ```
 
-The [contribution guide](../../CONTRIBUTING.md) and [CI workflow](../../.github/workflows/tests.yml) define additional isolated voice-runtime and container checks. VACA's patched Android source has its own [JVM/build procedure](../../integrations/vaca-dual-wake/README.md). Required runtimes must be present; a skipped test is not a pass. Do not unlock, flash, record ambient audio or publish just to validate documentation.
+The [contribution guide](../../CONTRIBUTING.md) and [CI workflow](https://github.com/ha-homelab/ha-echo-show-5/blob/main/.github/workflows/tests.yml) define additional isolated voice-runtime and container checks. VACA's patched Android source has its own [JVM/build procedure](../../integrations/vaca-dual-wake/README.md). Required runtimes must be present; a skipped test is not a pass. Do not unlock, flash, record ambient audio or publish just to validate documentation.
 
 ## Short device acceptance procedure
 

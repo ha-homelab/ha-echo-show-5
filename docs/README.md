@@ -4,19 +4,16 @@
 
 This route targets **Echo Show 5 Gen2 / 2021 / cronos**, using **LineageOS / Android**, Companion and optional voice/display integrations. It is distinct from [EchoLocal on Dot 2](https://github.com/ha-homelab/ha-echo-dot) and [EchoMuse on emOS](https://github.com/ha-homelab/ha-echomuse). Never reuse another model's firmware or unlock commands.
 
-## October 19: two activation phrases on Show 1
+## October 20: listener lifecycle verified on Show 1
 
-Show 1 runs **`myshka.7` / `7007`** with exact ONNX **“Привет, мышка” at 0.50**
-and optional bundled **“Hey Jarvis”**, using a strict five-evaluation mean
-**> 0.97**. One microphone supplies both paths; Jarvis shares the existing
-MicroFrontend with Stop, which remains a separate playback command.
-
-The retained-key build passed **42 JVM tests**. Show 1 passed **six Android
-tests**, **three actual microphone mute/unmute cycles** and an **app restart**;
-both activation models, Stop and HTTPS authentication recovered with settings
-preserved. **Show 2 remains unavailable, last verified on `.4`.** Physical speech
-acceptance remains pending. See the [opt-in and rollback guide](wiki/Mixed-wake-words.md)
-and [measured results](wiki/Validation.md#october-19-mixed-wake-checkpoint).
+Show 1 runs **`myshka.8` / `7008`** with **“Привет, мышка” at 0.50** and optional
+**“Hey Jarvis”** with its independent five-evaluation mean **> 0.97**. The update
+fixes listener replacement and disabled-primary handling. The build passed
+54 JVM tests; device checks covered six Android tests, configuration changes
+without restarting the app, the None primary, three microphone mute/unmute
+cycles and a normal restart. Settings were preserved. **Show 2 remains
+unavailable, last verified on `.4`; physical speech acceptance remains pending.**
+See the [mixed-wake guide](wiki/Mixed-wake-words.md) and [dated measurements](wiki/Validation.md#october-20-lifecycle-checkpoint).
 
 ## Start with the wiki
 
@@ -27,33 +24,14 @@ and [measured results](wiki/Validation.md#october-19-mixed-wake-checkpoint).
 - [Validation and evidence](wiki/Validation.md): dated versions, automated checks, per-device observations and unverified behavior.
 - [SVG diagram collection](assets/README.md): architecture, voice paths, installation paths, the conversion journey, startup recovery and recorded test counts.
 
-## October 19: earlier myshka.6 checkpoint
+## Historical checkpoints
 
-Show 1 received the retained-key **`myshka.6` / `7006`** update, with **29 JVM tests
-and three Android instrumentation tests passed**. HTTPS authentication, the
-single Myshka model at 0.50, local Stop and microphone inference were observed.
-Show 2 is currently unavailable and remains last verified on `.4`. The
-[earlier .6 validation](wiki/Validation.md#october-19-current-checkpoint)
-separates these device checks from backend checks and pending physical voice
-acceptance. Earlier dated results below remain historical.
+- [October 19 `.6` checkpoint](wiki/Validation.md#october-19-current-checkpoint): the preceding Show 1 update and separate voice-backend checks.
+- [October 16 exact Myshka rollout](wiki/Wake-model-rollout.md): `.3` reference replay and lifecycle results on both Shows, followed by the `.4` inventory fix on Show 2.
+- [October 15 display and dual-wake baseline](wiki/Process-and-results.md): the earlier microWakeWord pair, clock localization and startup recovery.
 
-## October 16 wake-model trial
-
-**PR #69 follow-up: `myshka.4` / `7004` is installed and locally verified on Show 2.** The original signing certificate is retained and all 18 JVM tests pass. Show 2 passed the targeted Android inventory regression: one test covering five metadata cases in 0.624 seconds. Invalid optional metadata no longer aborts the model inventory; engine loading still rejects invalid assets. Show 2 also passed one actual microphone close/reopen cycle and a normal app restart, preserving settings, brightness, permissions and authenticated nonroot ADB. End-to-end voice acceptance remains pending. At that October 16 checkpoint, Show 1 was unreachable and remained last verified on `.3`. The `.3` fixture and lifecycle observations below remain a separate historical record.
-
-### Verified myshka.3 baseline
-
-**APK installed and reference replay passed on both Shows.** VACA `0.13.4+myshka.3` / `7003` passed 18 JVM tests. Each device also passed two Android instrumentation tests using four existing private fixtures: **294 embeddings, 234 classifier windows and 11 positive windows**, with all threshold decisions matching the reference. This is file-based inference evidence, not a room recording or acoustic acceptance.
-
-At the October 16 checkpoint, both Shows were configured for only **“Привет, мышка”** at **0.50** (**5.0 in HA**) through the exact ONNX frontend, with “Hey Jarvis” removed from the active selection and the separate Stop command retained. **Both passed three microphone mute/unmute cycles with verified capture closure/reopening, plus a normal app restart.** HA settings, brightness, permissions and nonroot ADB were preserved. Spoken activation, audible answers, distance, Stop during playback, power-loss recovery and a multi-day soak remain pending. See the [rollout process](wiki/Wake-model-rollout.md) and [technical guide](openwakeword-myshka.md).
-
-![One microphone feeds the exact ONNX activation pipeline and a separate Stop detector; 80 ms denotes an audio chunk, not measured wake latency.](assets/exact-oww-pipeline.svg)
-
-## Previous installed baseline
-
-The October 15 record verified both Shows with **VACA `0.13.4+dualwake.2` / `7002`** and **display `20261015-r11`** installed. Three software mute/unmute cycles and a normal app restart on each restored both models and microphone capture. That microWakeWord configuration used **“Привет, мышка” + “Hey Jarvis”**, with a shared **0.35** threshold. Deliberately spoken activation and audible-response acceptance remain separate work; read the validation page for current camera and recovery results.
-
-There are **five documentation entry languages** and **four implemented clock-UI languages**: English, Russian, German and Spanish. French is a documentation language only. English and 24-hour formatting remain selected on the two Shows. [Localization](wiki/Localization.md) explains the runtime settings; [translation policy](i18n.md) explains documentation coverage.
+These dated records retain the original versions, measurements and acceptance
+limits. They do not establish a new build or current availability of either device.
 
 ## First conversion or an existing Android device
 
@@ -67,7 +45,7 @@ There are **five documentation entry languages** and **four implemented clock-UI
 
 - [Display, media and calls](wiki/Display-media-and-calls.md): the room endpoint's operating behavior and feature boundaries.
 - [Clock and camera display](../integrations/show5-display/README.md): versioned deployment, four-language UI, startup recovery and camera lifecycle.
-- [Voice and wake words](wiki/Voice-and-wake-words.md): the opt-in single-phrase ONNX path, two-model microWakeWord capability, independent language settings and per-satellite assistant selection.
+- [Voice and wake words](wiki/Voice-and-wake-words.md): exact Myshka with optional Jarvis, the older two-model microWakeWord mode, independent language settings and per-satellite assistant selection.
 - [Dual-wake extension](../integrations/vaca-dual-wake/README.md): source patch, reproducible build, versioned receipts, app-data preservation and rollback.
 - [VACA and private wake words](vaca-private-wakeword.md): permissions, model deployment, thresholds and acoustic limitations.
 - [Dashboard](show-dashboard.md) and [portable HA examples](../examples/home-assistant/README.md): provide your own private entity mapping.

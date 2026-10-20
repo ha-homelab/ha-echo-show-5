@@ -2,7 +2,7 @@
 
 This is an optional extension to the confirmed Android/Companion dashboard route. It keeps the official Home Assistant Companion app authenticated for the dashboard and uses **View Assist Companion App (VACA) 0.13.4** for custom microWakeWord detection and the HA satellite connection. Setup evidence and physical acceptance are separate: installing a model or connecting the integration does not establish reliable voice activation.
 
-The current deployment checkpoint is recorded in [validation status](preparation-status.md). This guide deliberately contains no household model names, wake phrases, device identifiers, server addresses, credentials or model files.
+Current per-device checkpoints are recorded in the [validation guide](wiki/Validation.md); the [October 2 preparation status](preparation-status.md) is historical. This guide deliberately contains no device identifiers, server addresses, credentials or private model files.
 
 ## Pinned software
 
@@ -25,10 +25,12 @@ Use VACA's HA integration and Android app at matching versions, updating the int
 
 This guide's behavior review uses the pinned [Android source](https://github.com/msp1974/ViewAssistCompanionApp/tree/65906aebffd2f39772773b44729b22fd022a1f3c) and [HA integration source](https://github.com/msp1974/ViewAssist_Companion_App/tree/4948528bd016c24c395bf8dc3d86c1c7ec60eb73). A future release requires rechecking the paths and behavior below.
 
-## Optional two-model local build
+## Optional local builds
 
-The [dual-wake extension](../integrations/vaca-dual-wake/README.md) adds one
-app-private secondary microWakeWord model alongside the primary HA selection.
+The [local wake-engine extension](../integrations/vaca-dual-wake/README.md) supports
+the original two-model microWakeWord mode and the newer [mixed exact Myshka plus
+optional Jarvis mode](wiki/Mixed-wake-words.md). These use different frontend and
+threshold contracts.
 It includes a pinned source patch, build helper, duplicate-trigger protection
 and a signing-aware backup/restore procedure. See its deployment status before
 assuming an individual device has received the extension.

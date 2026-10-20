@@ -1,5 +1,5 @@
 diff --git a/app/build.gradle.kts b/app/build.gradle.kts
-index 4606ee9..84ee6cd 100644
+index 4606ee9..2096015 100644
 --- a/app/build.gradle.kts
 +++ b/app/build.gradle.kts
 @@ -8,8 +8,6 @@ plugins {
@@ -34,8 +34,8 @@ index 4606ee9..84ee6cd 100644
          targetSdk = 36
 -        versionName = "0.13.4"
 -        versionCode = code
-+        versionName = "0.13.4+myshka.7"
-+        versionCode = 7007
++        versionName = "0.13.4+myshka.8"
++        versionCode = 7008
          testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
      }
  
@@ -221,10 +221,86 @@ index 0000000..d966e75
 +    }
 +}
 diff --git a/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt b/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
-index 4b12a5c..221e154 100644
+index 4b12a5c..99030f9 100644
 --- a/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
 +++ b/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
-@@ -784,7 +784,8 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+@@ -40,6 +40,8 @@ import kotlinx.coroutines.flow.asStateFlow
+ import kotlinx.coroutines.flow.first
+ import kotlinx.coroutines.launch
+ import kotlinx.coroutines.withContext
++import kotlinx.coroutines.sync.Mutex
++import kotlinx.coroutines.sync.withLock
+ import kotlinx.coroutines.withTimeout
+ import kotlinx.serialization.json.Json
+ import kotlinx.serialization.json.JsonElement
+@@ -84,6 +86,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+     private val eventHandler = SatelliteCustomEventHandler(context, deviceManager, scope, this)
+ 
+     private var wakeWordHandler: SatelliteWakeWorkHandler? = null
++    private val wakeWordLifecycle = Mutex()
+     private var audioPipeline: SatelliteAudioPipeline? = null
+     private var audioPipelineLastStateChange = System.currentTimeMillis()
+ 
+@@ -278,7 +281,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+ 
+         scope.launch {
+             eventHandler.stop()
+-            wakeWordHandler?.stop()
++            stopWakeWordDetection()
+             motionTask.stopCamera()
+             motionTask.release()
+         }.join()
+@@ -312,12 +315,13 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+         }
+     }
+ 
++    suspend fun startWakeWordDetection() = wakeWordLifecycle.withLock {
++        startWakeWordDetectionLocked()
++    }
++
+     @OptIn(ExperimentalAtomicApi::class)
+-    suspend fun startWakeWordDetection() {
+-        if (wakeWordHandler != null) {
+-            wakeWordHandler?.stop()
+-            wakeWordHandler = null
+-        }
++    private suspend fun startWakeWordDetectionLocked() {
++        stopWakeWordDetectionLocked()
+ 
+         Timber.d("Starting Wake Word Detection")
+         sendDiagnostics(0f, 0f)
+@@ -363,22 +367,24 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+                 }
+ 
+             }.also {
+-                Timber.d("Starting Wake Word Detection")
+                 it.run()
+             }
+         }
+     }
+ 
+-    suspend fun stopWakeWordDetection() {
++    suspend fun stopWakeWordDetection() = wakeWordLifecycle.withLock {
++        stopWakeWordDetectionLocked()
++    }
++
++    private suspend fun stopWakeWordDetectionLocked() {
+         wakeWordHandler?.stop()
+         wakeWordHandler = null
+     }
+ 
+-
+-    suspend fun restartWakeWordDetection() {
+-        stopWakeWordDetection()
++    suspend fun restartWakeWordDetection() = wakeWordLifecycle.withLock {
++        stopWakeWordDetectionLocked()
+         warmUpAudioResources()
+-        startWakeWordDetection()
++        startWakeWordDetectionLocked()
+     }
+ 
+     suspend fun handleWakeWordDetection(detection: WakeWordEngineProvider.WakeWordDetection) {
+@@ -784,7 +790,8 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
      fun sendDiagnostics(audioLevel: Float, detectionLevel: Float) {
          lastAudioLevel = audioLevel
          lastDetectionLevel = detectionLevel
@@ -235,10 +311,10 @@ index 4b12a5c..221e154 100644
              val data = DiagnosticInfo(
                  show = config.diagnosticsEnabled,
 diff --git a/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteWakeWorkHandler.kt b/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteWakeWorkHandler.kt
-index 21cb486..a622424 100644
+index 21cb486..fcccc2f 100644
 --- a/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteWakeWorkHandler.kt
 +++ b/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteWakeWorkHandler.kt
-@@ -1,6 +1,12 @@
+@@ -1,6 +1,13 @@
  package com.msp1974.vacompanion.satellite
  
  import android.Manifest
@@ -248,13 +324,40 @@ index 21cb486..a622424 100644
 +import com.msp1974.vacompanion.wakeword.WakeWordSelection
 +import com.msp1974.vacompanion.wakeword.WakeWordCooldown
 +import com.msp1974.vacompanion.wakeword.WakeWordDetectionDecision
++import com.msp1974.vacompanion.wakeword.WakeWordSession
  import android.content.Context
  import com.msp1974.vacompanion.broadcasts.BroadcastSender
  import com.msp1974.vacompanion.device.DeviceManager
-@@ -60,6 +66,18 @@ abstract class SatelliteWakeWorkHandler(val context: Context, val deviceManager:
+@@ -9,15 +16,13 @@ import com.msp1974.vacompanion.utils.Permissions
+ import com.msp1974.vacompanion.wakeword.WakeWordEngine
+ import com.msp1974.vacompanion.wakeword.WakeWordEngineModel
+ import com.msp1974.vacompanion.wakeword.WakeWordEngineProvider
++import kotlinx.coroutines.CancellationException
++import kotlinx.coroutines.currentCoroutineContext
+ import kotlinx.coroutines.CoroutineScope
+-import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.Job
+-import kotlinx.coroutines.awaitCancellation
+ import kotlinx.coroutines.delay
+ import kotlinx.coroutines.flow.cancellable
+ import kotlinx.coroutines.launch
+-import kotlinx.coroutines.withContext
+-import kotlinx.coroutines.withTimeout
+ import timber.log.Timber
+ import kotlin.collections.set
+ import kotlin.time.Duration.Companion.milliseconds
+@@ -53,100 +58,98 @@ abstract class SatelliteWakeWorkHandler(val context: Context, val deviceManager:
+ 
+     var streamAudio: Boolean = false
+ 
+-    private var wakeWordJob: Job? = null
++    private val session = WakeWordSession(scope)
+     var engine: WakeWordEngine? = null
+     private var holdDetectionLevelJob: Job? = null
+     private var lastWakeWordDetectionScore = 0f
      private val detectionCooldowns = mutableMapOf<String, Long>()
      private val detectionCooldownMs: Long = 2000L
-     private var lastWakeDetectionTimestamp = 0L
+-    private var lastWakeDetectionTimestamp = 0L
 +    private val wakeCooldown = WakeWordCooldown()
 +    var activeWakeWordIds: List<String> = emptyList()
 +        private set
@@ -269,42 +372,172 @@ index 21cb486..a622424 100644
 +    }
  
      suspend fun run() {
-         val startTime = System.currentTimeMillis()
-@@ -89,7 +107,16 @@ abstract class SatelliteWakeWorkHandler(val context: Context, val deviceManager:
-                         else -> WakeWordEngineModel.MICROWAKEWORD
-                     }
-                 )
+-        val startTime = System.currentTimeMillis()
+-        scope.launch (context = Dispatchers.Default) {
+-            start()
+-        }
+-        withTimeout(5000.milliseconds) {
+-            try {
+-                while (state != WakeWordHandlerState.RUNNING) {
+-                    delay(100.milliseconds)
+-                }
+-                Timber.d("Wake word detection started in ${System.currentTimeMillis() - startTime}ms")
+-            } catch (e: Exception) {
+-                Timber.e("Error waiting for wake word detection to start: ${e.message.toString()}")
+-            }
+-        }
++        // The only long-lived job is the owned collection. There is no detached
++        // start()/awaitCancellation controller left behind after a restart.
++        session.replace { start() }
+     }
+ 
+-    suspend fun start() {
++    private suspend fun start() {
+         try {
+-            if (config.wakeWordEngine != "none") {
+-                state = WakeWordHandlerState.STARTING
+-                engine = WakeWordEngine(context, deviceManager,
+-                    when (config.wakeWordEngine) {
+-                        "openwakeword" -> WakeWordEngineModel.OPENWAKEWORD
+-                        "openwakeword_rt" -> WakeWordEngineModel.OPENWAKEWORD_RT
+-                        else -> WakeWordEngineModel.MICROWAKEWORD
+-                    }
+-                )
 -                engine?.setActiveWakeWords(listOf(config.wakeWord))
-+                val requestedSecondary = secondaryWakeWord()
-+                val secondary = if (config.wakeWordEngine == "microwakeword") requestedSecondary else null
-+                val engineWakeWordIds = WakeWordSelection.select(config.wakeWord, secondary,
-+                    engine!!.getAvailableWakeWords().map { it.id }.toSet())
-+                val exactAuxiliary = engine!!.selectExactAuxiliaryWakeWord(engineWakeWordIds, requestedSecondary)
-+                activeWakeWordIds = engineWakeWordIds + listOfNotNull(exactAuxiliary)
-+                engine?.setActiveWakeWords(engineWakeWordIds)
-+                engine?.setExactAuxiliaryWakeWord(exactAuxiliary)
-+                Timber.i("Active wake word models: %s; primary threshold=%s; auxiliary=%s",
-+                    activeWakeWordIds, config.wakeWordThreshold, exactAuxiliary ?: "none")
-                 engine?.setActiveStopWords(listOf("stop"))
-                 runWakeWordDetection()
+-                engine?.setActiveStopWords(listOf("stop"))
+-                runWakeWordDetection()
++            state = WakeWordHandlerState.STARTING
++            val requestedSecondary = secondaryWakeWord()
++            val model = when (config.wakeWordEngine) {
++                "openwakeword" -> WakeWordEngineModel.OPENWAKEWORD
++                "openwakeword_rt" -> WakeWordEngineModel.OPENWAKEWORD_RT
++                else -> WakeWordEngineModel.MICROWAKEWORD
              }
-@@ -139,11 +166,12 @@ abstract class SatelliteWakeWorkHandler(val context: Context, val deviceManager:
+-            state = WakeWordHandlerState.RUNNING
+-            awaitCancellation()
++            val engineWakeWordIds = WakeWordSelection.forEngine(
++                config.wakeWordEngine, config.wakeWord, requestedSecondary,
++                config.availableWakeWords?.get(model.toString())?.map { it.id }?.toSet() ?: emptySet()
++            ) ?: return
++            if (!Permissions(context, deviceManager).hasPermission(Manifest.permission.RECORD_AUDIO)) {
++                Timber.w("Unable to start wake word engine - no audio permission")
++                return
++            }
++            val selectedEngine = WakeWordEngine(context, deviceManager, model)
++            engine = selectedEngine
++            val exactAuxiliary = selectedEngine.selectExactAuxiliaryWakeWord(engineWakeWordIds, requestedSecondary)
++            activeWakeWordIds = engineWakeWordIds + listOfNotNull(exactAuxiliary)
++            selectedEngine.setActiveWakeWords(engineWakeWordIds)
++            selectedEngine.setExactAuxiliaryWakeWord(exactAuxiliary)
++            selectedEngine.setActiveStopWords(listOf("stop"))
++            Timber.i("Active wake word models: %s; primary threshold=%s; auxiliary=%s",
++                activeWakeWordIds, config.wakeWordThreshold, exactAuxiliary ?: "none")
++            if (config.isMuted) state = WakeWordHandlerState.STOPPED
++            runWakeWordDetection(selectedEngine)
++        } catch (cancelled: CancellationException) {
++            throw cancelled
++        } catch (error: Exception) {
++            Timber.e(error, "Wake word detection failed")
+         } finally {
+-            terminateWakeWordDetection()
+-        }
+-    }
+-
+-    suspend fun stop() {
+-        if (wakeWordJob != null && wakeWordJob!!.isActive) {
+-            state = WakeWordHandlerState.STOPPING
+-
++            holdDetectionLevelJob?.cancel()
++            holdDetectionLevelJob = null
+             try {
+-                withTimeout(200.milliseconds) {
+-                    withContext(Dispatchers.Default) {
+-                        wakeWordJob?.cancel()
+-                        while (wakeWordJob!!.isActive) {
+-                            delay(10.milliseconds)
+-                        }
+-                    }
+-                }
+-            } catch (e: Exception) {
+-                Timber.e("Error waiting for wake word detection to stop: ${e.message.toString()}")
+-            } finally {
+                 engine?.release()
++            } finally {
+                 engine = null
+-                wakeWordJob = null
++                activeWakeWordIds = emptyList()
++                lastWakeWordDetectionScore = 0f
+                 state = WakeWordHandlerState.STOPPED
+                 onDiagnostics(0f, 0f)
+-                Timber.d("Wake word detection stopped")
+             }
+         }
+     }
+ 
++    suspend fun stop() {
++        state = WakeWordHandlerState.STOPPING
++        // A timed-out join keeps ownership and prevents the caller starting a
++        // replacement while native inference or microphone cleanup is still active.
++        session.stop()
++        state = WakeWordHandlerState.STOPPED
++        onDiagnostics(0f, 0f)
++        Timber.d("Wake word detection stopped")
++    }
+ 
+-    fun runWakeWordDetection() {
+-        if (!Permissions(context, deviceManager).hasPermission(Manifest.permission.RECORD_AUDIO)) {
+-            Timber.e("Unable to start wake word engine - no audio permission")
+-            return
+-        }
+-
+-        //sendDiagnostics(0f, 0f)
+-        val flow = engine!!.start()
+-        wakeWordJob = scope.launch { flow.cancellable().collect {
++    private suspend fun runWakeWordDetection(selectedEngine: WakeWordEngine) {
++        selectedEngine.start().cancellable().collect {
              when (it) {
                  is WakeWordEngineProvider.AudioResult.WakeDetected -> {
                      holdLastDetectionLevel(it.detection.score)
 -                    if (it.detection.score >= config.wakeWordThreshold) {
+-                        val now = System.currentTimeMillis()
+-                        val lastDetection = detectionCooldowns[it.detection.wakeWordId]
+-
+-                        if (lastDetection == null || detectionCooldownMs == 0L || now - lastDetection >= detectionCooldownMs) {
 +                    if (WakeWordDetectionDecision.accept(
 +                            it.detection.score, config.wakeWordThreshold, it.detection.modelDecision)) {
-                         val now = System.currentTimeMillis()
-                         val lastDetection = detectionCooldowns[it.detection.wakeWordId]
- 
--                        if (lastDetection == null || detectionCooldownMs == 0L || now - lastDetection >= detectionCooldownMs) {
 +                        if (wakeCooldown.accept(SystemClock.elapsedRealtime())) {
                              Timber.i("Wake word detected: ${it.detection.wakeWord}")
-                             wakeWordDetected(it.detection, engine!!.isStreaming())
-                             detectionCooldowns[it.detection.wakeWordId] = now
-@@ -203,7 +231,7 @@ abstract class SatelliteWakeWorkHandler(val context: Context, val deviceManager:
-         lastWakeDetectionTimestamp = detection.timestamp
+-                            wakeWordDetected(it.detection, engine!!.isStreaming())
+-                            detectionCooldowns[it.detection.wakeWordId] = now
++                            wakeWordDetected(it.detection)
+                         }
+                     }
+                 }
+@@ -172,7 +175,7 @@ abstract class SatelliteWakeWorkHandler(val context: Context, val deviceManager:
+ 
+                 is WakeWordEngineProvider.AudioResult.Audio -> {
+                     if (it.audio.isNotEmpty()) {
+-                        onAudio(it, engine!!.isStreaming())
++                        onAudio(it, selectedEngine.isStreaming())
+                     }
+                 }
+ 
+@@ -191,19 +194,14 @@ abstract class SatelliteWakeWorkHandler(val context: Context, val deviceManager:
+                 }
+ 
+             }
+-        }}
+-    }
+-
+-    fun terminateWakeWordDetection() {
+-
++        }
+     }
+ 
+-    private suspend fun wakeWordDetected(detection: WakeWordEngineProvider.WakeWordDetection, isStreaming: Boolean) {
++    private suspend fun wakeWordDetected(detection: WakeWordEngineProvider.WakeWordDetection) {
+         Timber.i("${detection.wakeWord} wake word detected at ${detection.score}, threshold is ${config.wakeWordThreshold}")
+-        lastWakeDetectionTimestamp = detection.timestamp
          firebase.logEvent(
              FirebaseManager.WAKE_WORD_DETECTED, mapOf(
 -                "wake_word" to config.wakeWord,
@@ -312,6 +545,22 @@ index 21cb486..a622424 100644
                  "threshold" to config.wakeWordThreshold.toString(),
                  "prediction" to detection.score.toString()
              )
+@@ -213,13 +211,13 @@ abstract class SatelliteWakeWorkHandler(val context: Context, val deviceManager:
+         onWakeWordDetected(detection)
+     }
+ 
+-    private fun holdLastDetectionLevel(detectionLevel: Float, duration: Long = 2000) {
++    private suspend fun holdLastDetectionLevel(detectionLevel: Float, duration: Long = 2000) {
+         if (detectionLevel > lastWakeWordDetectionScore) {
+             lastWakeWordDetectionScore = detectionLevel
+             if (holdDetectionLevelJob != null && holdDetectionLevelJob!!.isActive) {
+                 holdDetectionLevelJob?.cancel()
+             }
+-            holdDetectionLevelJob = scope.launch {
++            holdDetectionLevelJob = CoroutineScope(currentCoroutineContext()).launch {
+                 delay(duration.milliseconds)
+                 if (!streamAudio) {
+                     lastWakeWordDetectionScore = 0f
 diff --git a/app/src/main/java/com/msp1974/vacompanion/wakeword/CloseableResource.kt b/app/src/main/java/com/msp1974/vacompanion/wakeword/CloseableResource.kt
 new file mode 100644
 index 0000000..d1fb752
@@ -417,14 +666,21 @@ index 22351e0..0b3168b 100644
                          }
 diff --git a/app/src/main/java/com/msp1974/vacompanion/wakeword/WakeWordSelection.kt b/app/src/main/java/com/msp1974/vacompanion/wakeword/WakeWordSelection.kt
 new file mode 100644
-index 0000000..20d15a9
+index 0000000..43a6aa2
 --- /dev/null
 +++ b/app/src/main/java/com/msp1974/vacompanion/wakeword/WakeWordSelection.kt
-@@ -0,0 +1,22 @@
+@@ -0,0 +1,29 @@
 +package com.msp1974.vacompanion.wakeword
 +
 +/** One microphone/frontend; at most two distinct, available activation models. */
 +object WakeWordSelection {
++    /** Null means no compatible activation model, so no engine may be constructed. */
++    fun forEngine(engine: String, primary: String, secondary: String?, available: Set<String>): List<String>? {
++        if (engine == "none") return null
++        return select(primary, secondary.takeIf { engine == "microwakeword" }, available)
++            .takeIf { it.isNotEmpty() }
++    }
++
 +    fun select(primary: String, secondary: String?, available: Set<String>): List<String> {
 +        if (primary.isBlank() || primary == "none") return emptyList()
 +        return listOfNotNull(primary, secondary?.trim())
@@ -2123,5 +2379,291 @@ index 0000000..28293f4
 +        assertNull(ExactAuxiliaryWakePolicy.route(input, "unknown"))
 +        assertNull(ExactAuxiliaryWakePolicy.route(input.copy(wakeWordId = primary), jarvis))
 +        assertNull(ExactAuxiliaryWakePolicy.route(input.copy(wakeWordId = "unknown"), jarvis))
++    }
++}
+diff --git a/app/src/main/java/com/msp1974/vacompanion/wakeword/WakeWordSession.kt b/app/src/main/java/com/msp1974/vacompanion/wakeword/WakeWordSession.kt
+new file mode 100644
+index 0000000..1e543ee
+--- /dev/null
++++ b/app/src/main/java/com/msp1974/vacompanion/wakeword/WakeWordSession.kt
+@@ -0,0 +1,44 @@
++package com.msp1974.vacompanion.wakeword
++
++import kotlinx.coroutines.CoroutineScope
++import kotlinx.coroutines.CoroutineStart
++import kotlinx.coroutines.Job
++import kotlinx.coroutines.NonCancellable
++import kotlinx.coroutines.cancelAndJoin
++import kotlinx.coroutines.currentCoroutineContext
++import kotlinx.coroutines.ensureActive
++import kotlinx.coroutines.launch
++import kotlinx.coroutines.sync.Mutex
++import kotlinx.coroutines.sync.withLock
++import kotlinx.coroutines.withContext
++import kotlinx.coroutines.withTimeout
++
++/** A replacement may start only after the previous collection and its cleanup finish. */
++internal class WakeWordSession(
++    private val scope: CoroutineScope,
++    private val stopTimeoutMs: Long = 5_000,
++) {
++    private val mutex = Mutex()
++    private var worker: Job? = null
++
++    suspend fun replace(block: suspend CoroutineScope.() -> Unit) = mutex.withLock {
++        stopLocked()
++        currentCoroutineContext().ensureActive()
++        scope.coroutineContext.ensureActive()
++        worker = scope.launch(start = CoroutineStart.LAZY, block = block).also { it.start() }
++    }
++
++    suspend fun stop() = withContext(NonCancellable) {
++        mutex.withLock { stopLocked() }
++    }
++
++    private suspend fun stopLocked() {
++        val previous = worker ?: return
++        // isActive becomes false before finally/child cleanup finishes. Join even then.
++        // A timeout retains ownership and propagates: never overlap a replacement.
++        withContext(NonCancellable) {
++            withTimeout(stopTimeoutMs) { previous.cancelAndJoin() }
++        }
++        worker = null
++    }
++}
+diff --git a/app/src/test/java/com/msp1974/vacompanion/wakeword/WakeWordSessionTest.kt b/app/src/test/java/com/msp1974/vacompanion/wakeword/WakeWordSessionTest.kt
+new file mode 100644
+index 0000000..e86caf8
+--- /dev/null
++++ b/app/src/test/java/com/msp1974/vacompanion/wakeword/WakeWordSessionTest.kt
+@@ -0,0 +1,185 @@
++package com.msp1974.vacompanion.wakeword
++
++import java.util.concurrent.atomic.AtomicInteger
++import kotlinx.coroutines.CompletableDeferred
++import kotlinx.coroutines.CoroutineScope
++import kotlinx.coroutines.Dispatchers
++import kotlinx.coroutines.Job
++import kotlinx.coroutines.NonCancellable
++import kotlinx.coroutines.SupervisorJob
++import kotlinx.coroutines.TimeoutCancellationException
++import kotlinx.coroutines.async
++import kotlinx.coroutines.awaitCancellation
++import kotlinx.coroutines.cancelAndJoin
++import kotlinx.coroutines.currentCoroutineContext
++import kotlinx.coroutines.launch
++import kotlinx.coroutines.runBlocking
++import kotlinx.coroutines.withContext
++import kotlinx.coroutines.withTimeout
++import org.junit.Assert.*
++import org.junit.Test
++
++class WakeWordSessionTest {
++    private class Fixture(timeoutMs: Long = 2_000) {
++        val parent = SupervisorJob()
++        val scope = CoroutineScope(parent + Dispatchers.Default)
++        val session = WakeWordSession(scope, timeoutMs)
++        val entered = CompletableDeferred<Job>()
++        val cleaning = CompletableDeferred<Unit>()
++        val finishCleanup = CompletableDeferred<Unit>()
++        val closes = AtomicInteger()
++
++        suspend fun start() = session.replace {
++            try {
++                entered.complete(currentCoroutineContext()[Job]!!)
++                awaitCancellation()
++            } finally {
++                withContext(NonCancellable) {
++                    cleaning.complete(Unit)
++                    finishCleanup.await()
++                    closes.incrementAndGet()
++                }
++            }
++        }
++
++        suspend fun dispose() {
++            finishCleanup.complete(Unit)
++            session.stop()
++            parent.cancelAndJoin()
++        }
++    }
++
++    @Test fun stopWaitsForCleanup() = runBlocking {
++        withTimeout(5_000) {
++            val f = Fixture()
++            try {
++                f.start()
++                f.entered.await()
++                val stopping = async { f.session.stop() }
++                f.cleaning.await()
++                assertFalse(stopping.isCompleted)
++                assertEquals(0, f.closes.get())
++                f.finishCleanup.complete(Unit)
++                stopping.await()
++                assertEquals(1, f.closes.get())
++            } finally { f.dispose() }
++        }
++    }
++
++    @Test fun replacementWaitsForPreviousCleanup() = runBlocking {
++        withTimeout(5_000) {
++            val f = Fixture()
++            try {
++                f.start()
++                f.entered.await()
++                val nextStarted = CompletableDeferred<Unit>()
++                val replacing = async {
++                    f.session.replace {
++                        assertEquals(1, f.closes.get())
++                        nextStarted.complete(Unit)
++                        awaitCancellation()
++                    }
++                }
++                f.cleaning.await()
++                assertFalse(nextStarted.isCompleted)
++                assertFalse(replacing.isCompleted)
++                f.finishCleanup.complete(Unit)
++                replacing.await()
++                nextStarted.await()
++            } finally { f.dispose() }
++        }
++    }
++
++    @Test fun cancelledButIncompleteWorkerIsStillJoined() = runBlocking {
++        withTimeout(5_000) {
++            val f = Fixture()
++            try {
++                f.start()
++                val worker = f.entered.await()
++                worker.cancel()
++                f.cleaning.await()
++                assertFalse(worker.isActive)
++                assertFalse(worker.isCompleted)
++                val stopping = async { f.session.stop() }
++                assertFalse(stopping.isCompleted)
++                f.finishCleanup.complete(Unit)
++                stopping.await()
++                assertTrue(worker.isCompleted)
++                assertEquals(1, f.closes.get())
++            } finally { f.dispose() }
++        }
++    }
++
++    @Test fun timeoutRetainsOwnershipAndPreventsReplacement() = runBlocking {
++        withTimeout(5_000) {
++            val f = Fixture(timeoutMs = 30)
++            try {
++                f.start()
++                f.entered.await()
++                try {
++                    f.session.stop()
++                    fail("Blocked cleanup must time out")
++                } catch (_: TimeoutCancellationException) { }
++                val nextStarted = CompletableDeferred<Unit>()
++                try {
++                    f.session.replace { nextStarted.complete(Unit) }
++                    fail("Replacement must not overlap timed-out cleanup")
++                } catch (_: TimeoutCancellationException) { }
++                assertFalse(nextStarted.isCompleted)
++                f.finishCleanup.complete(Unit)
++                f.session.stop()
++                f.session.replace { nextStarted.complete(Unit) }
++                nextStarted.await()
++                assertEquals(1, f.closes.get())
++            } finally { f.dispose() }
++        }
++    }
++
++    @Test fun repeatedStopClosesOnlyOnce() = runBlocking {
++        withTimeout(5_000) {
++            val f = Fixture()
++            try {
++                f.start()
++                f.entered.await()
++                f.finishCleanup.complete(Unit)
++                f.session.stop()
++                f.session.stop()
++                assertEquals(1, f.closes.get())
++            } finally { f.dispose() }
++        }
++    }
++
++    @Test fun parentCancellationClosesOwnedWorker() = runBlocking {
++        withTimeout(5_000) {
++            val f = Fixture()
++            try {
++                f.start()
++                f.entered.await()
++                f.parent.cancel()
++                f.cleaning.await()
++                assertFalse(f.parent.isCompleted)
++                f.finishCleanup.complete(Unit)
++                f.parent.join()
++                assertEquals(1, f.closes.get())
++                assertFalse(f.parent.children.any())
++            } finally { f.dispose() }
++        }
++    }
++
++    @Test fun cancellingStopCallerDoesNotAbandonCleanup() = runBlocking {
++        withTimeout(5_000) {
++            val f = Fixture()
++            try {
++                f.start()
++                f.entered.await()
++                val stopping = launch { f.session.stop() }
++                f.cleaning.await()
++                stopping.cancel()
++                assertFalse(stopping.isCompleted)
++                f.finishCleanup.complete(Unit)
++                stopping.join()
++                assertEquals(1, f.closes.get())
++            } finally { f.dispose() }
++        }
++    }
++}
+diff --git a/app/src/test/java/com/msp1974/vacompanion/wakeword/WakeWordStartSelectionTest.kt b/app/src/test/java/com/msp1974/vacompanion/wakeword/WakeWordStartSelectionTest.kt
+new file mode 100644
+index 0000000..42dcd88
+--- /dev/null
++++ b/app/src/test/java/com/msp1974/vacompanion/wakeword/WakeWordStartSelectionTest.kt
+@@ -0,0 +1,39 @@
++package com.msp1974.vacompanion.wakeword
++
++import org.junit.Assert.*
++import org.junit.Test
++
++class WakeWordStartSelectionTest {
++    private val models = setOf("myshka", "hey_jarvis")
++    private val engines = listOf("openwakeword", "openwakeword_rt", "microwakeword")
++
++    @Test fun disabledEngineNeverStartsEvenWithValidModels() {
++        assertNull(WakeWordSelection.forEngine("none", "myshka", "hey_jarvis", models))
++    }
++
++    @Test fun blankOrNonePrimaryDisablesEveryEngine() {
++        for (engine in engines) for (primary in listOf("", " ", "none")) {
++            assertNull(WakeWordSelection.forEngine(engine, primary, "hey_jarvis", models))
++        }
++    }
++
++    @Test fun missingPrimaryDoesNotPromoteJarvisIntoOpenWakeWord() {
++        for (engine in listOf("openwakeword", "openwakeword_rt")) {
++            assertNull(WakeWordSelection.forEngine(engine, "missing", "hey_jarvis", models))
++            assertNull(WakeWordSelection.forEngine(engine, "myshka", null, emptySet()))
++        }
++    }
++
++    @Test fun microWakeWordRetainsAvailableSecondaryFallback() {
++        assertEquals(listOf("hey_jarvis"),
++            WakeWordSelection.forEngine("microwakeword", "missing", "hey_jarvis", models))
++        assertNull(WakeWordSelection.forEngine("microwakeword", "missing", null, models))
++    }
++
++    @Test fun exactPrimaryStaysSingleForSeparateManifestValidation() {
++        assertEquals(listOf("myshka"),
++            WakeWordSelection.forEngine("openwakeword", "myshka", "hey_jarvis", models))
++        assertEquals(listOf("myshka", "hey_jarvis"),
++            WakeWordSelection.forEngine("microwakeword", "myshka", "hey_jarvis", models))
 +    }
 +}

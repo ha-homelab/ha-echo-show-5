@@ -19,11 +19,12 @@ diagnostics must also be reviewed for each assessment update.
 
 ## Current Android source builds
 
-The [required Android job](../.github/workflows/android-source-builds.yml)
+The [required Android job](https://github.com/ha-homelab/ha-echo-show-5/blob/main/.github/workflows/android-source-builds.yml)
 builds both maintained patch sets against their exact documented upstream
-commits. The VACA builder applies the current dual-wake patch, requires all
-twenty-one JVM tests including real TLS rejection/positive controls, compiles the ARMv7 APK and verifies package/version/ABI/signature
-with an ephemeral CI-only signing identity. CI retains only its public build
+commits. The VACA builder applies the current dual-wake patch, requires the complete
+JVM regression suite, including real TLS rejection/positive controls, and compiles the ARMv7 APK and verifies package/version/ABI/signature
+with an ephemeral CI-only signing identity. The [wake build guide](../integrations/vaca-dual-wake/README.md)
+links each dated build receipt and its actual test count. CI retains only its public build
 receipt, never the key or APK. The OTT job applies both current patches, runs
 their source regressions and compiles/audits the unsigned Full APK, including
 the HTTPS hardening absent from the historical installed build.

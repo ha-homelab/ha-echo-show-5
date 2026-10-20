@@ -1,19 +1,20 @@
 # Changelog
 
-## [Unreleased]
+## [0.1.4] - Unreleased
 
 ### Added
 
 - Optional **Hey Jarvis** activation alongside the existing exact ONNX
-  **Privet Myshka** path in VACA `0.13.4+myshka.7` (7007). One microphone
+  **Privet Myshka** path in VACA `0.13.4+myshka.8` (7008). One microphone
   supplies both paths; Jarvis shares the existing MicroFrontend with local
   Stop. Stop remains a separate playback command.
 - Preserve Jarvis's calibrated decision: mean probability over five model
   evaluations must be strictly greater than 0.97. Myshka retains its separate
   0.50 threshold, and both activation phrases share the existing cooldown.
-- Require 42 passing JVM tests, including auxiliary selection, routing and
-  decision-preservation regressions. Add Android checks for shared-frontend
-  parity, synthetic Jarvis activation and detector cleanup.
+- Require 54 passing JVM tests, including auxiliary selection, routing,
+  decision preservation, listener cancellation and disabled-model regressions.
+  Add Android checks for shared-frontend parity, synthetic Jarvis activation
+  and detector cleanup.
 
 ### Documentation
 
@@ -21,6 +22,22 @@
   processing diagram, and updated entry points in all five README languages.
 - Separate current build and device evidence from the earlier single-phrase
   checkpoints. Synthetic replay does not establish spoken recognition in a room.
+- Include the referenced guides and illustrations in the source archive and
+  check local documentation links after extraction.
+
+### Fixed
+
+- Wait for the previous wake listener to finish cleanup before starting its
+  replacement; release the handler's controller when it stops.
+- Keep a disabled wake listener idle and avoid constructing an OpenWakeWord
+  engine when its primary model is unavailable. Preserve the existing
+  microWakeWord fallback to a valid secondary model.
+- Keep temporary packaging repositories from running automatic Git maintenance
+  during test cleanup.
+
+### Changed
+
+- Update the pinned CodeQL actions to 4.39.0.
 
 ### Upgrade
 
@@ -29,6 +46,13 @@ private backup, and follow the [mixed-wake update procedure](docs/wiki/Mixed-wak
 The optional secondary selection can be removed without downgrading the APK
 or replacing the exact Myshka model. Existing TLS verification, primary manifest
 validation and selected Home Assistant speech services remain unchanged.
+
+### Security
+
+The beta distributes the integration-source suite. It excludes firmware, APKs,
+private models, recordings, credentials and signing keys. Existing artifact
+checksums, TLS checks and release provenance gates remain required. Physical
+voice acceptance and updates to unavailable devices remain separate work.
 
 ## [0.1.3] - 2026-10-18
 

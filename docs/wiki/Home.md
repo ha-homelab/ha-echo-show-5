@@ -4,42 +4,25 @@
 
 This wiki is versioned with the code under `docs/wiki/`. It describes the **Echo Show 5 Gen2 / 2021 / `cronos`** route. It is readable in a local checkout and on GitHub without enabling the separate GitHub Wiki feature. Detailed instructions and evidence remain linked at their source rather than copied into conflicting procedures.
 
-## October 19: two activation phrases on Show 1
+## October 20: listener lifecycle verified on Show 1
 
-Show 1 runs **`myshka.7` / `7007`** with exact ONNX **“Привет, мышка” at 0.50**
-and optional bundled **“Hey Jarvis”**, using a strict five-evaluation mean
-**> 0.97**. One microphone supplies both paths; Jarvis shares the existing
-MicroFrontend with Stop, which remains a separate playback command.
+Show 1 runs **`myshka.8` / `7008`** with **“Привет, мышка” at 0.50** and optional
+**“Hey Jarvis”** with its independent five-evaluation mean **> 0.97**. The update
+fixes listener replacement and disabled-primary handling. The build passed
+54 JVM tests; device checks covered six Android tests, configuration changes
+without restarting the app, the None primary, three microphone mute/unmute
+cycles and a normal restart. Settings were preserved. **Show 2 remains
+unavailable, last verified on `.4`; physical speech acceptance remains pending.**
+See the [mixed-wake guide](Mixed-wake-words.md) and [dated measurements](Validation.md#october-20-lifecycle-checkpoint).
 
-The retained-key build passed **42 JVM tests**. Show 1 passed **six Android
-tests**, **three actual microphone mute/unmute cycles** and an **app restart**;
-both activation models, Stop and HTTPS authentication recovered with settings
-preserved. **Show 2 remains unavailable, last verified on `.4`.** Physical speech
-acceptance remains pending. See the [opt-in and rollback guide](Mixed-wake-words.md)
-and [measured results](Validation.md#october-19-mixed-wake-checkpoint).
+## Historical checkpoints
 
-## October 19: earlier myshka.6 checkpoint
+- [October 19 `.6` checkpoint](Validation.md#october-19-current-checkpoint): the preceding Show 1 update and separate voice-backend checks.
+- [October 16 exact Myshka rollout](Wake-model-rollout.md): `.3` reference replay and lifecycle results on both Shows, followed by the `.4` inventory fix on Show 2.
+- [October 15 display and dual-wake baseline](Process-and-results.md): the earlier microWakeWord pair, clock localization and startup recovery.
 
-Show 1 received the retained-key **`myshka.6` / `7006`** update, with **29 JVM
-tests and three Android instrumentation tests passed**. HTTPS authentication,
-the single Myshka model and microphone inference were observed. Show 2 is
-currently unreachable and remains last verified on `.4`. The
-[earlier .6 validation](Validation.md#october-19-current-checkpoint)
-separates device checks, voice-backend checks and pending physical acceptance.
-
-## October 16: new wake-model trial
-
-**PR #69 follow-up: `myshka.4` / `7004` is installed and locally verified on Show 2.** The original signing certificate is retained and all 18 JVM tests pass. Show 2 passed the targeted Android inventory regression: one test covering five metadata cases in 0.624 seconds. Invalid optional metadata no longer aborts the model inventory; engine loading still rejects invalid assets. Show 2 also passed one actual microphone close/reopen cycle and a normal app restart, preserving settings, brightness, permissions and authenticated nonroot ADB. End-to-end voice acceptance remains pending. At that October 16 checkpoint, Show 1 was unreachable and remained last verified on `.3`. The `.3` fixture and lifecycle observations below remain a separate historical record.
-
-### Verified myshka.3 baseline
-
-**APK installed and reference replay passed on both Shows.** VACA `0.13.4+myshka.3` / `7003` passed 18 JVM tests. Each device also passed two Android instrumentation tests using four existing private fixtures: **294 embeddings, 234 classifier windows and 11 positive windows**, with all threshold decisions matching the reference. This is file-based inference evidence, not a room recording or acoustic acceptance.
-
-At the October 16 checkpoint, both Shows were configured for only **“Привет, мышка”** at **0.50** (**5.0 in HA**) through the exact ONNX frontend, with “Hey Jarvis” removed from the active selection and the separate Stop command retained. **Both passed three microphone mute/unmute cycles with verified capture closure/reopening, plus a normal app restart.** HA settings, brightness, permissions and nonroot ADB were preserved. Spoken activation, audible answers, distance, Stop during playback, power-loss recovery and a multi-day soak remain pending.
-
-![One capture stream feeds the exact ONNX activation pipeline and the separate Stop detector. Audio chunk size does not measure wake latency.](../assets/exact-oww-pipeline.svg)
-
-[Wake-model rollout: process and results](Wake-model-rollout.md) tracks the new trial and its evidence gates. [Conversion process and results](Process-and-results.md) retains the earlier conversion, display and dual-wake milestones.
+These dated records retain the original versions, measurements and acceptance
+limits. They do not establish a new build or current availability of either device.
 
 ## Pick a task
 

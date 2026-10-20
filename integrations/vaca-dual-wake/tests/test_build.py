@@ -301,7 +301,41 @@ class MetadataTests(unittest.TestCase):
                 '<testsuite name="com.msp1974.vacompanion.wakeword.WakeWordDetectionDecisionTest" tests="6" failures="0" errors="0" skipped="0">'
                 + ''.join('<testcase name="' + name + '"/>' for name in decision_names)
                 + '</testsuite>')
-            self.assertEqual(build.test_totals(src)['tests'], 42)
+            with self.assertRaises(build.BuildError):
+                build.test_totals(src)
+            lifecycle = reports / 'TEST-lifecycle.xml'
+            lifecycle_names = (
+                'stopWaitsForCleanup',
+                'replacementWaitsForPreviousCleanup',
+                'cancelledButIncompleteWorkerIsStillJoined',
+                'timeoutRetainsOwnershipAndPreventsReplacement',
+                'repeatedStopClosesOnlyOnce',
+                'parentCancellationClosesOwnedWorker',
+                'cancellingStopCallerDoesNotAbandonCleanup',
+            )
+            lifecycle.write_text(
+                '<testsuite name="com.msp1974.vacompanion.wakeword.WakeWordSessionTest" tests="7" failures="0" errors="0" skipped="0">'
+                + ''.join('<testcase name="' + name + '"/>' for name in lifecycle_names)
+                + '</testsuite>')
+            selection = reports / 'TEST-selection.xml'
+            selection_names = (
+                'disabledEngineNeverStartsEvenWithValidModels',
+                'blankOrNonePrimaryDisablesEveryEngine',
+                'missingPrimaryDoesNotPromoteJarvisIntoOpenWakeWord',
+                'microWakeWordRetainsAvailableSecondaryFallback',
+                'exactPrimaryStaysSingleForSeparateManifestValidation',
+            )
+            selection.write_text(
+                '<testsuite name="com.msp1974.vacompanion.wakeword.WakeWordStartSelectionTest" tests="5" failures="0" errors="0" skipped="0">'
+                + ''.join('<testcase name="' + name + '"/>' for name in selection_names)
+                + '</testsuite>')
+            self.assertEqual(build.test_totals(src)['tests'], 54)
+            for required_report, required_name in ((lifecycle, 'cancelledButIncompleteWorkerIsStillJoined'), (selection, 'blankOrNonePrimaryDisablesEveryEngine')):
+                original = required_report.read_text()
+                required_report.write_text(original.replace(required_name, 'unrelatedTest'))
+                with self.assertRaises(build.BuildError):
+                    build.test_totals(src)
+                required_report.write_text(original)
             original = auxiliary.read_text()
             auxiliary.write_text(original.replace('jarvisUsesWakeRouteAndPreservesBothTemporalDecisions', 'unrelatedTest'))
             with self.assertRaises(build.BuildError):
@@ -318,8 +352,8 @@ class ApkValidationTests(unittest.TestCase):
         self.fingerprint = 'a' * 64
         self.signature = 'Signer #1 certificate SHA-256 digest: ' + self.fingerprint + '\n'
         self.manifest = (
-            "package: name='com.msp1974.vacompanion' versionCode='7007' "
-            "versionName='0.13.4+myshka.7' platformBuildVersionName='16'\n"
+            "package: name='com.msp1974.vacompanion' versionCode='7008' "
+            "versionName='0.13.4+myshka.8' platformBuildVersionName='16'\n"
             "native-code: 'armeabi-v7a'\n"
         )
 
@@ -368,7 +402,7 @@ class ApkValidationTests(unittest.TestCase):
 
     def test_stale_version_is_rejected(self):
         """Reject a previous build version even when its signing identity and ABI match."""
-        self.manifest = self.manifest.replace('7007', '7006')
+        self.manifest = self.manifest.replace('7008', '7007')
         with self.assertRaises(build.BuildError):
             self.validate()
 
