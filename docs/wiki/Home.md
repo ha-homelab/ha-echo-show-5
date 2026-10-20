@@ -4,9 +4,18 @@
 
 This wiki is versioned with the code under `docs/wiki/`. It describes the **Echo Show 5 Gen2 / 2021 / `cronos`** route. It is readable in a local checkout and on GitHub without enabling the separate GitHub Wiki feature. Detailed instructions and evidence remain linked at their source rather than copied into conflicting procedures.
 
+## October 19: current checkpoint
+
+Show 1 received the retained-key **`myshka.6` / `7006`** update, with **29 JVM
+tests and three Android instrumentation tests passed**. HTTPS authentication,
+the single Myshka model and microphone inference were observed. Show 2 is
+currently unreachable and remains last verified on `.4`. The
+[current validation record](Validation.md#october-19-current-checkpoint)
+separates device checks, voice-backend checks and pending physical acceptance.
+
 ## October 16: new wake-model trial
 
-**PR #69 follow-up: `myshka.4` / `7004` is installed and locally verified on Show 2.** The original signing certificate is retained and all 18 JVM tests pass. Show 2 passed the targeted Android inventory regression: one test covering five metadata cases in 0.624 seconds. Invalid optional metadata no longer aborts the model inventory; engine loading still rejects invalid assets. Show 2 also passed one actual microphone close/reopen cycle and a normal app restart, preserving settings, brightness, permissions and authenticated nonroot ADB. End-to-end voice acceptance remains pending. Show 1 is unreachable and remains last verified on `.3`. The `.3` fixture and lifecycle observations below remain a separate historical record.
+**PR #69 follow-up: `myshka.4` / `7004` is installed and locally verified on Show 2.** The original signing certificate is retained and all 18 JVM tests pass. Show 2 passed the targeted Android inventory regression: one test covering five metadata cases in 0.624 seconds. Invalid optional metadata no longer aborts the model inventory; engine loading still rejects invalid assets. Show 2 also passed one actual microphone close/reopen cycle and a normal app restart, preserving settings, brightness, permissions and authenticated nonroot ADB. End-to-end voice acceptance remains pending. At that October 16 checkpoint, Show 1 was unreachable and remained last verified on `.3`. The `.3` fixture and lifecycle observations below remain a separate historical record.
 
 ### Verified myshka.3 baseline
 

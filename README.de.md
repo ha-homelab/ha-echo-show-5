@@ -17,11 +17,17 @@ Die echte Uhrseite `20261015-r11`, aufgenommen in Desktop-Chrome mit
 960 × 480 und der Beispielkonfiguration. Ohne Home-Assistant-Anmeldung, Kamera
 oder Gerät. Ein Klick öffnet das flache Original.
 
+## 19. Oktober: aktueller Stand
+
+Auf Show 1 ist **VACA `0.13.4+myshka.6` / `7006`** mit dem bisherigen Signaturzertifikat installiert. **29 JVM-Tests** und **drei Android-Instrumentierungstests** bestanden. Beim Abspielen der vier vorhandenen privaten Testdateien entsprachen alle Schwellwertentscheidungen der Referenz. „Привет, мышка“ mit dem Schwellwert **0,50** und der separate Stop-Detektor sind geladen; die Mikrofonerfassung ist aktiv. Ein Stummschaltzyklus bestätigte das Schließen und Wiederöffnen der Mikrofonerfassung, ein normaler App-Neustart die erneute HTTPS-Authentifizierung; HA-Einstellungen, manuelle Helligkeit 255, Berechtigungen und abgesichertes ADB ohne Root blieben erhalten.
+
+Show 2 ist derzeit weder über das Netzwerk noch in HA erreichbar; sein zuletzt geprüfter Stand ist **`.4`**. Die Backend-Prüfung lieferte eine Antwort auf eine mit nativen HA-Funktionen bearbeitete Textanfrage und lud Silero-Sprachausgabe herunter; die gesamte Serverprüfung von der Textanfrage bis zum Herunterladen der Sprachausgabe dauerte **4,481 s**. Dies belegt weder eine hörbare Antwort noch die Erkennung einer gesprochenen Phrase im Raum. **Die praktische Sprachprüfung steht weiterhin aus.** Aktuelle Ergebnisse und Prüfgrenzen stehen im [Prüfprotokoll vom 19. Oktober](docs/wiki/Validation.md#october-19-current-checkpoint). Die folgenden Ergebnisse gelten für die jeweils genannten Daten und Versionen.
+
 ## 16. Oktober: Versuch mit einer ONNX-Aktivierungsphrase
 
 ### Nachbesserung in PR #69: myshka.4
 
-**`0.13.4+myshka.4` / `7004` ist auf Show 2 installiert und lokal geprüft.** Das bisherige Signaturzertifikat bleibt erhalten, alle **18 JVM-Tests** bestehen. Show 2 bestand die gezielte Android-Regression für die Modellliste: **ein Test, fünf Metadatenfälle, 0,624 Sekunden**. Ungültige optionale Metadaten lassen eigene Modelle nicht mehr aus der Liste verschwinden; das Laden der Engine lehnt ungültige Dateien weiterhin ab. Show 2 bestand außerdem einen Zyklus mit tatsächlichem Schließen und Wiederöffnen der Mikrofonerfassung sowie einen normalen App-Neustart. Einstellungen, Helligkeit, Berechtigungen und authentifiziertes ADB ohne Root blieben erhalten. Die Prüfung des vollständigen Sprachablaufs steht aus. Show 1 ist nicht erreichbar und wurde zuletzt mit `.3` geprüft. Der nachfolgende `.3`-Referenzvergleich belegt keinen erneuten Vergleich unter `.4`.
+**`0.13.4+myshka.4` / `7004` ist auf Show 2 installiert und lokal geprüft.** Das bisherige Signaturzertifikat bleibt erhalten, alle **18 JVM-Tests** bestehen. Show 2 bestand die gezielte Android-Regression für die Modellliste: **ein Test, fünf Metadatenfälle, 0,624 Sekunden**. Ungültige optionale Metadaten lassen eigene Modelle nicht mehr aus der Liste verschwinden; das Laden der Engine lehnt ungültige Dateien weiterhin ab. Show 2 bestand außerdem einen Zyklus mit tatsächlichem Schließen und Wiederöffnen der Mikrofonerfassung sowie einen normalen App-Neustart. Einstellungen, Helligkeit, Berechtigungen und authentifiziertes ADB ohne Root blieben erhalten. Die Prüfung des vollständigen Sprachablaufs steht aus. Bei der Prüfung am 16. Oktober war Show 1 nicht erreichbar; der damals zuletzt geprüfte Stand war `.3`. Der nachfolgende `.3`-Referenzvergleich belegt keinen erneuten Vergleich unter `.4`.
 
 ### Geprüfter Stand von myshka.3
 
