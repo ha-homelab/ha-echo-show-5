@@ -61,11 +61,23 @@ One repeat with the resident Ollama model and a 120-second probe budget
 completed at **43.045 seconds**, and **8,876 bytes** of speech were downloaded by
 **56.570 seconds**. The response came from the conversation model rather than a
 native intent. HA-to-Ollama HTTP checks completed in about half a second; logs
-showed slow CPU prompt processing. The installed HA default pipeline timeout
-was **300 seconds**, unchanged. The model path functions but remains slow for
-interactive voice; the native-intent timing must not be presented as its latency.
-These checks did not exercise speech recognition, the Show microphone or
-audible playback. Pipeline definitions were unchanged.
+showed slow CPU prompt processing: only 1,024 of 1,418 prompt tokens were cached,
+leaving 394 to evaluate.
+
+A subsequent **new arithmetic question**, after that completed request, reused
+**1,407 of 1,419 prompt tokens**. It produced the first model output at **3.515
+seconds**, completed the intent/TTS events at **8.479 seconds**, and downloaded
+**22,484 bytes** of correct Russian speech by **12.495 seconds**. Configuration
+and model selection were unchanged. This improvement reflects prompt-cache
+state, not an applied optimization or a guaranteed response time. A resident
+model alone does not establish a warm prompt cache; the first request and
+requests with changed context can be substantially slower.
+
+The installed HA default pipeline timeout was **300 seconds**, unchanged.
+The native-intent timing must not be presented as model latency, and TTS URL
+availability must not be presented as completed speech delivery. These checks
+did not exercise speech recognition, the Show microphone or audible playback.
+Pipeline definitions were unchanged.
 
 Physical wake recognition, audible replies, Stop during playback, fresh
 three-metre tests, power-loss recovery and a longer soak remain separate
