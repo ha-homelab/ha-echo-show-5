@@ -71,6 +71,30 @@ class VoiceValidationTest(unittest.TestCase):
                 voice.render_package(c)
 
 
+@unittest.skipUnless(HA_AVAILABLE, "Requires HA runtime for dependency validation")
+class VoiceRuntimeDependenciesTest(unittest.TestCase):
+    def test_conversation_requirements_match_installed_runtime(self):
+        """Component dependencies are not part of HA's base package metadata."""
+        from importlib.metadata import version
+        from importlib.resources import files
+        from packaging.requirements import Requirement
+
+        manifest = json.loads(
+            files("homeassistant").joinpath("components/conversation/manifest.json")
+            .read_text(encoding="utf-8")
+        )
+        for value in manifest["requirements"]:
+            requirement = Requirement(value)
+            if requirement.marker and not requirement.marker.evaluate():
+                continue
+            with self.subTest(package=requirement.name):
+                self.assertIn(
+                    version(requirement.name), requirement.specifier,
+                    "Align requirements-voice.in with the installed HA conversation "
+                    "manifest and regenerate requirements-voice.txt.",
+                )
+
+
 @unittest.skipUnless(HA_AVAILABLE, "Requires deployed HA runtime for isolated execution")
 class VoiceRuntimeTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
