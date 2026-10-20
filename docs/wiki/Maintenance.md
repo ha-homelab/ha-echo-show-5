@@ -22,7 +22,7 @@ Before publishing, inspect the staged file list and diff. Ignore rules do not re
 
 ## Documentation layout and diagrams
 
-The four root README files are user entry points. `docs/wiki/` provides task-based navigation and links to canonical implementation runbooks. `docs/assets/` contains editable, accessible SVG diagrams with no remote fonts, scripts or embedded screenshots. Keep diagram text and its surrounding prose aligned when a data path changes.
+The five root README files are user entry points. `docs/wiki/` provides task-based navigation and links to canonical implementation runbooks. `docs/assets/` contains editable, accessible SVG diagrams with no remote fonts, scripts or embedded screenshots. Keep diagram text and its surrounding prose aligned when a data path changes.
 
 Validation records must identify their date and scope. Keep historical observations as historical; link a newer record rather than rewriting an old test as if it ran against a later build. Do not graph service latency samples as an acoustic benchmark or invent uptime/accuracy percentages without a measured dataset.
 
