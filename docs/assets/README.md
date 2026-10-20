@@ -24,6 +24,18 @@ The [process and results page](../wiki/Process-and-results.md) supplies a text e
 
 The [wake-model rollout page](../wiki/Wake-model-rollout.md) provides text equivalents and the dated result. The older diagrams above remain snapshots of the October 15 dual-wake/display work; new source capability must not be confused with a verified installation.
 
+## Mixed activation — myshka.7
+
+- [Mixed wake pipeline](mixed-wake-pipeline.svg): one microphone supplies the
+  unchanged exact Myshka frontend and the existing MicroFrontend, shared by
+  optional bundled Hey Jarvis and Stop. Separate thresholds, the common cooldown
+  and the reversible app-private opt-in are explicit.
+
+The [mixed-wake guide](../wiki/Mixed-wake-words.md) supplies the text equivalent
+and acceptance procedure. This architecture diagram is not a build receipt,
+installed-device result or new latency/accuracy measurement. The October 16
+single-phrase diagrams above remain historical.
+
 ## Editing and verification
 
 Keep the SVG `viewBox`, accessible `<title>` and `<desc>`, `role="img"` and `aria-labelledby` references valid. Explain differences using text and structure as well as color. Use explicit line breaks, adequate contrast and native shapes; avoid scripts, external resources and embedded HTML.

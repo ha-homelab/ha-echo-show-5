@@ -2,21 +2,29 @@
 
 [Wiki home](Home.md) · [Voice configuration](Voice-and-wake-words.md) · [Technical runbook](../openwakeword-myshka.md) · [Validation](Validation.md)
 
-The October 16 work adds an exact ONNX feature pipeline for a privately trained **“Привет, Мышка” (Privet Myshka)** activation model. The intended configuration has one activation phrase. The bundled **Stop** command remains separate, consuming the same microphone samples. This page explains the change, the installation gates and what the evidence establishes.
+**Current mixed activation:** [myshka.7](Mixed-wake-words.md) keeps the exact
+Myshka path and adds optional bundled Hey Jarvis through the existing Stop
+frontend. Show 1's installation, Android tests and microphone lifecycle have
+[separate dated evidence](Validation.md#october-19-mixed-wake-checkpoint).
+This page preserves earlier single-phrase and conversion observations; they
+must not be relabeled as new build, device or acoustic results.
 
-**October 19 checkpoint:** Show 1 received the retained-key **`myshka.6` / `7006`**
+The October 16 work adds an exact ONNX feature pipeline for a privately trained **“Привет, Мышка” (Privet Myshka)** activation model. That trial used one activation phrase. The bundled **Stop** command remains separate, consuming the same microphone samples. This page explains the change, the installation gates and what the evidence establishes.
+
+**Earlier October 19 myshka.6 checkpoint:** Show 1 received the retained-key **`myshka.6` / `7006`**
 update, with **29 JVM tests and three Android instrumentation tests passed**.
 HTTPS authentication, the exact model and microphone inference were observed.
 Show 2 is currently unreachable and remains last verified on `.4`. The
 [dated validation record](Validation.md#october-19-current-checkpoint) includes
-the current device and backend checks; physical speech acceptance remains pending.
+the device and backend checks at that earlier checkpoint; physical speech acceptance remained pending.
 
 **October 16 baseline — PR #69 follow-up: `myshka.4` / `7004` was built with the retained certificate and 18 passing JVM tests.** The [build receipt](../../integrations/vaca-dual-wake/build-myshka.4.json) identifies the artifact. It prevents invalid optional metadata from breaking custom-model enumeration while preserving strict engine validation. Show 2 received the same-certificate `.4` update and passed the targeted Android inventory regression (one test, five metadata cases, 0.624 seconds); one actual microphone close/reopen cycle and a normal app restart also passed. Settings, brightness, permissions and authenticated nonroot ADB were preserved; end-to-end voice acceptance remained pending. At that October 16 checkpoint, Show 1 was unreachable and remained last verified on `.3`. The full `.3` replay below is not a claim of a new `.4` replay.
 
 **Historical `.3` baseline: installed and verified on both Shows; physical speech acceptance pending.** VACA **`0.13.4+myshka.3` / `7003`** builds for ARMv7 with the retained signing certificate. Its **18 JVM tests pass without failures or skips**. Each Show independently passed Android numerical replay, three microphone mute/unmute cycles and a normal app restart. These results do not establish physical speech recognition. See the dated [build receipt](../../integrations/vaca-dual-wake/build-myshka.3.json) and device observations below.
 
 The current [source builder](../../integrations/vaca-dual-wake/README.md) targets
-`myshka.6` / `7006` with TLS and typed-input repairs. This page preserves the
+`myshka.7` / `7007` with optional mixed activation. The earlier `.6` added
+TLS and typed-input repairs. This page preserves the
 `.3`/`.4` deployment history alongside the separate October 19 `.6` checkpoint.
 Use the [`.6` build receipt](../../integrations/vaca-dual-wake/build-myshka.6.json)
 and per-device results; earlier tests do not qualify a different artifact.
@@ -36,7 +44,7 @@ The **80 ms** chunk size describes audio framing, not the time until an answer. 
 ![Six rollout gates: identify and back up, verify the signed build, replay fixtures, activate one phrase, check runtime and lifecycle, then repeat and document; failure returns to the saved state.](../assets/wake-rollout.svg)
 
 1. **Identify and preserve.** Confirm the exact device and save its app-private state, previous signed APK and HA settings. Keep verified backup copies on two hosts.
-2. **Build, inspect and install.** Verify the pinned source, complete patch, package, version, architecture and retained certificate. Apply the [same-certificate APK update](../../integrations/vaca-dual-wake/README.md#install-a-same-certificate-update) and confirm that the installed package and version match the verified build receipt before its regression checks; the [current `.6` receipt](../../integrations/vaca-dual-wake/build-myshka.6.json) specifies version code `7006`. Retain the old wake selection until the required regression checks succeed.
+2. **Build, inspect and install.** Verify the pinned source, complete patch, package, version, architecture and retained certificate. Apply the [same-certificate APK update](../../integrations/vaca-dual-wake/README.md#install-a-same-certificate-update) and confirm that the installed package and version match the verified build receipt before its regression checks; the [historical `.6` receipt](../../integrations/vaca-dual-wake/build-myshka.6.json) specifies version code `7006`. Retain the old wake selection until the required regression checks succeed.
 3. **Run the checks appropriate to the change.** For an initial exact-frontend deployment or changed model assets, compare Android embeddings and scores with the reference using existing private audio fixtures. This reads files, not the room microphone. For `.3` → `.4` with the same verified assets, run the targeted inventory regression and update/lifecycle checks; keep the full `.3` replay recorded as historical evidence.
 4. **Preserve a correct selection; stop VACA before changing it.** After the checks, first wait for the current app process to finish satellite initialization and advertise its fresh model inventory to HA. The `.3` → `.4` inventory-only update does not require HA selection writes when `openwakeword`, the manifest-bound model, threshold 5.0 and absent secondary selection are already correct. If any selection needs changing, stop VACA first, save the complete selection and remove the secondary-model selection before relaunching. Separate live writes can expose an empty model list and terminate the upstream listener. Use the option actually advertised by HA: this integration title-cases the model ID rather than using the manifest’s Russian label.
 5. **Verify operation and preservation.** Observe advancing samples and classifier windows, measure processing time, exercise mute/unmute and app restart, and compare pipeline, permissions, screen and media settings.

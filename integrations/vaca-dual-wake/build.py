@@ -14,8 +14,8 @@ import xml.etree.ElementTree as ET
 
 COMMIT = '65906aebffd2f39772773b44729b22fd022a1f3c'
 UPSTREAM = 'https://github.com/msp1974/ViewAssistCompanionApp.git'
-VERSION_NAME = '0.13.4+myshka.6'
-VERSION_CODE = 7006
+VERSION_NAME = '0.13.4+myshka.7'
+VERSION_CODE = 7007
 ROOT = Path(__file__).resolve().parents[2]
 PATCH = Path(__file__).with_name('vaca-dual-wake.patch')
 
@@ -233,10 +233,25 @@ def test_totals(src):
         'com.msp1974.vacompanion.wakeword.openwakeword.ml.ScalarPredictionTest': {
             'acceptsSingleFiniteProbability', 'rejectsWrongTypesAndDimensions',
             'rejectsNonFiniteOrOutOfRangeScores'},
+        'com.msp1974.vacompanion.wakeword.openwakeword.ExactAuxiliaryWakePolicyTest': {
+            'exactPrimaryCanOptIntoBundledJarvis',
+            'missingDisabledAndUnknownSecondaryKeepAuxiliaryOff',
+            'absentOrDisabledPrimaryCannotLeaveJarvisListeningAlone',
+            'legacyOrDuplicatePrimaryCannotEnableExactAuxiliary',
+            'stopAlwaysUsesStopRouteAndRetainsLegacyThresholdSemantics',
+            'jarvisUsesWakeRouteAndPreservesBothTemporalDecisions',
+            'disabledAndUnknownModelsCannotGenerateActivationEvents'},
+        'com.msp1974.vacompanion.wakeword.WakeWordDetectionDecisionTest': {
+            'exactPrimaryKeepsInclusiveRawThreshold',
+            'changingGlobalThresholdStillAppliesToModelsWithoutTemporalGate',
+            'isolatedHighJarvisScoreCannotBypassTemporalGate',
+            'calibratedTemporalDecisionIsNotRethresholded',
+            'nonFiniteOrOutOfRangeScoresAreRejectedEvenWithModelApproval',
+            'validScoreBoundariesRemainAcceptedWhenAppropriate'},
     }
-    if (totals['tests'] < 29 or totals['failures'] or totals['errors'] or totals['skipped']
+    if (totals['tests'] < 42 or totals['failures'] or totals['errors'] or totals['skipped']
             or any(not names.issubset(observed.get(suite, set())) for suite, names in required.items())):
-        raise BuildError('Expected the TLS and malformed-input cases, twenty-nine total JVM tests, and no failed/skipped tests')
+        raise BuildError('Expected the TLS, malformed-input and auxiliary-wake cases, forty-two total JVM tests, and no failed/skipped tests')
     return totals
 
 

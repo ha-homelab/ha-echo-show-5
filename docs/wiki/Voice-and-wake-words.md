@@ -4,13 +4,27 @@
 
 The wake detector decides **when to start listening for a command**. Speech recognition, intent/model processing and speech synthesis are separate HA stages. Changing a page's language or its displayed clock does not change any of those stages.
 
-## October 19 current checkpoint
+## October 19: two activation phrases on Show 1
+
+Show 1 runs **`myshka.7` / `7007`** with exact ONNX **“Привет, мышка” at 0.50**
+and optional bundled **“Hey Jarvis”**, using a strict five-evaluation mean
+**> 0.97**. One microphone supplies both paths; Jarvis shares the existing
+MicroFrontend with Stop, which remains a separate playback command.
+
+The retained-key build passed **42 JVM tests**. Show 1 passed **six Android
+tests**, **three actual microphone mute/unmute cycles** and an **app restart**;
+both activation models, Stop and HTTPS authentication recovered with settings
+preserved. **Show 2 remains unavailable, last verified on `.4`.** Physical speech
+acceptance remains pending. See the [opt-in and rollback guide](Mixed-wake-words.md)
+and [measured results](Validation.md#october-19-mixed-wake-checkpoint).
+
+## October 19: earlier myshka.6 checkpoint
 
 Show 1 received the retained-key **`myshka.6` / `7006`** update and passed three
 Android instrumentation tests after the build passed 29 JVM tests. The exact
 Myshka model at 0.50, local Stop and microphone inference were observed. Show 2
 is currently unavailable and remains last verified on `.4`. Read the
-[current validation record](Validation.md#october-19-current-checkpoint) for
+[earlier .6 validation](Validation.md#october-19-current-checkpoint) for
 separate device, voice-backend and physical-acceptance results. The October 19
 Show 1 check used its selected **Silero** voice; the Piper/Irina route documented
 below records an earlier configuration.
@@ -23,7 +37,7 @@ below records an earlier configuration.
 
 **APK installed and reference replay passed on both Shows.** VACA `0.13.4+myshka.3` / `7003` passed 18 JVM tests. Each device also passed two Android instrumentation tests using four existing private fixtures: **294 embeddings, 234 classifier windows and 11 positive windows**, with all threshold decisions matching the reference. This is file-based inference evidence, not a room recording or acoustic acceptance.
 
-Both Shows are configured for only **“Привет, мышка”** at **0.50** (**5.0 in HA**) through the exact ONNX frontend, with “Hey Jarvis” removed from the active selection and the separate Stop command retained. **Both passed three microphone mute/unmute cycles with verified capture closure/reopening, plus a normal app restart.** HA settings, brightness, permissions and nonroot ADB were preserved. Spoken activation, audible answers, distance, Stop during playback, power-loss recovery and a multi-day soak remain pending. The selected engine is `openwakeword`; the independent two-model microWakeWord capability remains available.
+At the October 16 checkpoint, both Shows were configured for only **“Привет, мышка”** at **0.50** (**5.0 in HA**) through the exact ONNX frontend, with “Hey Jarvis” removed from the active selection and the separate Stop command retained. **Both passed three microphone mute/unmute cycles with verified capture closure/reopening, plus a normal app restart.** HA settings, brightness, permissions and nonroot ADB were preserved. Spoken activation, audible answers, distance, Stop during playback, power-loss recovery and a multi-day soak remain pending. The selected engine is `openwakeword`; the independent two-model microWakeWord capability remains available.
 
 ![Exact ONNX pipeline: one microphone supplies aligned PCM to the activation frontend and separate Stop processing, while HA handles the subsequent voice request.](../assets/exact-oww-pipeline.svg)
 
@@ -41,7 +55,7 @@ HA's primary-model selector still chooses the first model. The optional second s
 {"id": "hey_jarvis"}
 ```
 
-The selected identifier must exist in the active engine's model inventory. Restart VACA after changing the file. Disabling the primary disables both; a duplicate or unsupported secondary is not a second detector. Other wake engines keep single-model behavior. Use the [implementation guide](../../integrations/vaca-dual-wake/README.md) for current selection validation and build details.
+The selected identifier must exist in the active engine's model inventory. Restart VACA after changing the file. Disabling the primary disables both; a duplicate or unsupported secondary is not a second detector. These are the historical microWakeWord-mode rules; `.7` adds the explicit [mixed exact path](Mixed-wake-words.md) with separate thresholds. Other generic wake engines keep single-model behavior. Use the [implementation guide](../../integrations/vaca-dual-wake/README.md) for current selection validation and build details.
 
 HA's threshold control uses a 0–10 scale: **3.5 in HA means 0.35 in the detector**. Lowering it can improve sensitivity and also increase accidental activations. It is not a measured confidence guarantee. Keep model files private, retain their hashes, and use deliberate positive/negative phrase tests before choosing a new threshold. The Russian model is not bundled with this repository; its spoken phrase does not let another operator reconstruct the trained model.
 

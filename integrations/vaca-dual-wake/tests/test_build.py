@@ -272,7 +272,41 @@ class MetadataTests(unittest.TestCase):
                                    '<testcase name="rejectsWrongTypesAndDimensions"/>'
                                    '<testcase name="rejectsNonFiniteOrOutOfRangeScores"/>'
                                    '</testsuite>')
-            self.assertEqual(build.test_totals(src)['tests'], 29)
+            with self.assertRaises(build.BuildError):
+                build.test_totals(src)
+            auxiliary = reports / 'TEST-auxiliary.xml'
+            auxiliary_names = (
+                'exactPrimaryCanOptIntoBundledJarvis',
+                'missingDisabledAndUnknownSecondaryKeepAuxiliaryOff',
+                'absentOrDisabledPrimaryCannotLeaveJarvisListeningAlone',
+                'legacyOrDuplicatePrimaryCannotEnableExactAuxiliary',
+                'stopAlwaysUsesStopRouteAndRetainsLegacyThresholdSemantics',
+                'jarvisUsesWakeRouteAndPreservesBothTemporalDecisions',
+                'disabledAndUnknownModelsCannotGenerateActivationEvents',
+            )
+            auxiliary.write_text(
+                '<testsuite name="com.msp1974.vacompanion.wakeword.openwakeword.ExactAuxiliaryWakePolicyTest" tests="7" failures="0" errors="0" skipped="0">'
+                + ''.join('<testcase name="' + name + '"/>' for name in auxiliary_names)
+                + '</testsuite>')
+            decisions = reports / 'TEST-decisions.xml'
+            decision_names = (
+                'exactPrimaryKeepsInclusiveRawThreshold',
+                'changingGlobalThresholdStillAppliesToModelsWithoutTemporalGate',
+                'isolatedHighJarvisScoreCannotBypassTemporalGate',
+                'calibratedTemporalDecisionIsNotRethresholded',
+                'nonFiniteOrOutOfRangeScoresAreRejectedEvenWithModelApproval',
+                'validScoreBoundariesRemainAcceptedWhenAppropriate',
+            )
+            decisions.write_text(
+                '<testsuite name="com.msp1974.vacompanion.wakeword.WakeWordDetectionDecisionTest" tests="6" failures="0" errors="0" skipped="0">'
+                + ''.join('<testcase name="' + name + '"/>' for name in decision_names)
+                + '</testsuite>')
+            self.assertEqual(build.test_totals(src)['tests'], 42)
+            original = auxiliary.read_text()
+            auxiliary.write_text(original.replace('jarvisUsesWakeRouteAndPreservesBothTemporalDecisions', 'unrelatedTest'))
+            with self.assertRaises(build.BuildError):
+                build.test_totals(src)
+            auxiliary.write_text(original)
             predictions.write_text(predictions.read_text().replace('rejectsWrongTypesAndDimensions', 'unrelatedTest'))
             with self.assertRaises(build.BuildError):
                 build.test_totals(src)
@@ -284,8 +318,8 @@ class ApkValidationTests(unittest.TestCase):
         self.fingerprint = 'a' * 64
         self.signature = 'Signer #1 certificate SHA-256 digest: ' + self.fingerprint + '\n'
         self.manifest = (
-            "package: name='com.msp1974.vacompanion' versionCode='7006' "
-            "versionName='0.13.4+myshka.6' platformBuildVersionName='16'\n"
+            "package: name='com.msp1974.vacompanion' versionCode='7007' "
+            "versionName='0.13.4+myshka.7' platformBuildVersionName='16'\n"
             "native-code: 'armeabi-v7a'\n"
         )
 
@@ -334,7 +368,7 @@ class ApkValidationTests(unittest.TestCase):
 
     def test_stale_version_is_rejected(self):
         """Reject a previous build version even when its signing identity and ABI match."""
-        self.manifest = self.manifest.replace('7006', '7005')
+        self.manifest = self.manifest.replace('7007', '7006')
         with self.assertRaises(build.BuildError):
             self.validate()
 
