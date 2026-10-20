@@ -4,7 +4,63 @@
 
 Each result needs a dated target, exact artifact or revision, method and limitation. Avoid a single “everything works” claim that mixes an automated test with an earlier physical observation on another build.
 
-## October 19 current checkpoint
+## October 19: mixed-wake checkpoint
+
+This checkpoint uses America/Los_Angeles dates; its machine receipts are from
+October 20 UTC.
+
+The [mixed-wake implementation](Mixed-wake-words.md) adds optional Hey Jarvis
+to the unchanged exact Myshka path. The retained-key **`0.13.4+myshka.7` / `7007`**
+build passed **42 JVM tests**, with no failures, errors or skips. The builder's
+**35 host regressions** and **six source-package checks** passed. Its
+[build receipt](../../integrations/vaca-dual-wake/build-myshka.7.json)
+records the artifact, source, patch and signing identity.
+
+Before installation, VACA was stopped for a consistent private app-data backup;
+copies on two hosts were verified by hash. The previous `.6` APK was retained.
+
+**Show 1 received the same-signer `.7` update and passed all six Android
+instrumentation tests in 19.668 seconds.** Its fresh process authenticated to
+HA over HTTPS. Replay of the existing Myshka fixtures produced **294 embeddings,
+234 classifier windows and 11 positive windows**, with every threshold decision
+matching the reference. Maximum absolute differences were **0.00007439** for
+embeddings and **0.0000068844** for classifier scores. Processing 23.520 seconds of fixture audio took
+**14.544 seconds**, including initialization; this is not wake latency.
+
+The shared Stop/Jarvis frontend matched independently constructed reference
+detectors over **2,344 windows per model**, with **zero score difference**.
+Three of four synthetic Jarvis voices produced accepted windows: **Samantha 8,
+Karen 8 and Moira 8**. Daniel produced none; its maximum score was **0.9609375**,
+below the calibrated 0.97 boundary. In total, **24 activation windows** passed
+the temporal gate, and **24 high-score windows were correctly rejected** by that
+gate. This checks routing and preservation of the model's decision. It is not
+100% recognition, a room recording or acoustic acceptance of either phrase.
+
+The enabled mixed configuration loaded exact Myshka at **0.50**, bundled Jarvis
+with its **five-evaluation mean strictly greater than 0.97** gate, and the
+separate Stop detector. **Three actual microphone mute/unmute cycles passed**:
+each stopped capture and restored all three models. Mean processing after the
+cycles was **53.664, 52.448 and 52.320 ms per 80 ms input chunk**. A normal app
+restart restored the same configuration, completed fresh HTTPS token refresh
+with certificate validation, and averaged **56.472 ms per 80 ms input**. These
+are short local processing observations, not wake/response latency or a soak.
+
+HA controls, the selected Local Russian Home pipeline, permissions, default
+launcher, manual brightness 255 and authenticated nonroot ADB were preserved.
+The final check found **exactly one unsilenced VACA microphone capture** and
+both activation models selected. The instrumentation APK, temporary fixtures
+and test caches were absent; all four private model/manifest files retained
+their expected hashes. No new room audio was recorded or played, and no
+shared speech-backend configuration was changed.
+
+**Show 2 remains unavailable and last verified on `.4`.** Physical recognition,
+audible replies, Stop during playback, distance, power-loss recovery and a
+longer soak remain separate acceptance work. Historical `.3`/`.4`/`.6` results
+below remain separate evidence.
+
+<a id="october-19-current-checkpoint"></a>
+
+## October 19: earlier myshka.6 checkpoint
 
 Dates in this checkpoint use America/Los_Angeles; the machine receipts are from
 October 20 UTC. The retained-key **`0.13.4+myshka.6` / `7006`** build passed

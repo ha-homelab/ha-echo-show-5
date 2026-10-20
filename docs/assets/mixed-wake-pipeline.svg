@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="790" viewBox="0 0 1200 790" role="img" aria-labelledby="title desc">
+  <title id="title">Myshka and optional Hey Jarvis: one microphone, two activation paths</title>
+  <desc id="desc">myshka.7 processing architecture. One microphone supplies unchanged exact ONNX preprocessing for private Myshka at threshold 0.50, and the existing MicroFrontend shared by optional bundled Hey Jarvis and local Stop. Jarvis needs mean probability strictly greater than 0.97 over five evaluations. Both activation phrases enter the same Home Assistant flow with a common two-second cooldown. Stop controls playback and is not an activation phrase. Build and device acceptance are separate.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#7895b4"/></marker>
+    <style>
+      text{font-family:Arial,Helvetica,sans-serif;fill:#e9f2ff}
+      .title{font-size:30px;font-weight:700}.subtitle{font-size:17px;fill:#b4c9e2}
+      .head{font-size:21px;font-weight:700}.body{font-size:17px}.small{font-size:15px;fill:#b4c9e2}
+      .line{fill:none;stroke:#7895b4;stroke-width:3;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1200" height="790" rx="24" fill="#0c1729"/>
+  <text class="title" x="40" y="55">Two phrases. One microphone.</text>
+  <text class="subtitle" x="40" y="85">myshka.7 architecture • see dated validation for build, device and acoustic evidence</text>
+
+  <rect x="40" y="152" width="230" height="145" rx="18" fill="#172c46" stroke="#54779d"/>
+  <text class="head" x="62" y="187">One AudioRecord</text>
+  <text class="body" x="62" y="220">16 kHz PCM capture</text>
+  <text class="small" x="62" y="248">Same samples to both paths</text>
+  <text class="small" x="62" y="274">No second microphone</text>
+
+  <rect x="330" y="130" width="460" height="170" rx="18" fill="#113c42" stroke="#43b7b1"/>
+  <text class="head" x="354" y="165">“Привет, мышка” • unchanged</text>
+  <text class="body" x="354" y="199">Exact ONNX frontend + private classifier</text>
+  <text class="body" x="354" y="230">Primary threshold 0.50 = HA control 5.0</text>
+  <text class="small" x="354" y="269">Existing manifest and hash-bound assets retained</text>
+
+  <rect x="330" y="355" width="460" height="228" rx="18" fill="#30284f" stroke="#a08ada"/>
+  <text class="head" x="354" y="390">Existing MicroFrontend</text>
+  <text class="small" x="354" y="416">One detector / frontend shared by both models</text>
+  <rect x="350" y="437" width="420" height="74" rx="12" fill="#473461"/>
+  <text class="body" x="367" y="464">Optional “Hey Jarvis” • bundled model</text>
+  <text class="small" x="367" y="490">Mean probability &gt; 0.97 over 5 evaluations</text>
+  <text class="body" x="354" y="549">Local Stop • playback control only</text>
+  <text class="small" x="354" y="571">Not a third activation phrase</text>
+
+  <rect x="850" y="200" width="310" height="170" rx="18" fill="#163551" stroke="#5fa2d5"/>
+  <text class="head" x="874" y="236">Same HA assistant</text>
+  <text class="body" x="874" y="270">Either phrase starts Assist</text>
+  <text class="body" x="874" y="301">Common 2 s cooldown</text>
+  <text class="small" x="874" y="337">Pipeline and reply voice preserved</text>
+
+  <path class="line" d="M270 207H328"/>
+  <path class="line" d="M270 257H298V390H328"/>
+  <path class="line" d="M790 216H820V247H848"/>
+  <path class="line" d="M790 474H820V329H848"/>
+  <rect x="850" y="492" width="310" height="85" rx="14" fill="#3f3524" stroke="#cba55d"/>
+  <text class="body" x="874" y="527">Existing playback controls</text>
+  <text class="small" x="874" y="554">Separate from starting Assist</text>
+  <path class="line" d="M790 548H848"/>
+
+  <rect x="40" y="625" width="1120" height="119" rx="16" fill="#152339" stroke="#425b7c"/>
+  <text class="head" x="64" y="660">Opt in locally; return to one phrase without downgrading</text>
+  <text class="body" x="64" y="692">App-private files/secondary-wake-word.json: {"id":"hey_jarvis"} • restart VACA after changing it</text>
+  <text class="small" x="64" y="720">Valid exact primary required. Remove the file + restart for Myshka only. HA’s primary slider does not tune Jarvis.</text>
+  <text class="small" x="40" y="774">Architecture, not a latency or accuracy chart • local activation does not make the selected HA speech pipeline offline</text>
+</svg>
