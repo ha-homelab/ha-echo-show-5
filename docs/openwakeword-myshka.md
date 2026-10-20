@@ -2,7 +2,14 @@
 
 [Project overview](../README.md) · [Wake-model rollout](wiki/Wake-model-rollout.md) · [Voice and wake words](wiki/Voice-and-wake-words.md) · [Validation](wiki/Validation.md) · [Previous dual-wake build](../integrations/vaca-dual-wake/README.md)
 
-**Installed baseline — PR #69 follow-up: `0.13.4+myshka.4` / `7004` is built with the retained certificate and 18 passing JVM tests.** The [build receipt](../integrations/vaca-dual-wake/build-myshka.4.json) records the exact artifact. Show 2 now has the same-certificate `.4` update and passed its targeted Android inventory regression (one test, five metadata cases, 0.624 seconds); one actual microphone close/reopen cycle and a normal app restart also passed, preserving settings, brightness, permissions and authenticated nonroot ADB. End-to-end voice acceptance remains pending. Show 1 is unreachable and remains last verified on `.3`. No full `.4` fixture replay is claimed.
+**October 19 checkpoint:** Show 1 has the retained-key **`myshka.6` / `7006`**
+update; Show 2 is unavailable and remains last verified on `.4`. The
+[`.6` build receipt](../integrations/vaca-dual-wake/build-myshka.6.json) records
+29 passing JVM tests. The [current validation](wiki/Validation.md#october-19-current-checkpoint)
+separately records Show 1's three Android tests, TLS authentication and runtime
+observations. Physical speech acceptance remains pending.
+
+**October 16 baseline — PR #69 follow-up: `0.13.4+myshka.4` / `7004` is built with the retained certificate and 18 passing JVM tests.** The [build receipt](../integrations/vaca-dual-wake/build-myshka.4.json) records the exact artifact. Show 2 now has the same-certificate `.4` update and passed its targeted Android inventory regression (one test, five metadata cases, 0.624 seconds); one actual microphone close/reopen cycle and a normal app restart also passed, preserving settings, brightness, permissions and authenticated nonroot ADB. End-to-end voice acceptance remains pending. At that October 16 checkpoint, Show 1 was unreachable and remained last verified on `.3`. No full `.4` fixture replay is claimed.
 
 **Historical `.3` baseline — October 16, 2026: installed, Android replay and lifecycle checks passed on both Shows.** VACA `0.13.4+myshka.3` / version code `7003` was installed on both devices, and **18 JVM tests passed with zero failures, errors or skips**. Each device passed two Android instrumentation tests, three actual microphone mute/unmute cycles and a normal app restart. Physical speech acceptance remains pending. The [dated device record](wiki/Wake-model-rollout.md#october-16-device-observations) separates these results.
 
@@ -10,9 +17,9 @@ The trial replaces the previous two-phrase configuration on both converted Shows
 
 The current [source builder](../integrations/vaca-dual-wake/README.md) adds the
 `myshka.6` / `7006` TLS and typed-input repairs. The `.4` receipts and rollout below
-remain historical device evidence; they do not establish acceptance of later source builds. Check the
-current builder's version, full test result and retained signing identity
-before a new update. No new device installation is implied.
+remain historical device evidence. The October 19 checkpoint separately records
+Show 1 on `.6`. Check the current builder's version, full test result and retained
+signing identity before a new update; Show 2 has not received `.6`.
 
 ## Original myshka.3 rollout and outcome
 
@@ -52,7 +59,7 @@ No microphone equivalence between EchoMuse and Echo Show has been established. D
 
 The previous private activation model used the microWakeWord path and its TFLite model contract. The new classifier uses the openWakeWord feature pipeline and an ONNX graph. Renaming an `.onnx` file to `.tflite` changes neither the graph format nor its required inputs. Merely loading an ONNX classifier with a different feature extractor also fails to establish equivalence to its training pipeline.
 
-The retained verified baseline is **VACA `0.13.4+myshka.4`, version code `7004`**, package **`com.msp1974.vacompanion`**. It must be signed with the **same retained private certificate** as the installed local builds. Successful signing and package checks are required before an in-place update; the version string alone is insufficient.
+The current verified build is **VACA `0.13.4+myshka.6`, version code `7006`**, package **`com.msp1974.vacompanion`**. It must be signed with the **same retained private certificate** as the installed local builds. Successful signing and package checks are required before an in-place update; the version string alone is insufficient.
 
 The new opt-in path uses `ExactOnnxFrontend` with the ONNX frontend artifacts whose hashes match those used for training:
 

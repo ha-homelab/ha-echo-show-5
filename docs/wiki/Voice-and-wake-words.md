@@ -4,9 +4,20 @@
 
 The wake detector decides **when to start listening for a command**. Speech recognition, intent/model processing and speech synthesis are separate HA stages. Changing a page's language or its displayed clock does not change any of those stages.
 
+## October 19 current checkpoint
+
+Show 1 received the retained-key **`myshka.6` / `7006`** update and passed three
+Android instrumentation tests after the build passed 29 JVM tests. The exact
+Myshka model at 0.50, local Stop and microphone inference were observed. Show 2
+is currently unavailable and remains last verified on `.4`. Read the
+[current validation record](Validation.md#october-19-current-checkpoint) for
+separate device, voice-backend and physical-acceptance results. The October 19
+Show 1 check used its selected **Silero** voice; the Piper/Irina route documented
+below records an earlier configuration.
+
 ## October 16: opt-in single-phrase ONNX trial
 
-**PR #69 follow-up: `myshka.4` / `7004` is installed and locally verified on Show 2.** The original signing certificate is retained and all 18 JVM tests pass. Show 2 passed the targeted Android inventory regression: one test covering five metadata cases in 0.624 seconds. Invalid optional metadata no longer aborts the model inventory; engine loading still rejects invalid assets. Show 2 also passed one actual microphone close/reopen cycle and a normal app restart, preserving settings, brightness, permissions and authenticated nonroot ADB. End-to-end voice acceptance remains pending. Show 1 is unreachable and remains last verified on `.3`. The `.3` fixture and lifecycle observations below remain a separate historical record.
+**PR #69 follow-up: `myshka.4` / `7004` is installed and locally verified on Show 2.** The original signing certificate is retained and all 18 JVM tests pass. Show 2 passed the targeted Android inventory regression: one test covering five metadata cases in 0.624 seconds. Invalid optional metadata no longer aborts the model inventory; engine loading still rejects invalid assets. Show 2 also passed one actual microphone close/reopen cycle and a normal app restart, preserving settings, brightness, permissions and authenticated nonroot ADB. End-to-end voice acceptance remains pending. At that October 16 checkpoint, Show 1 was unreachable and remained last verified on `.3`. The `.3` fixture and lifecycle observations below remain a separate historical record.
 
 ### Verified myshka.3 baseline
 
@@ -38,7 +49,7 @@ HA's threshold control uses a 0–10 scale: **3.5 in HA means 0.35 in the detect
 
 ![Voice route choices and the explicit local/cloud boundaries.](../assets/voice-paths.svg)
 
-The recorded device choice is **Local Russian Home**:
+The **October 14** device record selected **Local Russian Home** with this route:
 
 1. VACA detects the activation phrase locally.
 2. HA sends command audio to **FCC Cloud Speech / NVIDIA Parakeet** for Russian recognition.

@@ -4,15 +4,22 @@
 
 The October 16 work adds an exact ONNX feature pipeline for a privately trained **“Привет, Мышка” (Privet Myshka)** activation model. The intended configuration has one activation phrase. The bundled **Stop** command remains separate, consuming the same microphone samples. This page explains the change, the installation gates and what the evidence establishes.
 
-**PR #69 follow-up: `myshka.4` / `7004` is built with the retained certificate and 18 passing JVM tests.** The [new build receipt](../../integrations/vaca-dual-wake/build-myshka.4.json) identifies the artifact. It prevents invalid optional metadata from breaking custom-model enumeration while preserving strict engine validation. Show 2 has the same-certificate `.4` update and passed the targeted Android inventory regression (one test, five metadata cases, 0.624 seconds); one actual microphone close/reopen cycle and a normal app restart also passed. Settings, brightness, permissions and authenticated nonroot ADB were preserved; end-to-end voice acceptance remains pending. Show 1 is unreachable and remains last verified on `.3`. The full `.3` replay below is not a claim of a new `.4` replay.
+**October 19 checkpoint:** Show 1 received the retained-key **`myshka.6` / `7006`**
+update, with **29 JVM tests and three Android instrumentation tests passed**.
+HTTPS authentication, the exact model and microphone inference were observed.
+Show 2 is currently unreachable and remains last verified on `.4`. The
+[dated validation record](Validation.md#october-19-current-checkpoint) includes
+the current device and backend checks; physical speech acceptance remains pending.
+
+**PR #69 follow-up: `myshka.4` / `7004` is built with the retained certificate and 18 passing JVM tests.** The [new build receipt](../../integrations/vaca-dual-wake/build-myshka.4.json) identifies the artifact. It prevents invalid optional metadata from breaking custom-model enumeration while preserving strict engine validation. Show 2 has the same-certificate `.4` update and passed the targeted Android inventory regression (one test, five metadata cases, 0.624 seconds); one actual microphone close/reopen cycle and a normal app restart also passed. Settings, brightness, permissions and authenticated nonroot ADB were preserved; end-to-end voice acceptance remains pending. At that October 16 checkpoint, Show 1 was unreachable and remained last verified on `.3`. The full `.3` replay below is not a claim of a new `.4` replay.
 
 **Historical `.3` baseline: installed and verified on both Shows; physical speech acceptance pending.** VACA **`0.13.4+myshka.3` / `7003`** builds for ARMv7 with the retained signing certificate. Its **18 JVM tests pass without failures or skips**. Each Show independently passed Android numerical replay, three microphone mute/unmute cycles and a normal app restart. These results do not establish physical speech recognition. See the dated [build receipt](../../integrations/vaca-dual-wake/build-myshka.3.json) and device observations below.
 
 The current [source builder](../../integrations/vaca-dual-wake/README.md) targets
 `myshka.6` / `7006` with TLS and typed-input repairs. This page preserves the
-`.3`/`.4` deployment record; its installed-version checks are not evidence that
-later source builds have been deployed or accepted. Use the current build's verified version
-and test receipt for any subsequent update.
+`.3`/`.4` deployment history alongside the separate October 19 `.6` checkpoint.
+Use the [`.6` build receipt](../../integrations/vaca-dual-wake/build-myshka.6.json)
+and per-device results; earlier tests do not qualify a different artifact.
 
 ## Why the audio path changed
 
@@ -69,7 +76,7 @@ On both Shows, cleanup removed the temporary fixture directory and instrumentati
 
 ## myshka.4 follow-up
 
-The `.4` Android regression covers malformed optional JSON, a missing frontend and an asset mismatch. Model inventory must retain generated-label entries while exact-engine loading still rejects invalid assets. Show 2 passed the targeted Android test in 0.624 seconds, covering five metadata cases, after installing the same-certificate `.4` update. Show 2 also passed **one actual microphone close/reopen cycle** and a **normal app restart**. Observed processing times were **52.960 ms per 80 ms input chunk** after the cycle and **55.184 ms per 80 ms** after restart; these are short local processing observations, not wake or response latency. The single model at 0.50, absent secondary selection, HA configuration, manual brightness 255, permissions and authenticated nonroot ADB were preserved. End-to-end HA/TTS health and physical speech acceptance were not tested. Show 1 remains last verified on `.3` and has not been updated because it is unreachable.
+The `.4` Android regression covers malformed optional JSON, a missing frontend and an asset mismatch. Model inventory must retain generated-label entries while exact-engine loading still rejects invalid assets. Show 2 passed the targeted Android test in 0.624 seconds, covering five metadata cases, after installing the same-certificate `.4` update. Show 2 also passed **one actual microphone close/reopen cycle** and a **normal app restart**. Observed processing times were **52.960 ms per 80 ms input chunk** after the cycle and **55.184 ms per 80 ms** after restart; these are short local processing observations, not wake or response latency. The single model at 0.50, absent secondary selection, HA configuration, manual brightness 255, permissions and authenticated nonroot ADB were preserved. End-to-end HA/TTS health and physical speech acceptance were not tested. At that October 16 checkpoint, Show 1 remained last verified on `.3` and had not been updated because it was unreachable.
 
 Final cleanup confirmed that the temporary fixture directory and instrumentation APK are absent, all four private model/manifest assets still match their expected hashes, and VACA remains running.
 

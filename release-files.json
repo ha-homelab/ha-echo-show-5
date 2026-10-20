@@ -142,6 +142,7 @@
     "integrations/vaca-dual-wake/build-dualwake.2.json",
     "integrations/vaca-dual-wake/build-myshka.3.json",
     "integrations/vaca-dual-wake/build-myshka.4.json",
+    "integrations/vaca-dual-wake/build-myshka.6.json",
     "integrations/vaca-dual-wake/build.py",
     "integrations/vaca-dual-wake/history/dualwake.1.patch",
     "integrations/vaca-dual-wake/history/dualwake.2.patch",

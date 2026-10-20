@@ -9,6 +9,12 @@ It retains the optional two-model microWakeWord extension and adds an opt-in
 exact ONNX frontend for one privately trained activation model. These are
 alternative configurations, not three simultaneously active wake phrases.
 
+The [October 19 retained-key build receipt](build-myshka.6.json) records **29
+passing JVM tests**. Show 1 received this update and passed three Android tests;
+Show 2 was unavailable and remains last verified on `.4`. See the
+[dated device and backend results](../../docs/wiki/Validation.md#october-19-current-checkpoint)
+for runtime checks and the remaining physical acceptance work.
+
 The new [Privet Myshka runbook](../../docs/openwakeword-myshka.md) and
 [illustrated process and results](../../docs/wiki/Wake-model-rollout.md) describe
 manifest binding, local Stop, numerical replay, installation gates and rollback.

@@ -23,11 +23,23 @@ The real display page (revision `20261015-r11`) captured in desktop Chrome at
 960 × 480 with the public example configuration. It shows only the local clock;
 no Home Assistant login, camera feed or device was used. Click for the flat original.
 
+## October 19: current device checkpoint
+
+**Show 1 has the retained-key `myshka.6` / `7006` update.** All **29 JVM tests**
+and **three Android instrumentation tests** passed; the existing private fixtures
+matched the reference. HA HTTPS authentication with certificate verification,
+the single **“Привет, мышка”** model at **0.50**, local Stop and microphone inference
+were observed after installation. One actual microphone mute/unmute cycle and
+a normal app restart passed with settings preserved. **Show 2 is currently unreachable** and remains
+last verified on `.4`. Physical speech acceptance is still pending. See the
+[dated validation record](docs/wiki/Validation.md#october-19-current-checkpoint)
+for the separate device and voice-backend results.
+
 ## October 16: single-phrase ONNX trial
 
 ### PR #69 follow-up: myshka.4
 
-**`0.13.4+myshka.4` / `7004` is installed and locally verified on Show 2.** The original signing certificate is retained and all **18 JVM tests** pass. Show 2 passed the targeted Android inventory regression: **one test, five metadata cases, 0.624 seconds**. Invalid optional metadata no longer removes custom models from the list; actual engine loading still rejects invalid assets. Show 2 also passed one actual microphone close/reopen cycle and a normal app restart, preserving settings, brightness, permissions and authenticated nonroot ADB. End-to-end voice acceptance remains pending. Show 1 is unreachable and remains last verified on `.3`. The earlier `.3` replay below is separate evidence, not a new `.4` replay.
+**`0.13.4+myshka.4` / `7004` is installed and locally verified on Show 2.** The original signing certificate is retained and all **18 JVM tests** pass. Show 2 passed the targeted Android inventory regression: **one test, five metadata cases, 0.624 seconds**. Invalid optional metadata no longer removes custom models from the list; actual engine loading still rejects invalid assets. Show 2 also passed one actual microphone close/reopen cycle and a normal app restart, preserving settings, brightness, permissions and authenticated nonroot ADB. End-to-end voice acceptance remains pending. At that October 16 checkpoint, Show 1 was unreachable and remained last verified on `.3`. The earlier `.3` replay below is separate evidence, not a new `.4` replay.
 
 ### Verified myshka.3 baseline
 
