@@ -69,6 +69,14 @@ The isolated Home Assistant test runtime is 2026.10.0 and requires Python
 3.14.2 or newer. Updating these test dependencies does not upgrade an installed
 Home Assistant instance.
 
+When updating Home Assistant, also align the direct conversation dependencies
+with `homeassistant/components/conversation/manifest.json` from that HA release.
+These component requirements are separate from HA's base package metadata, so
+the dependency resolver alone cannot detect a mismatch. The voice tests compare
+installed versions with the installed HA manifest before exercising the custom
+grammar. Preserve hash-checked installation and regenerate the lock without a
+blanket dependency upgrade.
+
 Contributions to original project code and documentation are made under the [MIT license](LICENSE). Preserve upstream copyright, license and NOTICE files for third-party material.
 
 

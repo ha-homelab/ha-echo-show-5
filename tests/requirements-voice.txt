@@ -1381,17 +1381,17 @@ hass-nabucasa==2.7.0 \
     --hash=sha256:a07f0dba540e53204363c1ad762967c715ca7bcebc175fa2a50a4d8721c7ce43 \
     --hash=sha256:fb741a2b6447250e5fc6ff07c09184e3afaf8b1d0028833e58b6a652b26965e3
     # via homeassistant
-hassil==3.12.0 \
-    --hash=sha256:4f5fed98753c9f730c029a1142b79d89d17305c752ba27238e8cdcb7ac1f6e17 \
-    --hash=sha256:848397674400036d64bf527bf2f142944c07e03330bdcae1ee015655c03cfcc5
+hassil==3.12.1 \
+    --hash=sha256:d12553cccf2548a86cfedd28c8f3171690f5e8c064470c2b66170cc5848ecdef \
+    --hash=sha256:dad08f2525ad0246cfd6cc072e2c3015f1b15f918ac49a7b8e9dd07bd6ef8f5a
     # via -r tests/requirements-voice.in
 home-assistant-bluetooth==2.0.0 \
     --hash=sha256:3febd16b194812b156024d9bc8ce8ec7622cdd8d159047cac504cc77ca034ea1 \
     --hash=sha256:8d7c2ac48c303adacad73cb6cdfe7710f2fccd2a367d4c3106acf301b0d22b91
     # via homeassistant
-home-assistant-intents==2026.8.28 \
-    --hash=sha256:0bbdf1992e87868404614ff9433e92780dfd53561d7db19f6651415d17cdc2dd \
-    --hash=sha256:d69d2070d933614a5263a9d83ac388d1ffb7056f85231ec15751bc5afa14e298
+home-assistant-intents==2026.10.6 \
+    --hash=sha256:1031b97bffb00b02c9c2ccc870b348cfab412ca865e64dc44b7176bf91648e36 \
+    --hash=sha256:5db63abd92d767bce51665564fda304e56ac1f208422222296622fc23bc964a2
     # via
     #   -r tests/requirements-voice.in
     #   gazetteer-matcher
