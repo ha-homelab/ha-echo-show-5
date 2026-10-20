@@ -30,6 +30,11 @@ class SourceDistributionTests(unittest.TestCase):
             shutil.copyfile(ROOT / name, target)
         shutil.copytree(ROOT / "scripts", self.root / "scripts", dirs_exist_ok=True)
         self.command("git", "init", "-q")
+        # Short-lived fixtures must not leave a background Git writer racing
+        # TemporaryDirectory cleanup after their foreground commands finish.
+        self.command("git", "config", "gc.auto", "0")
+        self.command("git", "config", "gc.autoDetach", "false")
+        self.command("git", "config", "maintenance.auto", "false")
         self.command("git", "add", ".")
         self.command(
             "git",
