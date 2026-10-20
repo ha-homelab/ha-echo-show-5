@@ -35,7 +35,7 @@ and accessible, self-contained SVG diagrams. It does not fetch external links.
 Keep new shipped files in the explicit `release-files.json` inventory; a new
 script referenced by HTML must also be present in the source distribution.
 
-The [CI workflow](.github/workflows/tests.yml) is the authoritative list of required jobs.
+The [CI workflow](https://github.com/ha-homelab/ha-echo-show-5/blob/main/.github/workflows/tests.yml) is the authoritative list of required jobs.
 Use isolated test data and temporary outputs. Never run a device write, unlock,
 deployment or publication command merely to validate a documentation change.
 

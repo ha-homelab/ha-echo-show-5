@@ -14,8 +14,8 @@ import xml.etree.ElementTree as ET
 
 COMMIT = '65906aebffd2f39772773b44729b22fd022a1f3c'
 UPSTREAM = 'https://github.com/msp1974/ViewAssistCompanionApp.git'
-VERSION_NAME = '0.13.4+myshka.7'
-VERSION_CODE = 7007
+VERSION_NAME = '0.13.4+myshka.9'
+VERSION_CODE = 7009
 ROOT = Path(__file__).resolve().parents[2]
 PATCH = Path(__file__).with_name('vaca-dual-wake.patch')
 
@@ -248,10 +248,36 @@ def test_totals(src):
             'calibratedTemporalDecisionIsNotRethresholded',
             'nonFiniteOrOutOfRangeScoresAreRejectedEvenWithModelApproval',
             'validScoreBoundariesRemainAcceptedWhenAppropriate'},
+        'com.msp1974.vacompanion.wakeword.WakeWordSessionTest': {
+            'stopWaitsForCleanup',
+            'replacementWaitsForPreviousCleanup',
+            'cancelledButIncompleteWorkerIsStillJoined',
+            'timeoutRetainsOwnershipAndPreventsReplacement',
+            'repeatedStopClosesOnlyOnce',
+            'parentCancellationClosesOwnedWorker',
+            'cancellingStopCallerDoesNotAbandonCleanup',
+        },
+        'com.msp1974.vacompanion.satellite.SatelliteCleanupTest': {
+            'runsEveryStepInOrderOnce',
+            'wakeTimeoutStillClosesCameraAndRetainsWorkerOwnership',
+            'cameraStopFailureStillReleasesAndDoesNotReportSuccess',
+            'laterFailuresAreSuppressedOnOriginalFailure',
+            'reusedFailureDoesNotSuppressItselfOrSkipRemainingCleanup',
+            'cancellationFromStepStillCleansAndIsRethrown',
+            'cancellationDuringCleanupWaitsForReleaseAndPropagates',
+            'alreadyCancelledCallerStillCleansAndCannotReportSuccess',
+        },
+        'com.msp1974.vacompanion.wakeword.WakeWordStartSelectionTest': {
+            'disabledEngineNeverStartsEvenWithValidModels',
+            'blankOrNonePrimaryDisablesEveryEngine',
+            'missingPrimaryDoesNotPromoteJarvisIntoOpenWakeWord',
+            'microWakeWordRetainsAvailableSecondaryFallback',
+            'exactPrimaryStaysSingleForSeparateManifestValidation',
+        },
     }
-    if (totals['tests'] < 42 or totals['failures'] or totals['errors'] or totals['skipped']
+    if (totals['tests'] < 62 or totals['failures'] or totals['errors'] or totals['skipped']
             or any(not names.issubset(observed.get(suite, set())) for suite, names in required.items())):
-        raise BuildError('Expected the TLS, malformed-input and auxiliary-wake cases, forty-two total JVM tests, and no failed/skipped tests')
+        raise BuildError('Expected the TLS, malformed-input, auxiliary-wake and lifecycle cases, sixty-two total JVM tests, and no failed/skipped tests')
     return totals
 
 

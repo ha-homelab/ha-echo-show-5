@@ -17,49 +17,36 @@ Die echte Uhrseite `20261015-r11`, aufgenommen in Desktop-Chrome mit
 960 × 480 und der Beispielkonfiguration. Ohne Home-Assistant-Anmeldung, Kamera
 oder Gerät. Ein Klick öffnet das flache Original.
 
-## 19. Oktober: zwei Aktivierungsphrasen auf Show 1
+## 20. Oktober: Listener-Wechsel auf Show 1 geprüft
 
-**Show 1 verwendet jetzt `myshka.7` / `7007` mit „Привет, мышка“ und „Hey Jarvis“.**
-Der exakte ONNX-Pfad für Myshka behält den Schwellwert **0,50**. Für das
-integrierte Jarvis muss die mittlere Wahrscheinlichkeit aus **fünf
-Modellauswertungen strikt größer als 0,97** sein. Beide nutzen ein Mikrofon;
-Jarvis teilt den bestehenden MicroFrontend mit Stop. Stop bleibt ein separater
-Befehl zur Wiedergabesteuerung.
+**Show 1 verwendet `myshka.9` / `7009` mit „Привет, мышка“ und „Hey Jarvis“.**
+Myshka bleibt bei **0,50**; Jarvis behält seinen eigenen Mittelwert über fünf
+Auswertungen **> 0,97**. Ein Mikrofon versorgt beide Phrasen und den separaten
+Stop-Befehl. Vor einem Listener-Wechsel wird die bisherige Erfassung geschlossen;
+eine deaktivierte primäre Phrase startet keine Mikrofonerfassung.
+Schlägt ein Schritt beim Beenden fehl, führt dieser Build die übrigen Aufräumschritte dennoch aus.
 
-Der Build mit der bisherigen Signatur bestand **42 JVM-Tests**; Show 1 bestand
-**sechs Android-Tests**, **drei Zyklen mit tatsächlichem Schließen und
-Wiederöffnen der Mikrofonerfassung** sowie einen **App-Neustart**. Beide
-Aktivierungsmodelle, Stop und die HTTPS-Authentifizierung wurden wiederhergestellt;
-die Einstellungen blieben erhalten. **Show 2 ist nicht erreichbar und wurde
-zuletzt mit `.4` geprüft.** Synthetische Tests und geladene Modelle belegen
-keine Spracherkennung im Raum; die praktische Sprachprüfung steht noch aus.
+**62 JVM-Tests** und **sechs Android-Tests** bestanden. Auf dem Gerät wurden
+Konfigurationswechsel ohne App-Neustart, die deaktivierte primäre Phrase,
+**drei tatsächliche Mikrofon-Stummschaltzyklen** und ein App-Neustart geprüft.
+HA-Einstellungen, HTTPS-Prüfung, Berechtigungen und Display blieben erhalten.
+**Show 2 ist nicht erreichbar; zuletzt wurde `.4` geprüft.** Die praktische
+Spracherkennung bleibt noch zu prüfen.
 
-[Zweite Phrase aktivieren oder entfernen](docs/wiki/Mixed-wake-words.md) ·
-[Messungen und Prüfgrenzen](docs/wiki/Validation.md#october-19-mixed-wake-checkpoint) ·
-[Verarbeitungsdiagramm](docs/assets/mixed-wake-pipeline.svg), jeweils auf Englisch.
-Die fünf README-Sprachen und vier Laufzeitsprachen der Uhr bleiben unverändert.
+[Zweite Phrase aktivieren](docs/wiki/Mixed-wake-words.md) ·
+[Messungen und Grenzen](docs/wiki/Validation.md#october-20-shutdown-checkpoint) ·
+[Verarbeitungsdiagramm](docs/assets/mixed-wake-pipeline.svg).
+Fünf README-Sprachen und vier Laufzeitsprachen der Uhr bleiben verfügbar.
 
-## 19. Oktober: vorheriger Stand mit myshka.6
+## Frühere geprüfte Stände
 
-Bei diesem früheren Stand wurde auf Show 1 **VACA `0.13.4+myshka.6` / `7006`** mit dem bisherigen Signaturzertifikat installiert. **29 JVM-Tests** und **drei Android-Instrumentierungstests** bestanden. Beim Abspielen der vier vorhandenen privaten Testdateien entsprachen alle Schwellwertentscheidungen der Referenz. „Привет, мышка“ mit dem Schwellwert **0,50** und der separate Stop-Detektor sind geladen; die Mikrofonerfassung ist aktiv. Ein Stummschaltzyklus bestätigte das Schließen und Wiederöffnen der Mikrofonerfassung, ein normaler App-Neustart die erneute HTTPS-Authentifizierung; HA-Einstellungen, manuelle Helligkeit 255, Berechtigungen und abgesichertes ADB ohne Root blieben erhalten.
+- [20. Oktober, `.8`](docs/wiki/Validation.md#october-20-lifecycle-checkpoint): serialisierter Listener-Wechsel und deaktivierte primäre Phrase.
+- [19. Oktober, `.7`](docs/wiki/Validation.md#october-19-mixed-wake-checkpoint): erste geprüfte gemeinsame Myshka/Jarvis-Installation.
+- [19. Oktober, `.6`](docs/wiki/Validation.md#october-19-current-checkpoint): Update mit bisheriger Signatur, HTTPS, Referenzdateien und getrennte Messungen des Sprachservers.
+- [16. Oktober, `.4`](docs/wiki/Validation.md#pr-69-follow-up-myshka4-build-and-show-2-checks): Modellliste und Wiederaufnahme der Mikrofonerfassung auf Show 2.
+- [16. Oktober, `.3`](docs/wiki/Validation.md#october-16-installed-state-and-replay-checks): Referenzvergleich und Mikrofonzyklen auf beiden Shows. Das [Diagramm mit einer Phrase](docs/assets/exact-oww-pipeline.svg) beschreibt diese frühere Konfiguration.
 
-Show 2 ist derzeit weder über das Netzwerk noch in HA erreichbar; sein zuletzt geprüfter Stand ist **`.4`**. Die Backend-Prüfung lieferte eine Antwort auf eine mit nativen HA-Funktionen bearbeitete Textanfrage und lud Silero-Sprachausgabe herunter; die gesamte Serverprüfung von der Textanfrage bis zum Herunterladen der Sprachausgabe dauerte **4,481 s**. Dies belegt weder eine hörbare Antwort noch die Erkennung einer gesprochenen Phrase im Raum. **Die praktische Sprachprüfung steht weiterhin aus.** Ergebnisse und Prüfgrenzen dieses früheren Stands stehen im [Prüfprotokoll vom 19. Oktober](docs/wiki/Validation.md#october-19-current-checkpoint). Die folgenden Ergebnisse gelten für die jeweils genannten Daten und Versionen.
-
-## 16. Oktober: Versuch mit einer ONNX-Aktivierungsphrase
-
-### Nachbesserung in PR #69: myshka.4
-
-**`0.13.4+myshka.4` / `7004` ist auf Show 2 installiert und lokal geprüft.** Das bisherige Signaturzertifikat bleibt erhalten, alle **18 JVM-Tests** bestehen. Show 2 bestand die gezielte Android-Regression für die Modellliste: **ein Test, fünf Metadatenfälle, 0,624 Sekunden**. Ungültige optionale Metadaten lassen eigene Modelle nicht mehr aus der Liste verschwinden; das Laden der Engine lehnt ungültige Dateien weiterhin ab. Show 2 bestand außerdem einen Zyklus mit tatsächlichem Schließen und Wiederöffnen der Mikrofonerfassung sowie einen normalen App-Neustart. Einstellungen, Helligkeit, Berechtigungen und authentifiziertes ADB ohne Root blieben erhalten. Die Prüfung des vollständigen Sprachablaufs steht aus. Bei der Prüfung am 16. Oktober war Show 1 nicht erreichbar; der damals zuletzt geprüfte Stand war `.3`. Der nachfolgende `.3`-Referenzvergleich belegt keinen erneuten Vergleich unter `.4`.
-
-### Geprüfter Stand von myshka.3
-
-**APK auf beiden Shows installiert; Referenzvergleich auf beiden bestanden.** VACA `0.13.4+myshka.3` / `7003` bestand **18 JVM-Tests**. Jeder Show bestand außerdem **zwei Android-Instrumentierungstests** mit **vier vorhandenen privaten Testdateien: 294 Embeddings, 234 Klassifikatorfenster und 11 positive Fenster**. Alle Schwellwertentscheidungen entsprachen der Referenz. Die Dateiwiedergabe zeichnet den Raum nicht auf und belegt keine akustische Erkennung.
-
-Am 16. Oktober waren beide Shows ausschließlich für **„Привет, мышка“** mit dem exakten ONNX-Frontend und **0,50** (**5,0 in HA**) konfiguriert. „Hey Jarvis“ wurde aus der aktiven Auswahl entfernt; der separate Stop-Befehl bleibt. **Beide bestanden drei Mikrofon-Stummschaltzyklen mit geprüftem Schließen und Wiederöffnen der Erfassung sowie einen normalen App-Neustart.** HA-Einstellungen, Helligkeit, Berechtigungen und ADB ohne Root blieben erhalten. Gesprochene Aktivierung, hörbare Antworten, Entfernung, Stop während der Wiedergabe, Stromausfall und mehrtägiger Betrieb sind weiterhin ungeprüft. Die Funktion mit zwei microWakeWord-Modellen und der Stand vom 15. Oktober bleiben unten dokumentiert.
-
-[Modellumstellung: Ablauf und Ergebnisse](docs/wiki/Wake-model-rollout.md) · [Technische Anleitung](docs/openwakeword-myshka.md) · [Prüfdiagramm](docs/assets/wake-validation.svg)
-
-![Ein Mikrofon versorgt die exakte ONNX-Verarbeitung und den separaten Stop-Detektor. Ein 80-ms-Audioblock ist keine gemessene Aktivierungsverzögerung. Die Grafik ist englisch beschriftet.](docs/assets/exact-oww-pipeline.svg)
+Die Protokolle behalten ihre Versionen, Daten und Prüfgrenzen. Sie belegen keine akustische Erkennung mit einem späteren APK.
 
 ## Funktionen
 
@@ -67,16 +54,14 @@ Am 16. Oktober waren beide Shows ausschließlich für **„Привет, мыш�
 - **Oberfläche für fünf Zoll:** große Uhr, bildschirmfüllendes Front-/Porch-Kameravideo bei Bewegung, zeitlich begrenzte manuelle Ansicht und Rückkehr zur Uhr. Das Seitenverhältnis bleibt erhalten; Video erscheint erst mit einem verfügbaren Bild, ohne verzerrtes Android-Play-Symbol. [Bildschirm](docs/wiki/Display-media-and-calls.md).
 - **HA-Fernbedienung:** Ansagen, Musik, fest konfigurierte TV-Streams, unser OTT-play-FOSS-Client auf Capacitor, ein separater OTT-Webzugang und optional OttPlayer. Home/Stop beendet die verwaltete Aktivität. [Fernsteuerung](docs/remote-endpoint.md).
 - **Anrufe über die eigene Jitsi-Installation:** fester Raum, ausdrücklich gewählte Beitrittsregel, Mikrofonübergabe und Wiederherstellung nach dem Anruf. Die experimentelle HA-Gegensprechanlage ist ein gesonderter Weg. [Anrufe](docs/wiki/Display-media-and-calls.md#jitsi-and-intercom).
-- **Sprachdienst auswählen:** Homeway, der unabhängige FCC-Cloud-Pfad oder lokaler Dialog und Piper mit FCC-Cloud-Spracherkennung. Die Auswahl gilt pro Satellit; es gibt kein automatisches Failover. [Umschalten](docs/wiki/Voice-and-wake-words.md#choose-and-switch-an-assistant).
+- **Sprachdienst auswählen:** Homeway, der unabhängige FCC-Cloud-Pfad oder lokaler Dialog und Silero mit FCC-Cloud-Spracherkennung. Die Auswahl gilt pro Satellit; es gibt kein automatisches Failover. [Umschalten](docs/wiki/Voice-and-wake-words.md#choose-and-switch-an-assistant).
 - **Sprachen:** Einstiegs-READMEs auf Englisch, Russisch, Deutsch, Spanisch und Französisch sowie eine eigene Spracheinstellung für die Uhr. Bildschirm-, Erkennungs- und Aktivierungssprache sind unabhängig. [Lokalisierungsumfang](docs/wiki/Localization.md).
 
-## Stand der Prüfung
+## Frühere Display- und Sprachprüfungen
 
-**Geprüfter Stand vom 15. Oktober 2026:** Der gebaute Patch `dualwake.2` korrigiert die Freigabe der Detektorressourcen. Die Bildschirmversion `20261015-r11` kombiniert Englisch, Russisch, Deutsch und Spanisch mit Wiederholungsversuchen, wenn der MQTT-Befehl beim HA-Start noch nicht verfügbar ist. In **48 synthetischen Desktop-Layout-Renderings** wurden in den geprüften Fällen keine abgeschnittenen Elemente festgestellt. Beide Updates waren zu diesem Prüfzeitpunkt auf beiden Shows installiert. Jedes Gerät bestand drei softwaregesteuerte Stumm-/Lautschaltzyklen des Mikrofons und einen App-Neustart; beide Modelle und die Aufnahme wurden wiederhergestellt. Die Erkennung tatsächlich gesprochener Phrasen bleibt ungeprüft; Details stehen im [Validierungsprotokoll](docs/wiki/Validation.md).
+Das [Protokoll vom 15. Oktober](docs/wiki/Validation.md#october-15-installed-state-and-recovery-checks) enthält `dualwake.2`, Display `20261015-r11`, 48 synthetische Layout-Renderings und die Geräteprüfung zur Wiederherstellung. Der [Stand vom 14. Oktober](integrations/vaca-dual-wake/README.md#historical-deployment-evidence--2026-10-14) dokumentiert die frühere Piper/Irina-Pipeline und Ansagen auf Dienstebene. Der [Konversionsstand vom 2. Oktober](docs/preparation-status.md) ist historisch.
 
-Der dokumentierte Stand vom **14. Oktober 2026** umfasst zwei Shows mit Android 11 / inoffiziellem LineageOS 18.1. Beide Aktivierungsmodelle wurden nach einem normalen **App-Neustart** geladen, die HA-Identitäten blieben erhalten, und aufeinanderfolgende Ansagen wurden auf Dienstebene abgeschlossen. Beide Geräte verwenden **Local Russian Home** und die Stimme **Irina**. Für die Spracherkennung wird weiterhin Audio in die Cloud gesendet. [Build-Nachweise](integrations/vaca-dual-wake/README.md#historical-deployment-evidence--2026-10-14) · [Sprachkonfiguration](docs/fcc-voice-backup.md).
-
-**Gezielte Tests beider Phrasen am Gerät, hörbare Antwortqualität, Wiederanlauf nach Stromausfall und mehrtägiger Betrieb sind für den Build `dualwake.2` noch nicht bestätigt.** Ein API-Erfolg oder geladenes Modell ersetzt diese Tests nicht. Die [Validierungsübersicht](docs/wiki/Validation.md) trennt die Prüfumfänge. Der [Umbau-Schnappschuss vom 2. Oktober](docs/preparation-status.md) ist historisch und enthält inzwischen geänderte Spracheinstellungen.
+Spracherkennung im Raum, hörbare Antwortqualität, Wiederherstellung nach Stromausfall und mehrtägiger Dauerbetrieb bleiben getrennte Prüfungen. Erfolgreiche API-Aufrufe, geladene Modelle und Testdateien belegen weniger.
 
 ## Kompatibilität und Vorbereitung
 

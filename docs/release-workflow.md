@@ -21,7 +21,9 @@ change the configured nightly policy.
 
 ## Local checks
 
-Use Python 3.11+ for the CLI and the project toolchains documented in `scripts/ci.sh`.
+Use Python 3.11+ for the CLI and the project toolchains documented in
+[CONTRIBUTING](../CONTRIBUTING.md) and the
+[validation workflow](https://github.com/ha-homelab/ha-echo-show-5/blob/main/.github/workflows/tests.yml).
 The scripts fail on missing dependencies and do not publish anything during checks.
 
 ```bash

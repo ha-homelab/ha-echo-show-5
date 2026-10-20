@@ -2,6 +2,7 @@
 """Check local documentation links and accessible SVG diagrams, without network access."""
 
 import argparse
+import json
 from pathlib import Path
 import re
 import subprocess
@@ -51,13 +52,18 @@ def markdown_errors(path, root):
     # Owned docs use inline links or explicit reference definitions. Remote URLs
     # are intentionally not requested: this check must work offline and in CI.
     pattern = r"!?\[[^\]\n]*\]\((<[^>\n]+>|[^\s)]+)(?:\s+[^)]+)?\)|^\s{0,3}\[[^\]]+\]:\s*(<[^>\n]+>|\S+)"
-    for match in re.finditer(pattern, text, re.M):
-        raw = (match[1] or match[2]).strip("<>")
+    targets = [(match.start(), match[1] or match[2]) for match in re.finditer(pattern, text, re.M)]
+    # A linked image has two targets. The ordinary inline pattern sees the
+    # inner image; also check its enclosing link to the full-size asset.
+    linked_image = r"\[!\[[^\]\n]*\]\([^\n]*?\)\]\((<[^>\n]+>|[^\s)]+)(?:\s+[^)]+)?\)"
+    targets.extend((match.start(), match[1]) for match in re.finditer(linked_image, text))
+    for start, target_text in sorted(set(targets)):
+        raw = target_text.strip("<>")
         url = urlsplit(raw)
         if url.scheme or url.netloc:
             continue
         target = (path.parent / unquote(url.path)).resolve() if url.path else path
-        line = text.count("\n", 0, match.start()) + 1
+        line = text.count("\n", 0, start) + 1
         label = "{}:{}".format(path.relative_to(root), line)
         try:
             target.relative_to(root)
@@ -98,14 +104,22 @@ def svg_errors(path, root):
     return errors
 
 
-def check(root):
-    names = subprocess.check_output(
-        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"], cwd=root
-    ).decode().split("\0")
+def check_files(root, names):
+    """Validate explicit shipped paths without requiring Git in an archive."""
+    root = root.resolve()
     errors, count = [], 0
     for name in sorted(set(names)):
+        if not name:
+            continue
         path = root / name
-        if name and path.is_file() and path.suffix == ".md":
+        try:
+            path.resolve().relative_to(root)
+        except ValueError:
+            errors.append(name + ": documentation input escapes repository")
+            continue
+        if not path.is_file():
+            errors.append(name + ": missing documentation input")
+        elif path.suffix == ".md":
             count += 1
             errors.extend(markdown_errors(path, root))
         elif name.startswith("docs/assets/") and path.suffix == ".svg":
@@ -114,10 +128,31 @@ def check(root):
     return count, errors
 
 
+def check(root):
+    names = subprocess.check_output(
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"], cwd=root
+    ).decode().split("\0")
+    return check_files(root, names)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.parse_args()
-    count, errors = check(ROOT)
+    parser.add_argument(
+        "--inventory", action="store_true",
+        help="Check release-files.json contents, including outside a Git checkout.",
+    )
+    args = parser.parse_args()
+    if args.inventory:
+        try:
+            names = json.loads((ROOT / "release-files.json").read_text())["files"]
+            if not isinstance(names, list) or any(not isinstance(name, str) for name in names):
+                raise ValueError("files must be a list of paths")
+            count, errors = check_files(ROOT, names)
+        except (OSError, KeyError, TypeError, ValueError) as error:
+            print("Invalid documentation inventory: " + str(error))
+            return 1
+    else:
+        count, errors = check(ROOT)
     if errors:
         print("\n".join(errors))
         return 1

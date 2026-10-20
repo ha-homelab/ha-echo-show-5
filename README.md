@@ -23,53 +23,35 @@ The real display page (revision `20261015-r11`) captured in desktop Chrome at
 960 × 480 with the public example configuration. It shows only the local clock;
 no Home Assistant login, camera feed or device was used. Click for the flat original.
 
-## October 19: two activation phrases on Show 1
+## October 20: listener lifecycle verified on Show 1
 
-**Show 1 now runs `myshka.7` / `7007` with “Привет, мышка” and “Hey Jarvis” enabled.**
-The exact Myshka ONNX path stays at **0.50**. Bundled Jarvis uses its own gate:
-mean probability **strictly greater than 0.97 over five evaluations**. One
-microphone feeds both; Jarvis shares the existing MicroFrontend with local
-Stop, which remains a separate playback command.
+**Show 1 runs `myshka.9` / `7009` with “Привет, мышка” and “Hey Jarvis”.**
+Myshka remains at **0.50**; Jarvis retains its independent five-evaluation mean
+**> 0.97**. One microphone supplies both paths and the separate local Stop command.
+The update waits for the old listener to close before replacement and handles
+a disabled primary without starting microphone capture.
+This build also attempts the remaining shutdown cleanup steps if an earlier step fails.
 
-The same-signer build passed **42 JVM tests**, and Show 1 passed **six Android
-tests**, **three actual microphone mute/unmute cycles** and an **app restart**.
-Both activation models, Stop and HTTPS authentication recovered; existing
-settings were preserved. **Show 2 remains unavailable, last verified on `.4`.**
-Synthetic tests and loaded models do not establish spoken recognition in a
-room; physical voice acceptance remains pending.
+The build passed **62 JVM tests**. Show 1 passed **six Android tests**, live
+configuration-restart and None-primary checks, **three actual microphone
+mute/unmute cycles** and an app restart. HA settings, HTTPS verification,
+permissions and display settings were preserved. **Show 2 is unavailable,
+last verified on `.4`.** Physical voice acceptance remains pending.
 
-[Enable or remove the second phrase](docs/wiki/Mixed-wake-words.md) ·
-[Measured results and limits](docs/wiki/Validation.md#october-19-mixed-wake-checkpoint) ·
+[Enable the second phrase](docs/wiki/Mixed-wake-words.md) ·
+[Measurements and limits](docs/wiki/Validation.md#october-20-shutdown-checkpoint) ·
 [Processing diagram](docs/assets/mixed-wake-pipeline.svg).
-The five README languages and four runtime UI languages remain unchanged.
+Five README languages and four runtime UI languages remain available.
 
-## October 19: earlier myshka.6 checkpoint
+## Earlier verified checkpoints
 
-**At this earlier checkpoint, Show 1 received the retained-key `myshka.6` / `7006` update.** All **29 JVM tests**
-and **three Android instrumentation tests** passed; the existing private fixtures
-matched the reference. HA HTTPS authentication with certificate verification,
-the single **“Привет, мышка”** model at **0.50**, local Stop and microphone inference
-were observed after installation. One actual microphone mute/unmute cycle and
-a normal app restart passed with settings preserved. **Show 2 is currently unreachable** and remains
-last verified on `.4`. Physical speech acceptance is still pending. See the
-[dated validation record](docs/wiki/Validation.md#october-19-current-checkpoint)
-for the separate device and voice-backend results.
+- [October 20, `.8`](docs/wiki/Validation.md#october-20-lifecycle-checkpoint): serialized listener replacement and disabled-primary validation.
+- [October 19, `.7`](docs/wiki/Validation.md#october-19-mixed-wake-checkpoint): first verified mixed Myshka/Jarvis installation.
+- [October 19, `.6`](docs/wiki/Validation.md#october-19-current-checkpoint): retained-key update, HTTPS verification, reference replay and separate voice-backend timings.
+- [October 16, `.4`](docs/wiki/Validation.md#pr-69-follow-up-myshka4-build-and-show-2-checks): Show 2 model-inventory regression and microphone recovery.
+- [October 16, `.3`](docs/wiki/Validation.md#october-16-installed-state-and-replay-checks): both Shows, exact-frontend replay and microphone lifecycle checks. The [single-phrase diagram](docs/assets/exact-oww-pipeline.svg) describes this earlier configuration.
 
-## October 16: single-phrase ONNX trial
-
-### PR #69 follow-up: myshka.4
-
-**`0.13.4+myshka.4` / `7004` is installed and locally verified on Show 2.** The original signing certificate is retained and all **18 JVM tests** pass. Show 2 passed the targeted Android inventory regression: **one test, five metadata cases, 0.624 seconds**. Invalid optional metadata no longer removes custom models from the list; actual engine loading still rejects invalid assets. Show 2 also passed one actual microphone close/reopen cycle and a normal app restart, preserving settings, brightness, permissions and authenticated nonroot ADB. End-to-end voice acceptance remains pending. At that October 16 checkpoint, Show 1 was unreachable and remained last verified on `.3`. The earlier `.3` replay below is separate evidence, not a new `.4` replay.
-
-### Verified myshka.3 baseline
-
-**APK installed and reference replay passed on both Shows.** VACA `0.13.4+myshka.3` / `7003` passed **18 JVM tests**, and each Show passed **two Android instrumentation tests** using **four existing private fixtures: 294 embeddings, 234 classifier windows and 11 positive windows**. All threshold decisions matched the reference. File replay does not record the room or establish acoustic recognition.
-
-At the October 16 checkpoint, both Shows were configured for only **“Привет, мышка”** through the exact ONNX frontend at **0.50** (**5.0 in HA**), with “Hey Jarvis” removed from the active selection and the separate Stop command retained. **Both passed three microphone mute/unmute cycles with verified capture closure/reopening, plus a normal app restart**, preserving HA settings, brightness, permissions and nonroot ADB. Spoken activation, audible responses, distance, Stop during playback, power-loss recovery and a multi-day soak remain pending. The two-model microWakeWord capability and its October 15 baseline remain documented below.
-
-[Wake-model rollout: process and results](docs/wiki/Wake-model-rollout.md) · [Technical guide](docs/openwakeword-myshka.md) · [Validation graphic](docs/assets/wake-validation.svg)
-
-![One microphone supplies the exact ONNX activation pipeline and the separate Stop detector. The 80 ms audio chunk is not a measured wake latency.](docs/assets/exact-oww-pipeline.svg)
+These records keep their original versions, dates and limits; they do not establish acoustic acceptance of a later APK.
 
 ## What it does
 
@@ -77,16 +59,14 @@ At the October 16 checkpoint, both Shows were configured for only **“Прив�
 - **A screen suited to five inches:** a large clock, full-screen Front/Porch video on motion, bounded manual camera viewing and return to the clock. Video preserves proportions; the ready-frame gate suppresses Android's stretched play placeholder. [Display guide](docs/wiki/Display-media-and-calls.md).
 - **An HA remote endpoint:** announcements, music, fixed TV streams, our OTT-play FOSS Capacitor client, a separate OTT web route and optional OttPlayer. Home/Stop ends the owned activity and restores the clock. [Remote controls](docs/remote-endpoint.md).
 - **Calls on your Jitsi installation:** a fixed room, explicit join policy, microphone handoff and bounded cleanup. The standalone camera/intercom pilot remains a separate experimental option. [Calls and intercom](docs/wiki/Display-media-and-calls.md#jitsi-and-intercom).
-- **Choice of voice backend:** Homeway, independent FCC cloud speech/conversation, or local Russian conversation and Piper speech with FCC cloud recognition. Selection is per satellite; fallback is manual. [Privacy boundaries and outage procedure](docs/wiki/Voice-and-wake-words.md#choose-and-switch-an-assistant).
+- **Choice of voice backend:** Homeway, independent FCC cloud speech/conversation, or local Russian conversation and Silero speech with FCC cloud recognition. Selection is per satellite; fallback is manual. [Privacy boundaries and outage procedure](docs/wiki/Voice-and-wake-words.md#choose-and-switch-an-assistant).
 - **Localization:** English, Russian, German, Spanish and French project entry points, plus the clock interface's own locale configuration. Interface language, speech language and wake model are independent. Detailed technical runbooks and wiki pages are maintained in English. [Coverage and contribution rules](docs/wiki/Localization.md).
 
 ## Earlier display and voice validation
 
-**October 15, 2026 baseline:** the built `dualwake.2` patch fixes detector cleanup, and display revision `20261015-r11` combines English, Russian, German and Spanish localization with retry handling when the MQTT command is not yet available during HA startup. A set of **48 synthetic desktop layout renders** showed no clipping in the exercised cases. Both updates were verified installed on both Shows at that checkpoint. Each device passed three software microphone mute/unmute cycles and a normal app restart, restoring both models and capture. Physical phrase recognition remains unverified; see [current rollout evidence](docs/wiki/Validation.md).
+The [October 15 record](docs/wiki/Validation.md#october-15-installed-state-and-recovery-checks) covers `dualwake.2`, display `20261015-r11`, 48 synthetic layout renders and the installed recovery checks. The [October 14 record](integrations/vaca-dual-wake/README.md#historical-deployment-evidence--2026-10-14) preserves the earlier Piper/Irina pipeline and service-level announcements. The [October 2 conversion snapshot](docs/preparation-status.md) is historical.
 
-The **October 14, 2026 deployment baseline** has two converted Shows on Android 11 / unofficial LineageOS 18.1, with both activation models loaded after a normal **application restart**, existing HA identities preserved and sequential HA announcements completed. Both use the **Local Russian Home** pipeline and **Irina** speech. Recognition still sends audio to the cloud. [Dual-wake build evidence](integrations/vaca-dual-wake/README.md#historical-deployment-evidence--2026-10-14) · [voice deployment history](docs/fcc-voice-backup.md).
-
-**Deliberate physical recognition of both phrases, audible-response quality, power-loss recovery and a multi-day soak remain pending for the dual-wake build.** A loaded model, an idle satellite or completed service call does not establish those results. Earlier camera, brightness, media and Jitsi tests have their own dated scope. The [validation guide](docs/wiki/Validation.md) separates those observations; the [October 2 conversion snapshot](docs/preparation-status.md) is historical and contains superseded voice settings.
+Physical phrase recognition, audible-response quality, power-loss recovery and a multi-day soak remain separate acceptance work. Completed API calls, loaded models and file replay are narrower evidence.
 
 ## Compatible hardware and conversion route
 
@@ -142,7 +122,7 @@ python3 -m unittest discover -s integrations/show5-display/tests -p 'test_*.py' 
 python3 -m unittest discover -s integrations/show5-intercom/tests -v
 ```
 
-[CONTRIBUTING](CONTRIBUTING.md) and [CI](.github/workflows/tests.yml) describe the complete required checks and separate voice runtimes. Tests do not authorize writes or certify a device. [Release packaging](docs/release-packaging.md) publishes a reviewed **integration-source suite**, not firmware or an APK. [Release policy](RELEASING.md) · [bounded RC fuzzing](docs/fuzzing.md) · [versioning](docs/VERSIONING.md) · [security reporting](SECURITY.md) · [security design](docs/security-design.md) · [third-party notices](THIRD_PARTY_NOTICES.md).
+[CONTRIBUTING](CONTRIBUTING.md) and [CI](https://github.com/ha-homelab/ha-echo-show-5/blob/main/.github/workflows/tests.yml) describe the complete required checks and separate voice runtimes. Tests do not authorize writes or certify a device. [Release packaging](docs/release-packaging.md) publishes a reviewed **integration-source suite**, not firmware or an APK. [Release policy](RELEASING.md) · [bounded RC fuzzing](docs/fuzzing.md) · [versioning](docs/VERSIONING.md) · [security reporting](SECURITY.md) · [security design](docs/security-design.md) · [third-party notices](THIRD_PARTY_NOTICES.md).
 
 ## Related projects
 

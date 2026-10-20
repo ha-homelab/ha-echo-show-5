@@ -43,6 +43,6 @@ Do not describe the separate Wiki as synchronized unless that publish and verifi
 
 Run `python3 scripts/check_docs.py` from the repository root to check local Markdown targets, anchors and accessible SVG structure. It is an offline check; it does not verify provider availability or render a page on the device.
 
-Run the affected offline suites and documentation checks, then follow [CONTRIBUTING](../../CONTRIBUTING.md). The [CI workflow](../../.github/workflows/tests.yml) and release policy are authoritative for required jobs; a local smoke test is not a substitute for them.
+Run the affected offline suites and documentation checks, then follow [CONTRIBUTING](../../CONTRIBUTING.md). The [CI workflow](https://github.com/ha-homelab/ha-echo-show-5/blob/main/.github/workflows/tests.yml) and release policy are authoritative for required jobs; a local smoke test is not a substitute for them.
 
 This repository's release artifact is the **integration-source suite**, not firmware, a signed APK or a prebuilt device image. [Release packaging](../release-packaging.md) defines its inventory. [Versioning](../VERSIONING.md), [release operations](../release-workflow.md), [RC fuzzing](../fuzzing.md) and [third-party notices](../../THIRD_PARTY_NOTICES.md) cover publication and provenance. Do not bypass required checks to publish a documentation refresh.

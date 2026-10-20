@@ -2,22 +2,32 @@
 
 [Wiki home](Home.md) · [Voice configuration](Voice-and-wake-words.md) · [Exact frontend history](Wake-model-rollout.md) · [Implementation](../../integrations/vaca-dual-wake/README.md)
 
-## myshka.7: exact Myshka plus optional Hey Jarvis
+## myshka.9: two phrases with serialized listener replacement
 
-The `.7` source adds optional **“Hey Jarvis”** activation while retaining the
-exact ONNX path for **“Привет, мышка.”** Either phrase starts the same assistant
-selected for that satellite. It does not change the speech-recognition service,
-conversation model, reply voice or display language.
+Optional **“Hey Jarvis”**, introduced in `.7`, retains the exact ONNX path for
+**“Привет, мышка.”** Either phrase starts the same selected assistant; recognition,
+conversation, reply voice and display language are separate settings.
 
-**Show 1 has the retained-key `.7` / `7007` update with both activation models
-enabled.** The build passed **42 JVM tests**; Show 1 passed **six Android tests**,
-**three actual microphone mute/unmute cycles** and an **app restart**. The
-[build receipt](../../integrations/vaca-dual-wake/build-myshka.7.json) identifies
-the artifact. The [October 19 record](Validation.md#october-19-mixed-wake-checkpoint)
-separates replay, synthetic Jarvis tests, installed state and recovery.
-**Show 2 remains unavailable, last verified on `.4`; spoken acceptance in the
-room remains pending.** The older [single-phrase diagram](../assets/exact-oww-pipeline.svg)
-and dated `.3`, `.4` and `.6` results remain historical evidence.
+**Show 1 runs the retained-key `.9` / `7009` build with both phrases enabled.**
+Its [build receipt](../../integrations/vaca-dual-wake/build-myshka.9.json) records
+62 passing JVM tests. Six Android tests, live configuration changes, disabled
+primary handling, three actual microphone mute/unmute cycles and an app restart
+passed. See the [October 20 measurements](Validation.md#october-20-shutdown-checkpoint).
+Show 2 remains unavailable, last verified on `.4`; physical speech acceptance
+remains pending. The [October 19 `.7` record](Validation.md#october-19-mixed-wake-checkpoint)
+and earlier single-phrase results retain their original scope.
+
+The listener waits for the old capture and cleanup before replacement. A cleanup
+timeout retains ownership and prevents overlapping capture. Disabled selections
+and unavailable OpenWakeWord primary selections stop before engine construction.
+The older microWakeWord-only mode intentionally retains its available-secondary
+fallback when a nonempty primary is unavailable; this does not promote Jarvis
+to a primary in the mixed exact-Myshka mode. The architecture introduced in `.7`
+below remains unchanged.
+
+The `.9` shutdown path also attempts independent sensor and camera cleanup
+after an earlier failure, preserves the original error and avoids reporting
+a successful stop when cleanup failed.
 
 ![One microphone supplies the unchanged exact ONNX Myshka path and a shared MicroFrontend for optional Hey Jarvis and local Stop. Each activation path has its own threshold; both use the same assistant and cooldown.](../assets/mixed-wake-pipeline.svg)
 

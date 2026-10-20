@@ -7,7 +7,7 @@ contacts Home Assistant, cameras, a voice service or a physical Show.
 
 Every pull request requires five targets: current Chromium, Firefox and WebKit
 on Linux, Chromium on Windows, and WebKit on macOS. Release candidates use all
-35 targets in the [reviewed matrix](../.github/browser-compatibility.json):
+35 targets in the [reviewed matrix](https://github.com/ha-homelab/ha-echo-show-5/blob/main/.github/browser-compatibility.json):
 three pinned Playwright/browser generations across those operating systems,
 plus Chrome and Edge stable/beta channels where configured. Beta releases use
 the five required targets. Scheduled and manual source audits run all 35. The shared workflow checks actual browser, operating

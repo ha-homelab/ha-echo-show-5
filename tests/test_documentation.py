@@ -34,6 +34,33 @@ class DocumentationTests(unittest.TestCase):
             self.assertEqual(len(errors), 1)
             self.assertIn("escapes repository", errors[0])
 
+    def test_linked_image_checks_both_preview_and_full_size_target(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            page = root / "README.md"
+            page.write_text("[![Clock](preview.png)](full.jpg)\n", encoding="utf-8")
+            errors = check_docs.markdown_errors(page, root)
+            self.assertEqual(len(errors), 2)
+            self.assertTrue(any("preview.png" in error for error in errors))
+            self.assertTrue(any("full.jpg" in error for error in errors))
+            (root / "preview.png").write_bytes(b"preview")
+            errors = check_docs.markdown_errors(page, root)
+            self.assertEqual(len(errors), 1)
+            self.assertIn("full.jpg", errors[0])
+
+    def test_explicit_inventory_without_git_rejects_missing_inputs_and_links(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            (root / "README.md").write_text("[Guide](guide.md)\n", encoding="utf-8")
+            count, errors = check_docs.check_files(root, ["README.md", "missing.md"])
+            self.assertEqual(count, 1)
+            self.assertEqual(len(errors), 2)
+            self.assertTrue(any("missing local target: guide.md" in error for error in errors))
+            self.assertTrue(any("missing documentation input" in error for error in errors))
+            _, errors = check_docs.check_files(root, ["../outside.md"])
+            self.assertEqual(len(errors), 1)
+            self.assertIn("escapes repository", errors[0])
+
     def test_svg_accessibility_and_remote_resource_rejection(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()

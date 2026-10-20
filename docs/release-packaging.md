@@ -46,6 +46,12 @@ normalized. The adapter creates the archive and `SHA256SUMS`, then validates
 every member and byte against the build overlay before extracting it into a
 private temporary directory.
 
+The source-distribution regression also checks every shipped Markdown link and
+SVG, including the preview and full-size targets of linked images, against the
+extracted inventory. Documentation images, their provenance and the release
+runbooks travel with the archive. Repository-only workflow and matrix references
+link explicitly to GitHub rather than pretending those files are bundled.
+
 The extracted distribution runs the real intercom Python suite, display Python
 suite, offline voice-tool help and intercom browser tests using its own files.
 This proves that these shipped sources and resources work together outside the
@@ -75,6 +81,16 @@ consistent base metadata, but it cannot receive a publication receipt. Existing
 output directories must be empty; do not mix artifacts from separate runs.
 
 ## Installation and acceptance
+
+The archive can validate its documentation without Git:
+
+```sh
+python3 scripts/check_docs.py --inventory
+```
+
+This checks the shipped paths and local links only; it does not fetch remote URLs.
+The release-publishing commands above require the full source checkout and its
+release tooling, not just the integration-source archive.
 
 Download the exact beta/RC asset and its published manifest, verify its SHA-256,
 and extract it to a new directory. Follow the included component README for the

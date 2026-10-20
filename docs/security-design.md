@@ -21,7 +21,7 @@ Raw backups, Android/ADB access, Home Assistant tokens, microphones and cameras 
 - [integrations/show5-display/tests/test_auth.cjs](../integrations/show5-display/tests/test_auth.cjs)
 
 Run the documented commands in [CONTRIBUTING.md](../CONTRIBUTING.md) and the
-[CI workflow](../.github/workflows/tests.yml). Preserve negative tests for rejected inputs,
+[CI workflow](https://github.com/ha-homelab/ha-echo-show-5/blob/main/.github/workflows/tests.yml). Preserve negative tests for rejected inputs,
 unavailable dependencies, authorization failures and cancellation. A passing
 test run describes its fixtures and environment; it does not certify every
 upstream service, hardware model or production deployment.

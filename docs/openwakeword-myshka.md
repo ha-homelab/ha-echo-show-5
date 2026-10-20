@@ -2,10 +2,10 @@
 
 [Project overview](../README.md) · [Wake-model rollout](wiki/Wake-model-rollout.md) · [Voice and wake words](wiki/Voice-and-wake-words.md) · [Validation](wiki/Validation.md) · [Previous dual-wake build](../integrations/vaca-dual-wake/README.md)
 
-**Current mixed activation:** [myshka.7](wiki/Mixed-wake-words.md) keeps the exact
+**Current mixed activation:** [myshka.9](wiki/Mixed-wake-words.md) keeps the exact
 Myshka path and adds optional bundled Hey Jarvis through the existing Stop
 frontend. Show 1's installation, Android tests and microphone lifecycle have
-[separate dated evidence](wiki/Validation.md#october-19-mixed-wake-checkpoint).
+[separate dated evidence](wiki/Validation.md#october-20-shutdown-checkpoint).
 This page preserves earlier single-phrase and conversion observations; they
 must not be relabeled as new build, device or acoustic results.
 
@@ -23,10 +23,10 @@ observations. Physical speech acceptance remains pending.
 The October 16 trial replaced the previous two-phrase configuration on both converted Shows with the updated **“Привет, мышка” / “Privet Myshka” as the only activation phrase**. “Hey Jarvis” was removed from the active selection at that checkpoint. The selected HA assistant pipeline, clock/display configuration and media settings were preserved; media playback was not re-tested in this rollout.
 
 The earlier `myshka.6` / `7006` build includes TLS and typed-input repairs.
-The current [source builder](../integrations/vaca-dual-wake/README.md) prepares
-the optional `.7` mixed-wake extension. The `.4` receipts and rollout below
-remain historical device evidence. The [current October 19 checkpoint](wiki/Validation.md#october-19-mixed-wake-checkpoint)
-records Show 1 on `.7`, while the preceding `.6` evidence remains dated.
+The [source builder](../integrations/vaca-dual-wake/README.md) identifies the
+current build and its optional mixed-wake extension. The `.4` receipts and
+rollout below remain historical device evidence. The [October 20 shutdown checkpoint](wiki/Validation.md#october-20-shutdown-checkpoint)
+records Show 1 on `.9`; the earlier `.6`, `.7` and `.8` evidence remains dated.
 Check the current builder's version, full test result and retained signing
 identity before a new update; Show 2 remains last verified on `.4`.
 

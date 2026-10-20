@@ -2,10 +2,10 @@
 
 [Wiki home](Home.md) · [Validation and evidence](Validation.md) · [Architecture](Architecture.md)
 
-**Current mixed activation:** [myshka.7](Mixed-wake-words.md) keeps the exact
+**Current mixed activation:** [myshka.9](Mixed-wake-words.md) keeps the exact
 Myshka path and adds optional bundled Hey Jarvis through the existing Stop
 frontend. Show 1's installation, Android tests and microphone lifecycle have
-[separate dated evidence](Validation.md#october-19-mixed-wake-checkpoint).
+[separate dated evidence](Validation.md#october-20-shutdown-checkpoint).
 This page preserves earlier single-phrase and conversion observations; they
 must not be relabeled as new build, device or acoustic results.
 

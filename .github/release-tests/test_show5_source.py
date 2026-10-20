@@ -119,6 +119,19 @@ class SourceDistributionTests(unittest.TestCase):
         archive = package_source.build(self.root, self.base_version, "rc", self.root / "output")
         package_source.verify(archive, self.root)
 
+    def test_extracted_documentation_is_complete_without_git(self):
+        self.freeze("beta")
+        archive = package_source.build(self.root, self.base_version, "beta", self.root / "docs-output")
+        installed = package_source.unpack(archive, self.root, self.root / "docs-unpacked")
+        command = [sys.executable, "scripts/check_docs.py", "--inventory"]
+        result = subprocess.run(command, cwd=installed, text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        # Catch an omitted full-size target even when its linked preview exists.
+        (installed / "docs/assets/clock-screenshot.jpg").unlink()
+        result = subprocess.run(command, cwd=installed, text=True, capture_output=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("clock-screenshot.jpg", result.stdout)
+
     def test_archive_is_reproducible_and_excludes_local_state(self):
         self.freeze("beta")
         (self.root / "private").mkdir()

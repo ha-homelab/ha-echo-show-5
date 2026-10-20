@@ -4,46 +4,25 @@
 
 The wake detector decides **when to start listening for a command**. Speech recognition, intent/model processing and speech synthesis are separate HA stages. Changing a page's language or its displayed clock does not change any of those stages.
 
-## October 19: two activation phrases on Show 1
+## October 20: listener lifecycle verified on Show 1
 
-Show 1 runs **`myshka.7` / `7007`** with exact ONNX **“Привет, мышка” at 0.50**
-and optional bundled **“Hey Jarvis”**, using a strict five-evaluation mean
-**> 0.97**. One microphone supplies both paths; Jarvis shares the existing
-MicroFrontend with Stop, which remains a separate playback command.
+Show 1 runs **`myshka.9` / `7009`** with **“Привет, мышка” at 0.50** and optional
+**“Hey Jarvis”** with its independent five-evaluation mean **> 0.97**. The update
+also attempts independent shutdown cleanup steps after a failure; listener
+replacement and disabled-primary handling remain intact. The build passed
+62 JVM tests; device checks covered six Android tests, configuration changes
+without restarting the app, the None primary, three microphone mute/unmute
+cycles and a normal restart. Settings were preserved. **Show 2 remains
+unavailable, last verified on `.4`; physical speech acceptance remains pending.**
+See the [mixed-wake guide](Mixed-wake-words.md) and [dated measurements](Validation.md#october-20-shutdown-checkpoint).
 
-The retained-key build passed **42 JVM tests**. Show 1 passed **six Android
-tests**, **three actual microphone mute/unmute cycles** and an **app restart**;
-both activation models, Stop and HTTPS authentication recovered with settings
-preserved. **Show 2 remains unavailable, last verified on `.4`.** Physical speech
-acceptance remains pending. See the [opt-in and rollback guide](Mixed-wake-words.md)
-and [measured results](Validation.md#october-19-mixed-wake-checkpoint).
+## Earlier configurations
 
-## October 19: earlier myshka.6 checkpoint
-
-Show 1 received the retained-key **`myshka.6` / `7006`** update and passed three
-Android instrumentation tests after the build passed 29 JVM tests. The exact
-Myshka model at 0.50, local Stop and microphone inference were observed. Show 2
-is currently unavailable and remains last verified on `.4`. Read the
-[earlier .6 validation](Validation.md#october-19-current-checkpoint) for
-separate device, voice-backend and physical-acceptance results. The October 19
-Show 1 check used its selected **Silero** voice; the Piper/Irina route documented
-below records an earlier configuration.
-
-## October 16: opt-in single-phrase ONNX trial
-
-**PR #69 follow-up: `myshka.4` / `7004` is installed and locally verified on Show 2.** The original signing certificate is retained and all 18 JVM tests pass. Show 2 passed the targeted Android inventory regression: one test covering five metadata cases in 0.624 seconds. Invalid optional metadata no longer aborts the model inventory; engine loading still rejects invalid assets. Show 2 also passed one actual microphone close/reopen cycle and a normal app restart, preserving settings, brightness, permissions and authenticated nonroot ADB. End-to-end voice acceptance remains pending. At that October 16 checkpoint, Show 1 was unreachable and remained last verified on `.3`. The `.3` fixture and lifecycle observations below remain a separate historical record.
-
-### Verified myshka.3 baseline
-
-**APK installed and reference replay passed on both Shows.** VACA `0.13.4+myshka.3` / `7003` passed 18 JVM tests. Each device also passed two Android instrumentation tests using four existing private fixtures: **294 embeddings, 234 classifier windows and 11 positive windows**, with all threshold decisions matching the reference. This is file-based inference evidence, not a room recording or acoustic acceptance.
-
-At the October 16 checkpoint, both Shows were configured for only **“Привет, мышка”** at **0.50** (**5.0 in HA**) through the exact ONNX frontend, with “Hey Jarvis” removed from the active selection and the separate Stop command retained. **Both passed three microphone mute/unmute cycles with verified capture closure/reopening, plus a normal app restart.** HA settings, brightness, permissions and nonroot ADB were preserved. Spoken activation, audible answers, distance, Stop during playback, power-loss recovery and a multi-day soak remain pending. The selected engine is `openwakeword`; the independent two-model microWakeWord capability remains available.
-
-![Exact ONNX pipeline: one microphone supplies aligned PCM to the activation frontend and separate Stop processing, while HA handles the subsequent voice request.](../assets/exact-oww-pipeline.svg)
-
-The classifier is bound to the same ONNX frontend artifacts used during training. The **80 ms** value is a processing chunk, not a measured wake latency. Its **0.50** threshold and the earlier microWakeWord **0.35** belong to different models and cannot establish relative sensitivity by numeric comparison. The bundled Stop command reuses the same PCM and is not a second activation phrase.
-
-Read the [rollout process and evidence](Wake-model-rollout.md) and [technical guide](../openwakeword-myshka.md) before changing engine settings. Stop VACA while saving the complete engine/model/threshold selection, then relaunch; separate live changes can enter the legacy empty-model path. The successful Android replay validates only the exercised fixtures. Acoustic acceptance remains separate, and this trial adds no new recording task.
+The [.7 mixed-wake checkpoint](Validation.md#october-19-mixed-wake-checkpoint),
+[.6 HTTPS and backend checks](Validation.md#october-19-current-checkpoint) and
+[.3/.4 exact-frontend rollout](Wake-model-rollout.md) retain their original
+versions, tests and limits. Current Local Russian Home uses Silero; the
+Piper/Irina route below describes the earlier configured baseline.
 
 ## Recorded two-word configuration
 

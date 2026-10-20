@@ -47,7 +47,7 @@ enough headroom for the next restart.
 
 Separate these cases:
 
-1. **No activation:** verify the microphone is not hardware/software muted, the selected microWakeWord engine is running and the expected models actually loaded. Primary HA selection alone does not prove the secondary file was read. Check the threshold scale: HA `3.5` means model threshold `0.35`.
+1. **No activation:** verify the microphone is not hardware/software muted and the selected engine and intended models actually loaded. For the [mixed exact configuration](Mixed-wake-words.md), the engine is `openwakeword`, Myshka uses HA `5.0` (effective `0.50`), and optional Jarvis requires a five-evaluation mean strictly above `0.97`. The HA primary slider does not tune Jarvis. Primary HA selection alone does not prove the secondary file was read. The older two-model microWakeWord setup used HA `3.5` (effective `0.35`); do not copy that setting into a different model configuration.
 2. **Activation without recognized text:** check the selected pipeline's speech-recognition service, authentication, provider quota and connectivity. Local wake detection does not make cloud ASR available.
 3. **Text recognized but no useful action:** inspect the chosen conversation agent and HA-exposed intents/entities. The original FCC text bridge does not automatically have arbitrary HA tools. Prefer supported native intents for common household actions.
 4. **Answer generated but no sound:** fetch the TTS output, then test a short announcement on the target satellite. Service completion and physical audibility are separate. Check volume and a competing player/call before changing models.

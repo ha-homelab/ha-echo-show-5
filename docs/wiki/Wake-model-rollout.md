@@ -2,10 +2,10 @@
 
 [Wiki home](Home.md) · [Voice configuration](Voice-and-wake-words.md) · [Technical runbook](../openwakeword-myshka.md) · [Validation](Validation.md)
 
-**Current mixed activation:** [myshka.7](Mixed-wake-words.md) keeps the exact
+**Current mixed activation:** [myshka.9](Mixed-wake-words.md) keeps the exact
 Myshka path and adds optional bundled Hey Jarvis through the existing Stop
 frontend. Show 1's installation, Android tests and microphone lifecycle have
-[separate dated evidence](Validation.md#october-19-mixed-wake-checkpoint).
+[separate dated evidence](Validation.md#october-20-shutdown-checkpoint).
 This page preserves earlier single-phrase and conversion observations; they
 must not be relabeled as new build, device or acoustic results.
 
@@ -23,7 +23,7 @@ the device and backend checks at that earlier checkpoint; physical speech accept
 **Historical `.3` baseline: installed and verified on both Shows; physical speech acceptance pending.** VACA **`0.13.4+myshka.3` / `7003`** builds for ARMv7 with the retained signing certificate. Its **18 JVM tests pass without failures or skips**. Each Show independently passed Android numerical replay, three microphone mute/unmute cycles and a normal app restart. These results do not establish physical speech recognition. See the dated [build receipt](../../integrations/vaca-dual-wake/build-myshka.3.json) and device observations below.
 
 The current [source builder](../../integrations/vaca-dual-wake/README.md) targets
-`myshka.7` / `7007` with optional mixed activation. The earlier `.6` added
+`myshka.9` / `7009` with optional mixed activation and ordered shutdown cleanup. The earlier `.6` added
 TLS and typed-input repairs. This page preserves the
 `.3`/`.4` deployment history alongside the separate October 19 `.6` checkpoint.
 Use the [`.6` build receipt](../../integrations/vaca-dual-wake/build-myshka.6.json)

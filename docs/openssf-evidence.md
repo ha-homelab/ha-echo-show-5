@@ -13,7 +13,7 @@ leaves unverified criteria unknown.
 - Contribution requirements, test policy and test invocation: [CONTRIBUTING](../CONTRIBUTING.md).
 - Private reporting process and response policy: [SECURITY](../SECURITY.md).
 - Trust boundaries, source references and negative-test evidence: [security design](security-design.md).
-- Build/test automation: [workflow](../.github/workflows/tests.yml) and [actual run results](https://github.com/ha-homelab/ha-echo-show-5/actions).
+- Build/test automation: [workflow](https://github.com/ha-homelab/ha-echo-show-5/blob/main/.github/workflows/tests.yml) and [actual run results](https://github.com/ha-homelab/ha-echo-show-5/actions).
 
 
 ## Initial scanner inventory — 2026-10-08

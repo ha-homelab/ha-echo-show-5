@@ -4,20 +4,25 @@
 
 This Android patch extends [View Assist Companion App](https://github.com/msp1974/ViewAssistCompanionApp)
 at the pinned commit `65906aebffd2f39772773b44729b22fd022a1f3c`.
-The **`myshka.7`** source adds an optional bundled Hey Jarvis activation
-model alongside the exact ONNX frontend for private Myshka. It also retains the
-earlier two-model microWakeWord configuration as a separate mode. Local Stop
-is a playback-control command, not an activation phrase.
+The current **`myshka.9`** source attempts every independent shutdown cleanup
+step even if an earlier step fails, then propagates the original failure. It
+retains `.8`'s serialized listener replacement and disabled-primary handling,
+optional bundled Hey Jarvis alongside exact ONNX Myshka, and the older
+two-model microWakeWord mode. Local Stop is a separate playback command.
 
-**The ARMv7 `0.13.4+myshka.7` / `7007` build passed 42 JVM tests.**
-The [retained-key build receipt](build-myshka.7.json) records the source, artifact,
-signer and test identities.
-**Show 1 received `.7` with both activation models enabled** and passed six
-Android tests, three actual microphone mute/unmute cycles and an app restart.
-Fresh HTTPS authentication and retained settings were verified. Show 2 remains
-unavailable, last verified on `.4`. Physical voice acceptance remains pending;
-see the [current device evidence](../../docs/wiki/Validation.md#october-19-mixed-wake-checkpoint).
-The preceding installed checkpoint was **`0.13.4+myshka.6` / `7006`**.
+The retained-key **`0.13.4+myshka.9` / `7009`** [build receipt](build-myshka.9.json)
+records **62 passing JVM tests**. Show 1 received `.9` and passed six Android
+tests, in-process threshold/None checks, three actual microphone mute/unmute
+cycles and a normal app restart. Settings and security checks were preserved.
+See the [October 20 shutdown checkpoint](../../docs/wiki/Validation.md#october-20-shutdown-checkpoint).
+The [preceding `.8` build](build-myshka.8.json), [archived patch](history/myshka.8.patch)
+and [`.8` device results](../../docs/wiki/Validation.md#october-20-lifecycle-checkpoint)
+remain separate historical evidence. Show 2 remains unavailable, last verified
+on `.4`; physical speech acceptance remains pending.
+
+The first verified mixed-activation build was `.7` / `7007`; its [build receipt](build-myshka.7.json),
+[archived patch](history/myshka.7.patch) and [October 19 results](../../docs/wiki/Validation.md#october-19-mixed-wake-checkpoint)
+retain the original 42-JVM/six-Android-test evidence.
 
 The [earlier October 19 retained-key build receipt](build-myshka.6.json) records **29
 passing JVM tests**. Show 1 received this update and passed three Android tests;
@@ -119,14 +124,34 @@ HA recognition language and reply voice are independent settings. Adding an
 English wake phrase does not switch a Russian assistant to English. Keep stable
 model IDs untranslated in configuration.
 
+## What changed in myshka.9
+
+Satellite shutdown directly awaits ordered cleanup of the audio pipeline,
+media, event listeners, wake worker, sensors and camera. A wake-worker timeout
+no longer skips independent camera cleanup. The first failure is rethrown
+after the remaining steps, later failures are suppressed on it, and caller
+cancellation is preserved. `STOPPED` is announced only after successful
+completion. Eight fault-injection tests cover these paths, including retained
+wake-worker ownership; they do not simulate an actual native camera hang.
+
+## What changed in myshka.8
+
+Listener replacement now joins the previous worker's cleanup before starting
+another one, with a bounded timeout that prevents overlapping capture. The
+satellite serializes configuration-driven start/stop/restart operations.
+Disabled selections and unavailable OpenWakeWord primary selections stop
+before engine construction; the legacy microWakeWord secondary fallback is
+preserved. Twelve lifecycle and selection regressions extend the suite recorded
+in the current build receipt.
+
 ## What changed in myshka.7
 
 The mixed path adds bundled Jarvis without replacing the exact Myshka classifier
 or creating another microphone or MicroFrontend. A model decision travels
 through both event handlers so the primary HA slider cannot turn a rejected
 Jarvis score into an activation. Selection, routing and calibrated decision
-regressions add 13 JVM tests; the builder requires all 42 tests to pass without
-skips. Existing TLS and manifest validation remain intact.
+regressions added 13 JVM tests; that revision required all 42 tests to pass
+without skips. Existing TLS and manifest validation remained intact.
 
 ## What changed in myshka.6
 
@@ -213,7 +238,7 @@ its previous verified build record:
 
 ```bash
 python3 integrations/vaca-dual-wake/build.py \
-  --work-dir private/vaca-myshka-build-v7 \
+  --work-dir private/vaca-myshka-build-v9 \
   --signing-dir private/vaca-dual-wake-signing \
   --expected-signer-sha256 "$EXPECTED_SIGNER_SHA256"
 ```
@@ -230,7 +255,7 @@ create a new identity:
 
 ```bash
 python3 integrations/vaca-dual-wake/build.py \
-  --work-dir private/vaca-myshka-build-v7 \
+  --work-dir private/vaca-myshka-build-v9 \
   --signing-dir private/vaca-dual-wake-signing \
   --create-signing-key
 ```
@@ -251,8 +276,8 @@ the patch, choose a new ignored work directory so the old build stays available.
 The builder runs JVM tests, verifies APK signature/package/version/ABI, checks
 source integrity again, and writes two private outputs:
 
-- `vaca-0.13.4-myshka.7.apk`
-- `vaca-0.13.4-myshka.7.json` — source and patch hashes, signing certificate,
+- `vaca-0.13.4-myshka.9.apk`
+- `vaca-0.13.4-myshka.9.json` — source and patch hashes, signing certificate,
   artifact hash/size, test results and an explicit “not deployed by build tool”
   status. It contains no password, token or device identity.
 
@@ -264,7 +289,7 @@ upstream in-app updater cannot replace this differently signed APK.
 ## Install a same-certificate update
 
 **An existing local installation with the original certificate can receive
-`myshka.7` as an ordinary update. Do not uninstall it.** Select the intended
+the current verified build as an ordinary update. Do not uninstall it.** Select the intended
 engine and private model using its runbook after verifying the new artifact.
 
 1. Select one device by its exact serial and verify its current package/version.
