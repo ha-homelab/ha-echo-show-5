@@ -5,14 +5,15 @@
 ### Added
 
 - Optional **Hey Jarvis** activation alongside the existing exact ONNX
-  **Privet Myshka** path in VACA `0.13.4+myshka.8` (7008). One microphone
+  **Privet Myshka** path in VACA `0.13.4+myshka.9` (7009). One microphone
   supplies both paths; Jarvis shares the existing MicroFrontend with local
   Stop. Stop remains a separate playback command.
 - Preserve Jarvis's calibrated decision: mean probability over five model
   evaluations must be strictly greater than 0.97. Myshka retains its separate
   0.50 threshold, and both activation phrases share the existing cooldown.
-- Require 54 passing JVM tests, including auxiliary selection, routing,
-  decision preservation, listener cancellation and disabled-model regressions.
+- Require 62 passing JVM tests, including auxiliary selection, routing,
+  decision preservation, listener cancellation, shutdown cleanup and
+  disabled-model regressions.
   Add Android checks for shared-frontend parity, synthetic Jarvis activation
   and detector cleanup.
 
@@ -32,6 +33,9 @@
 - Keep a disabled wake listener idle and avoid constructing an OpenWakeWord
   engine when its primary model is unavailable. Preserve the existing
   microWakeWord fallback to a valid secondary model.
+- Complete camera and sensor cleanup even when wake-listener shutdown times
+  out. Preserve the failure for the caller instead of reporting a successful
+  stop, and remove the duplicate camera-stop call.
 - Keep temporary packaging repositories from running automatic Git maintenance
   during test cleanup.
 

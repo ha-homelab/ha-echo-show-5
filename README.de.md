@@ -19,13 +19,14 @@ oder Gerät. Ein Klick öffnet das flache Original.
 
 ## 20. Oktober: Listener-Wechsel auf Show 1 geprüft
 
-**Show 1 verwendet `myshka.8` / `7008` mit „Привет, мышка“ und „Hey Jarvis“.**
+**Show 1 verwendet `myshka.9` / `7009` mit „Привет, мышка“ und „Hey Jarvis“.**
 Myshka bleibt bei **0,50**; Jarvis behält seinen eigenen Mittelwert über fünf
 Auswertungen **> 0,97**. Ein Mikrofon versorgt beide Phrasen und den separaten
 Stop-Befehl. Vor einem Listener-Wechsel wird die bisherige Erfassung geschlossen;
 eine deaktivierte primäre Phrase startet keine Mikrofonerfassung.
+Schlägt ein Schritt beim Beenden fehl, führt dieser Build die übrigen Aufräumschritte dennoch aus.
 
-**54 JVM-Tests** und **sechs Android-Tests** bestanden. Auf dem Gerät wurden
+**62 JVM-Tests** und **sechs Android-Tests** bestanden. Auf dem Gerät wurden
 Konfigurationswechsel ohne App-Neustart, die deaktivierte primäre Phrase,
 **drei tatsächliche Mikrofon-Stummschaltzyklen** und ein App-Neustart geprüft.
 HA-Einstellungen, HTTPS-Prüfung, Berechtigungen und Display blieben erhalten.
@@ -33,12 +34,13 @@ HA-Einstellungen, HTTPS-Prüfung, Berechtigungen und Display blieben erhalten.
 Spracherkennung bleibt noch zu prüfen.
 
 [Zweite Phrase aktivieren](docs/wiki/Mixed-wake-words.md) ·
-[Messungen und Grenzen](docs/wiki/Validation.md#october-20-lifecycle-checkpoint) ·
+[Messungen und Grenzen](docs/wiki/Validation.md#october-20-shutdown-checkpoint) ·
 [Verarbeitungsdiagramm](docs/assets/mixed-wake-pipeline.svg).
 Fünf README-Sprachen und vier Laufzeitsprachen der Uhr bleiben verfügbar.
 
 ## Frühere geprüfte Stände
 
+- [20. Oktober, `.8`](docs/wiki/Validation.md#october-20-lifecycle-checkpoint): serialisierter Listener-Wechsel und deaktivierte primäre Phrase.
 - [19. Oktober, `.7`](docs/wiki/Validation.md#october-19-mixed-wake-checkpoint): erste geprüfte gemeinsame Myshka/Jarvis-Installation.
 - [19. Oktober, `.6`](docs/wiki/Validation.md#october-19-current-checkpoint): Update mit bisheriger Signatur, HTTPS, Referenzdateien und getrennte Messungen des Sprachservers.
 - [16. Oktober, `.4`](docs/wiki/Validation.md#pr-69-follow-up-myshka4-build-and-show-2-checks): Modellliste und Wiederaufnahme der Mikrofonerfassung auf Show 2.

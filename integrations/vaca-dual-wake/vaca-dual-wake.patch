@@ -1,5 +1,5 @@
 diff --git a/app/build.gradle.kts b/app/build.gradle.kts
-index 4606ee9..2096015 100644
+index 4606ee9..f297719 100644
 --- a/app/build.gradle.kts
 +++ b/app/build.gradle.kts
 @@ -8,8 +8,6 @@ plugins {
@@ -34,8 +34,8 @@ index 4606ee9..2096015 100644
          targetSdk = 36
 -        versionName = "0.13.4"
 -        versionCode = code
-+        versionName = "0.13.4+myshka.8"
-+        versionCode = 7008
++        versionName = "0.13.4+myshka.9"
++        versionCode = 7009
          testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
      }
  
@@ -221,7 +221,7 @@ index 0000000..d966e75
 +    }
 +}
 diff --git a/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt b/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
-index 4b12a5c..99030f9 100644
+index 4b12a5c..75f7f64 100644
 --- a/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
 +++ b/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
 @@ -40,6 +40,8 @@ import kotlinx.coroutines.flow.asStateFlow
@@ -241,16 +241,40 @@ index 4b12a5c..99030f9 100644
      private var audioPipeline: SatelliteAudioPipeline? = null
      private var audioPipelineLastStateChange = System.currentTimeMillis()
  
-@@ -278,7 +281,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+@@ -268,22 +271,16 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
  
-         scope.launch {
-             eventHandler.stop()
+     suspend fun stop() {
+         state = SatelliteState.STOPPING
+-        config.eventBroadcaster.removeListener(this)
+-
+-        stopAudioPipeline()
+-
+-        mediaManager.stopAll()
+-
+-        volumeObserver?.unregister()
+-
+-        scope.launch {
+-            eventHandler.stop()
 -            wakeWordHandler?.stop()
-+            stopWakeWordDetection()
-             motionTask.stopCamera()
-             motionTask.release()
-         }.join()
-@@ -312,12 +315,13 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+-            motionTask.stopCamera()
+-            motionTask.release()
+-        }.join()
+-
+-        stopSensors()
++        runSatelliteCleanup(
++            { config.eventBroadcaster.removeListener(this) },
++            { stopAudioPipeline() },
++            { mediaManager.stopAll() },
++            { volumeObserver?.unregister() },
++            { eventHandler.stop() },
++            { stopWakeWordDetection() },
++            { stopSensors() },
++            { motionTask.release() },
++        )
+         state = SatelliteState.STOPPED
+         BroadcastSender.sendBroadcast(context, BroadcastSender.SATELLITE_STOPPED)
+     }
+@@ -312,12 +309,13 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
          }
      }
  
@@ -269,7 +293,7 @@ index 4b12a5c..99030f9 100644
  
          Timber.d("Starting Wake Word Detection")
          sendDiagnostics(0f, 0f)
-@@ -363,22 +367,24 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+@@ -363,22 +361,24 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
                  }
  
              }.also {
@@ -300,7 +324,7 @@ index 4b12a5c..99030f9 100644
      }
  
      suspend fun handleWakeWordDetection(detection: WakeWordEngineProvider.WakeWordDetection) {
-@@ -784,7 +790,8 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+@@ -784,7 +784,8 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
      fun sendDiagnostics(audioLevel: Float, detectionLevel: Float) {
          lastAudioLevel = audioLevel
          lastDetectionLevel = detectionLevel
@@ -2665,5 +2689,247 @@ index 0000000..42dcd88
 +            WakeWordSelection.forEngine("openwakeword", "myshka", "hey_jarvis", models))
 +        assertEquals(listOf("myshka", "hey_jarvis"),
 +            WakeWordSelection.forEngine("microwakeword", "myshka", "hey_jarvis", models))
++    }
++}
+diff --git a/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteCleanup.kt b/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteCleanup.kt
+new file mode 100644
+index 0000000..2d4bac5
+--- /dev/null
++++ b/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteCleanup.kt
+@@ -0,0 +1,29 @@
++package com.msp1974.vacompanion.satellite
++
++import kotlinx.coroutines.NonCancellable
++import kotlinx.coroutines.currentCoroutineContext
++import kotlinx.coroutines.ensureActive
++import kotlinx.coroutines.withContext
++
++/** Finish every independent cleanup step, then preserve the original failure. */
++internal suspend fun runSatelliteCleanup(vararg steps: suspend () -> Unit) {
++    withContext(NonCancellable) {
++        var failure: Throwable? = null
++        for (step in steps) {
++            try {
++                step()
++            } catch (error: Throwable) {
++                val first = failure
++                if (first == null) {
++                    failure = error
++                } else if (first !== error) {
++                    first.addSuppressed(error)
++                }
++            }
++        }
++        failure?.let { throw it }
++    }
++    // NonCancellable on the same dispatcher does not check cancellation on exit.
++    // Never let a cancelled caller announce successful shutdown.
++    currentCoroutineContext().ensureActive()
++}
+diff --git a/app/src/test/java/com/msp1974/vacompanion/satellite/SatelliteCleanupTest.kt b/app/src/test/java/com/msp1974/vacompanion/satellite/SatelliteCleanupTest.kt
+new file mode 100644
+index 0000000..978ac99
+--- /dev/null
++++ b/app/src/test/java/com/msp1974/vacompanion/satellite/SatelliteCleanupTest.kt
+@@ -0,0 +1,201 @@
++package com.msp1974.vacompanion.satellite
++
++import com.msp1974.vacompanion.wakeword.WakeWordSession
++import kotlinx.coroutines.CancellationException
++import kotlinx.coroutines.CompletableDeferred
++import kotlinx.coroutines.CoroutineScope
++import kotlinx.coroutines.Dispatchers
++import kotlinx.coroutines.Job
++import kotlinx.coroutines.NonCancellable
++import kotlinx.coroutines.SupervisorJob
++import kotlinx.coroutines.TimeoutCancellationException
++import kotlinx.coroutines.awaitCancellation
++import kotlinx.coroutines.cancelAndJoin
++import kotlinx.coroutines.currentCoroutineContext
++import kotlinx.coroutines.launch
++import kotlinx.coroutines.runBlocking
++import kotlinx.coroutines.withContext
++import kotlinx.coroutines.withTimeout
++import org.junit.Assert.*
++import org.junit.Test
++
++class SatelliteCleanupTest {
++    private fun assertOriginalFailure(expected: Throwable, actual: Throwable) {
++        assertEquals(expected.javaClass, actual.javaClass)
++        assertEquals(expected.message, actual.message)
++        // Debug coroutine stack recovery may copy an exception and retain the
++        // original as its cause. Require that exact original, not just its text.
++        val seen = mutableSetOf<Throwable>()
++        var current: Throwable? = actual
++        while (current != null && seen.add(current)) {
++            if (current === expected) return
++            current = current.cause
++        }
++        fail("The original cleanup failure must remain in the cause chain")
++    }
++
++    private suspend fun caught(block: suspend () -> Unit): Throwable {
++        try {
++            block()
++        } catch (error: Throwable) {
++            return error
++        }
++        throw AssertionError("Expected cleanup to propagate its failure")
++    }
++
++    @Test fun runsEveryStepInOrderOnce() = runBlocking {
++        val events = mutableListOf<String>()
++        runSatelliteCleanup(
++            { events += "events stopped" },
++            { events += "wake stopped" },
++            { events += "sensors and camera stopped" },
++            { events += "camera released" },
++        )
++        events += "success"
++        assertEquals(
++            listOf("events stopped", "wake stopped", "sensors and camera stopped", "camera released", "success"),
++            events,
++        )
++    }
++
++    @Test fun wakeTimeoutStillClosesCameraAndRetainsWorkerOwnership() = runBlocking {
++        withTimeout(5_000) {
++            val parent = SupervisorJob()
++            val session = WakeWordSession(CoroutineScope(parent + Dispatchers.Default), 30)
++            val entered = CompletableDeferred<Unit>()
++            val finishCleanup = CompletableDeferred<Unit>()
++            val events = mutableListOf<String>()
++            try {
++                session.replace {
++                    try {
++                        entered.complete(Unit)
++                        awaitCancellation()
++                    } finally {
++                        withContext(NonCancellable) { finishCleanup.await() }
++                    }
++                }
++                entered.await()
++                val error = caught {
++                    runSatelliteCleanup(
++                        { events += "events stopped" },
++                        { session.stop() },
++                        { events += "sensors and camera stopped" },
++                        { events += "camera released" },
++                    )
++                    events += "success"
++                }
++                assertTrue(error is TimeoutCancellationException)
++                assertEquals(listOf("events stopped", "sensors and camera stopped", "camera released"), events)
++                val nextStarted = CompletableDeferred<Unit>()
++                val replacementError = caught { session.replace { nextStarted.complete(Unit) } }
++                assertTrue(replacementError is TimeoutCancellationException)
++                assertFalse(nextStarted.isCompleted)
++            } finally {
++                finishCleanup.complete(Unit)
++                session.stop()
++                parent.cancelAndJoin()
++            }
++        }
++    }
++
++    @Test fun cameraStopFailureStillReleasesAndDoesNotReportSuccess() = runBlocking {
++        val error = IllegalStateException("camera stop")
++        val events = mutableListOf<String>()
++        val actual = caught {
++            runSatelliteCleanup(
++                { events += "wake stopped" },
++                { events += "sensors cancelled"; throw error },
++                { events += "camera released" },
++            )
++            events += "success"
++        }
++        assertOriginalFailure(error, actual)
++        assertEquals(listOf("wake stopped", "sensors cancelled", "camera released"), events)
++    }
++
++    @Test fun laterFailuresAreSuppressedOnOriginalFailure() = runBlocking {
++        val first = IllegalStateException("event cleanup")
++        val second = IllegalArgumentException("camera stop")
++        val third = IllegalStateException("camera release")
++        var wakeStopped = false
++        val actual = caught {
++            runSatelliteCleanup(
++                { throw first },
++                { wakeStopped = true },
++                { throw second },
++                { throw third },
++            )
++        }
++        assertTrue(wakeStopped)
++        assertOriginalFailure(first, actual)
++        assertArrayEquals(arrayOf(second, third), first.suppressed)
++    }
++
++    @Test fun reusedFailureDoesNotSuppressItselfOrSkipRemainingCleanup() = runBlocking {
++        val error = IllegalStateException("reused failure")
++        var released = false
++        val actual = caught {
++            runSatelliteCleanup({ throw error }, { throw error }, { released = true })
++        }
++        assertOriginalFailure(error, actual)
++        assertTrue(error.suppressed.isEmpty())
++        assertTrue(released)
++    }
++
++    @Test fun cancellationFromStepStillCleansAndIsRethrown() = runBlocking {
++        val error = CancellationException("cleanup cancelled")
++        var released = false
++        val actual = caught {
++            runSatelliteCleanup({ throw error }, { released = true })
++        }
++        assertOriginalFailure(error, actual)
++        assertTrue(released)
++    }
++
++    @Test fun cancellationDuringCleanupWaitsForReleaseAndPropagates() = runBlocking {
++        withTimeout(5_000) {
++            val entered = CompletableDeferred<Unit>()
++            val finishCleanup = CompletableDeferred<Unit>()
++            val events = mutableListOf<String>()
++            val caller = launch {
++                try {
++                    runSatelliteCleanup(
++                        { entered.complete(Unit); finishCleanup.await(); events += "camera stopped" },
++                        { events += "camera released" },
++                    )
++                    events += "success"
++                } catch (error: CancellationException) {
++                    events += "cancelled"
++                    throw error
++                }
++            }
++            entered.await()
++            caller.cancel()
++            assertFalse(caller.isCompleted)
++            finishCleanup.complete(Unit)
++            caller.join()
++            assertTrue(caller.isCancelled)
++            assertEquals(listOf("camera stopped", "camera released", "cancelled"), events)
++        }
++    }
++
++    @Test fun alreadyCancelledCallerStillCleansAndCannotReportSuccess() = runBlocking {
++        val events = mutableListOf<String>()
++        val caller = launch {
++            currentCoroutineContext()[Job]!!.cancel()
++            try {
++                runSatelliteCleanup(
++                    { events += "camera stopped" },
++                    { events += "camera released" },
++                )
++                events += "success"
++            } catch (error: CancellationException) {
++                events += "cancelled"
++                throw error
++            }
++        }
++        caller.join()
++        assertTrue(caller.isCancelled)
++        assertEquals(listOf("camera stopped", "camera released", "cancelled"), events)
 +    }
 +}

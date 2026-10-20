@@ -4,6 +4,48 @@
 
 Each result needs a dated target, exact artifact or revision, method and limitation. Avoid a single “everything works” claim that mixes an automated test with an earlier physical observation on another build.
 
+<a id="october-20-shutdown-checkpoint"></a>
+
+## October 20: myshka.9 shutdown checkpoint
+
+The retained-signer **`0.13.4+myshka.9` / `7009`** [build receipt](../../integrations/vaca-dual-wake/build-myshka.9.json)
+records **62 passing JVM tests**, including eight shutdown regressions. Satellite
+shutdown now attempts all independent cleanup steps after an earlier failure,
+then propagates the first error. Cancellation remains cancellation, and a failed
+shutdown does not announce `STOPPED`. Injected unit-test failures cover the wake
+timeout and camera cleanup paths; no real native camera hang was induced.
+
+**Show 1 received `.9` after a fresh stopped-app `.8` backup was verified on two
+hosts.** The retained `.8` APK and data remain available for rollback. All
+**six Android tests passed in 19.711 seconds**. Existing Myshka files again
+matched all threshold decisions across **294 embeddings, 234 classifier windows
+and 11 positive windows**. Processing their 23.520 seconds of audio took
+**14.602 seconds** including initialization. Shared Stop/Jarvis parity remained
+exact across **2,344 windows per model**; the existing synthetic Jarvis files
+produced **24 accepted windows across three of four voices**, with Daniel still
+below the calibrated boundary. These are file tests, not room recognition.
+
+Live threshold changes **5.0 → 5.1 → 5.0** kept the same Android process and
+closed the old capture before loading a replacement. Selecting **None** stopped
+the handler with no capture or replacement engine; restoring the original
+primary recovered both phrases and all HA settings. **Three actual mute/unmute
+cycles and a normal app restart passed**, with cycle means **51.984, 51.568, 51.536 ms per
+80 ms input** and restart mean **58.400 ms**. These are short local processing
+measurements, not end-to-end latency or a soak test.
+
+The final check found one unsilenced microphone capture. Myshka **0.50** / HA
+**5.0**, Jarvis's five-evaluation mean **> 0.97**, local Stop, Local Russian Home,
+HA identity and controls, manual brightness, permissions, private model hashes,
+HTTPS certificate checks and authenticated nonroot ADB were preserved.
+Temporary fixtures, caches and the instrumentation package were removed.
+No new room audio, audio playback or shared-service changes were made.
+
+Show 2 was not probed again for this update; the preceding bounded check found
+it unavailable, last verified on `.4`. Physical speech acceptance, audible
+replies, distance, Stop during playback, power-loss recovery and longer-term
+stability remain separate checks. The complete `.8` results below are historical
+evidence with their own distinct measurements.
+
 <a id="october-20-lifecycle-checkpoint"></a>
 
 ## October 20: myshka.8 lifecycle checkpoint

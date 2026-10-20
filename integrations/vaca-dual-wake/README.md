@@ -4,20 +4,23 @@
 
 This Android patch extends [View Assist Companion App](https://github.com/msp1974/ViewAssistCompanionApp)
 at the pinned commit `65906aebffd2f39772773b44729b22fd022a1f3c`.
-The current **`myshka.8`** source serializes listener replacement and handles
-disabled selections and unavailable OpenWakeWord primary selections before
-creating an engine. It retains optional bundled Hey Jarvis alongside exact ONNX
-Myshka, plus the older two-model microWakeWord mode. Local Stop is a separate
-playback command.
+The current **`myshka.9`** source attempts every independent shutdown cleanup
+step even if an earlier step fails, then propagates the original failure. It
+retains `.8`'s serialized listener replacement and disabled-primary handling,
+optional bundled Hey Jarvis alongside exact ONNX Myshka, and the older
+two-model microWakeWord mode. Local Stop is a separate playback command.
 
-The retained-key **`0.13.4+myshka.8` / `7008`** [build receipt](build-myshka.8.json)
-records **54 passing JVM tests**. **Show 1 received `.8`** and passed six Android
-tests, in-process configuration-restart and None-primary checks, three actual
-microphone mute/unmute cycles and an app restart. HTTPS authentication and
-existing settings were preserved. Show 2 is unavailable, last verified on `.4`;
-physical voice acceptance remains pending. See the [October 20 device evidence](../../docs/wiki/Validation.md#october-20-lifecycle-checkpoint).
+The retained-key **`0.13.4+myshka.9` / `7009`** [build receipt](build-myshka.9.json)
+records **62 passing JVM tests**. Show 1 received `.9` and passed six Android
+tests, in-process threshold/None checks, three actual microphone mute/unmute
+cycles and a normal app restart. Settings and security checks were preserved.
+See the [October 20 shutdown checkpoint](../../docs/wiki/Validation.md#october-20-shutdown-checkpoint).
+The [preceding `.8` build](build-myshka.8.json), [archived patch](history/myshka.8.patch)
+and [`.8` device results](../../docs/wiki/Validation.md#october-20-lifecycle-checkpoint)
+remain separate historical evidence. Show 2 remains unavailable, last verified
+on `.4`; physical speech acceptance remains pending.
 
-The preceding mixed-activation build was `.7` / `7007`; its [build receipt](build-myshka.7.json),
+The first verified mixed-activation build was `.7` / `7007`; its [build receipt](build-myshka.7.json),
 [archived patch](history/myshka.7.patch) and [October 19 results](../../docs/wiki/Validation.md#october-19-mixed-wake-checkpoint)
 retain the original 42-JVM/six-Android-test evidence.
 
@@ -120,6 +123,16 @@ built-in English phrase **“Hey Jarvis.”** The wake phrase, interface languag
 HA recognition language and reply voice are independent settings. Adding an
 English wake phrase does not switch a Russian assistant to English. Keep stable
 model IDs untranslated in configuration.
+
+## What changed in myshka.9
+
+Satellite shutdown directly awaits ordered cleanup of the audio pipeline,
+media, event listeners, wake worker, sensors and camera. A wake-worker timeout
+no longer skips independent camera cleanup. The first failure is rethrown
+after the remaining steps, later failures are suppressed on it, and caller
+cancellation is preserved. `STOPPED` is announced only after successful
+completion. Eight fault-injection tests cover these paths, including retained
+wake-worker ownership; they do not simulate an actual native camera hang.
 
 ## What changed in myshka.8
 
@@ -225,7 +238,7 @@ its previous verified build record:
 
 ```bash
 python3 integrations/vaca-dual-wake/build.py \
-  --work-dir private/vaca-myshka-build-v8 \
+  --work-dir private/vaca-myshka-build-v9 \
   --signing-dir private/vaca-dual-wake-signing \
   --expected-signer-sha256 "$EXPECTED_SIGNER_SHA256"
 ```
@@ -242,7 +255,7 @@ create a new identity:
 
 ```bash
 python3 integrations/vaca-dual-wake/build.py \
-  --work-dir private/vaca-myshka-build-v8 \
+  --work-dir private/vaca-myshka-build-v9 \
   --signing-dir private/vaca-dual-wake-signing \
   --create-signing-key
 ```
@@ -263,8 +276,8 @@ the patch, choose a new ignored work directory so the old build stays available.
 The builder runs JVM tests, verifies APK signature/package/version/ABI, checks
 source integrity again, and writes two private outputs:
 
-- `vaca-0.13.4-myshka.8.apk`
-- `vaca-0.13.4-myshka.8.json` — source and patch hashes, signing certificate,
+- `vaca-0.13.4-myshka.9.apk`
+- `vaca-0.13.4-myshka.9.json` — source and patch hashes, signing certificate,
   artifact hash/size, test results and an explicit “not deployed by build tool”
   status. It contains no password, token or device identity.
 

@@ -19,13 +19,14 @@ ni usar cámara o dispositivo. Haz clic para ver el original.
 
 ## 20 de octubre: ciclo del detector verificado en Show 1
 
-**Show 1 utiliza `myshka.8` / `7008` con «Привет, мышка» y «Hey Jarvis».**
+**Show 1 utiliza `myshka.9` / `7009` con «Привет, мышка» y «Hey Jarvis».**
 Myshka conserva **0,50**; Jarvis mantiene su media independiente de cinco
 evaluaciones **> 0,97**. Un micrófono alimenta ambas frases y el comando Stop
 separado. La actualización espera el cierre del detector anterior y no inicia
 la captura cuando la frase principal está desactivada.
+Si falla un paso al detenerse, esta versión ejecuta los demás pasos de liberación de recursos.
 
-Pasaron **54 pruebas JVM** y **seis pruebas Android**. Se comprobaron cambios
+Pasaron **62 pruebas JVM** y **seis pruebas Android**. Se comprobaron cambios
 de configuración sin reiniciar la aplicación, la frase principal desactivada,
 **tres ciclos reales de cierre y reapertura del micrófono** y un reinicio de la
 aplicación. Se conservaron HA, verificación HTTPS, permisos y pantalla.
@@ -33,12 +34,13 @@ aplicación. Se conservaron HA, verificación HTTPS, permisos y pantalla.
 de voz en la habitación sigue pendiente.
 
 [Activar la segunda frase](docs/wiki/Mixed-wake-words.md) ·
-[Mediciones y límites](docs/wiki/Validation.md#october-20-lifecycle-checkpoint) ·
+[Mediciones y límites](docs/wiki/Validation.md#october-20-shutdown-checkpoint) ·
 [Diagrama de procesamiento](docs/assets/mixed-wake-pipeline.svg).
 Se mantienen cinco idiomas de README y cuatro de la interfaz del reloj.
 
 ## Etapas anteriores verificadas
 
+- [20 de octubre, `.8`](docs/wiki/Validation.md#october-20-lifecycle-checkpoint): reemplazo serializado del detector y frase principal desactivada.
 - [19 de octubre, `.7`](docs/wiki/Validation.md#october-19-mixed-wake-checkpoint): primera instalación verificada de Myshka y Jarvis juntos.
 - [19 de octubre, `.6`](docs/wiki/Validation.md#october-19-current-checkpoint): actualización con la firma anterior, HTTPS, archivos de referencia y mediciones independientes del servidor de voz.
 - [16 de octubre, `.4`](docs/wiki/Validation.md#pr-69-follow-up-myshka4-build-and-show-2-checks): lista de modelos y recuperación del micrófono en Show 2.

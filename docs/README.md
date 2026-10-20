@@ -6,14 +6,15 @@ This route targets **Echo Show 5 Gen2 / 2021 / cronos**, using **LineageOS / And
 
 ## October 20: listener lifecycle verified on Show 1
 
-Show 1 runs **`myshka.8` / `7008`** with **“Привет, мышка” at 0.50** and optional
+Show 1 runs **`myshka.9` / `7009`** with **“Привет, мышка” at 0.50** and optional
 **“Hey Jarvis”** with its independent five-evaluation mean **> 0.97**. The update
-fixes listener replacement and disabled-primary handling. The build passed
-54 JVM tests; device checks covered six Android tests, configuration changes
+also attempts independent shutdown cleanup steps after a failure; listener
+replacement and disabled-primary handling remain intact. The build passed
+62 JVM tests; device checks covered six Android tests, configuration changes
 without restarting the app, the None primary, three microphone mute/unmute
 cycles and a normal restart. Settings were preserved. **Show 2 remains
 unavailable, last verified on `.4`; physical speech acceptance remains pending.**
-See the [mixed-wake guide](wiki/Mixed-wake-words.md) and [dated measurements](wiki/Validation.md#october-20-lifecycle-checkpoint).
+See the [mixed-wake guide](wiki/Mixed-wake-words.md) and [dated measurements](wiki/Validation.md#october-20-shutdown-checkpoint).
 
 ## Start with the wiki
 

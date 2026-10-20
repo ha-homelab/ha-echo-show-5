@@ -2,17 +2,17 @@
 
 [Wiki home](Home.md) · [Voice configuration](Voice-and-wake-words.md) · [Exact frontend history](Wake-model-rollout.md) · [Implementation](../../integrations/vaca-dual-wake/README.md)
 
-## myshka.8: two phrases with serialized listener replacement
+## myshka.9: two phrases with serialized listener replacement
 
 Optional **“Hey Jarvis”**, introduced in `.7`, retains the exact ONNX path for
 **“Привет, мышка.”** Either phrase starts the same selected assistant; recognition,
 conversation, reply voice and display language are separate settings.
 
-**Show 1 runs the retained-key `.8` / `7008` build with both phrases enabled.**
-Its [build receipt](../../integrations/vaca-dual-wake/build-myshka.8.json) records
-54 passing JVM tests. Six Android tests, live configuration changes, disabled
+**Show 1 runs the retained-key `.9` / `7009` build with both phrases enabled.**
+Its [build receipt](../../integrations/vaca-dual-wake/build-myshka.9.json) records
+62 passing JVM tests. Six Android tests, live configuration changes, disabled
 primary handling, three actual microphone mute/unmute cycles and an app restart
-passed. See the [October 20 measurements](Validation.md#october-20-lifecycle-checkpoint).
+passed. See the [October 20 measurements](Validation.md#october-20-shutdown-checkpoint).
 Show 2 remains unavailable, last verified on `.4`; physical speech acceptance
 remains pending. The [October 19 `.7` record](Validation.md#october-19-mixed-wake-checkpoint)
 and earlier single-phrase results retain their original scope.
@@ -24,6 +24,10 @@ The older microWakeWord-only mode intentionally retains its available-secondary
 fallback when a nonempty primary is unavailable; this does not promote Jarvis
 to a primary in the mixed exact-Myshka mode. The architecture introduced in `.7`
 below remains unchanged.
+
+The `.9` shutdown path also attempts independent sensor and camera cleanup
+after an earlier failure, preserves the original error and avoids reporting
+a successful stop when cleanup failed.
 
 ![One microphone supplies the unchanged exact ONNX Myshka path and a shared MicroFrontend for optional Hey Jarvis and local Stop. Each activation path has its own threshold; both use the same assistant and cooldown.](../assets/mixed-wake-pipeline.svg)
 

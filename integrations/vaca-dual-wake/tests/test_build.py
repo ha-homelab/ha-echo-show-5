@@ -329,8 +329,25 @@ class MetadataTests(unittest.TestCase):
                 '<testsuite name="com.msp1974.vacompanion.wakeword.WakeWordStartSelectionTest" tests="5" failures="0" errors="0" skipped="0">'
                 + ''.join('<testcase name="' + name + '"/>' for name in selection_names)
                 + '</testsuite>')
-            self.assertEqual(build.test_totals(src)['tests'], 54)
-            for required_report, required_name in ((lifecycle, 'cancelledButIncompleteWorkerIsStillJoined'), (selection, 'blankOrNonePrimaryDisablesEveryEngine')):
+            with self.assertRaises(build.BuildError):
+                build.test_totals(src)
+            cleanup = reports / 'TEST-cleanup.xml'
+            cleanup_names = (
+                'runsEveryStepInOrderOnce',
+                'wakeTimeoutStillClosesCameraAndRetainsWorkerOwnership',
+                'cameraStopFailureStillReleasesAndDoesNotReportSuccess',
+                'laterFailuresAreSuppressedOnOriginalFailure',
+                'reusedFailureDoesNotSuppressItselfOrSkipRemainingCleanup',
+                'cancellationFromStepStillCleansAndIsRethrown',
+                'cancellationDuringCleanupWaitsForReleaseAndPropagates',
+                'alreadyCancelledCallerStillCleansAndCannotReportSuccess',
+            )
+            cleanup.write_text(
+                '<testsuite name="com.msp1974.vacompanion.satellite.SatelliteCleanupTest" tests="8" failures="0" errors="0" skipped="0">'
+                + ''.join('<testcase name="' + name + '"/>' for name in cleanup_names)
+                + '</testsuite>')
+            self.assertEqual(build.test_totals(src)['tests'], 62)
+            for required_report, required_name in ((lifecycle, 'cancelledButIncompleteWorkerIsStillJoined'), (selection, 'blankOrNonePrimaryDisablesEveryEngine'), (cleanup, 'wakeTimeoutStillClosesCameraAndRetainsWorkerOwnership')):
                 original = required_report.read_text()
                 required_report.write_text(original.replace(required_name, 'unrelatedTest'))
                 with self.assertRaises(build.BuildError):
@@ -352,8 +369,8 @@ class ApkValidationTests(unittest.TestCase):
         self.fingerprint = 'a' * 64
         self.signature = 'Signer #1 certificate SHA-256 digest: ' + self.fingerprint + '\n'
         self.manifest = (
-            "package: name='com.msp1974.vacompanion' versionCode='7008' "
-            "versionName='0.13.4+myshka.8' platformBuildVersionName='16'\n"
+            "package: name='com.msp1974.vacompanion' versionCode='7009' "
+            "versionName='0.13.4+myshka.9' platformBuildVersionName='16'\n"
             "native-code: 'armeabi-v7a'\n"
         )
 
@@ -402,7 +419,7 @@ class ApkValidationTests(unittest.TestCase):
 
     def test_stale_version_is_rejected(self):
         """Reject a previous build version even when its signing identity and ABI match."""
-        self.manifest = self.manifest.replace('7008', '7007')
+        self.manifest = self.manifest.replace('7009', '7008')
         with self.assertRaises(build.BuildError):
             self.validate()
 

@@ -25,25 +25,27 @@ no Home Assistant login, camera feed or device was used. Click for the flat orig
 
 ## October 20: listener lifecycle verified on Show 1
 
-**Show 1 runs `myshka.8` / `7008` with “Привет, мышка” and “Hey Jarvis”.**
+**Show 1 runs `myshka.9` / `7009` with “Привет, мышка” and “Hey Jarvis”.**
 Myshka remains at **0.50**; Jarvis retains its independent five-evaluation mean
 **> 0.97**. One microphone supplies both paths and the separate local Stop command.
 The update waits for the old listener to close before replacement and handles
 a disabled primary without starting microphone capture.
+This build also attempts the remaining shutdown cleanup steps if an earlier step fails.
 
-The build passed **54 JVM tests**. Show 1 passed **six Android tests**, live
+The build passed **62 JVM tests**. Show 1 passed **six Android tests**, live
 configuration-restart and None-primary checks, **three actual microphone
 mute/unmute cycles** and an app restart. HA settings, HTTPS verification,
 permissions and display settings were preserved. **Show 2 is unavailable,
 last verified on `.4`.** Physical voice acceptance remains pending.
 
 [Enable the second phrase](docs/wiki/Mixed-wake-words.md) ·
-[Measurements and limits](docs/wiki/Validation.md#october-20-lifecycle-checkpoint) ·
+[Measurements and limits](docs/wiki/Validation.md#october-20-shutdown-checkpoint) ·
 [Processing diagram](docs/assets/mixed-wake-pipeline.svg).
 Five README languages and four runtime UI languages remain available.
 
 ## Earlier verified checkpoints
 
+- [October 20, `.8`](docs/wiki/Validation.md#october-20-lifecycle-checkpoint): serialized listener replacement and disabled-primary validation.
 - [October 19, `.7`](docs/wiki/Validation.md#october-19-mixed-wake-checkpoint): first verified mixed Myshka/Jarvis installation.
 - [October 19, `.6`](docs/wiki/Validation.md#october-19-current-checkpoint): retained-key update, HTTPS verification, reference replay and separate voice-backend timings.
 - [October 16, `.4`](docs/wiki/Validation.md#pr-69-follow-up-myshka4-build-and-show-2-checks): Show 2 model-inventory regression and microphone recovery.

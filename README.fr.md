@@ -19,13 +19,14 @@ caméra ni appareil. Cliquez pour voir l’original.
 
 ## 20 octobre : cycle du détecteur vérifié sur Show 1
 
-**Show 1 utilise `myshka.8` / `7008` avec « Привет, мышка » et « Hey Jarvis ».**
+**Show 1 utilise `myshka.9` / `7009` avec « Привет, мышка » et « Hey Jarvis ».**
 Myshka conserve **0,50** ; Jarvis garde sa moyenne indépendante sur cinq
 évaluations **> 0,97**. Un microphone alimente les deux phrases et la commande
 Stop séparée. La mise à jour attend la fermeture de l’ancien détecteur et ne
 démarre aucune capture quand la phrase principale est désactivée.
+Si une étape de l’arrêt échoue, cette version exécute quand même les autres étapes de libération des ressources.
 
-**54 tests JVM** et **six tests Android** ont réussi. Les changements de réglages
+**62 tests JVM** et **six tests Android** ont réussi. Les changements de réglages
 sans redémarrage, la désactivation de la phrase principale, **trois cycles réels
 de coupure et reprise du microphone** et un redémarrage ont été vérifiés.
 Les réglages HA, HTTPS, autorisations et écran sont conservés. **Show 2 reste
@@ -33,12 +34,13 @@ inaccessible ; sa dernière version vérifiée est `.4`.** La validation vocale
 dans la pièce reste à effectuer.
 
 [Activer la deuxième phrase](docs/wiki/Mixed-wake-words.md) ·
-[Mesures et limites](docs/wiki/Validation.md#october-20-lifecycle-checkpoint) ·
+[Mesures et limites](docs/wiki/Validation.md#october-20-shutdown-checkpoint) ·
 [Schéma de traitement](docs/assets/mixed-wake-pipeline.svg).
 Les cinq langues des README et quatre langues de l’horloge sont maintenues.
 
 ## Étapes antérieures vérifiées
 
+- [20 octobre, `.8`](docs/wiki/Validation.md#october-20-lifecycle-checkpoint) : remplacement sérialisé du détecteur et phrase principale désactivée.
 - [19 octobre, `.7`](docs/wiki/Validation.md#october-19-mixed-wake-checkpoint) : première installation vérifiée de Myshka et Jarvis ensemble.
 - [19 octobre, `.6`](docs/wiki/Validation.md#october-19-current-checkpoint) : mise à jour avec la signature précédente, HTTPS, fichiers de référence et mesures séparées du serveur vocal.
 - [16 octobre, `.4`](docs/wiki/Validation.md#pr-69-follow-up-myshka4-build-and-show-2-checks) : liste des modèles et reprise du microphone sur Show 2.
