@@ -33,6 +33,7 @@ class FakeProvider:
         self.tts_calls = []
         self.delay = 0
         self.error = None
+        self.transcript = "Синтетическая проверка."
         self.started = asyncio.Event()
         self.cancelled = asyncio.Event()
         self.tts_audio = b"\0" * 22050
@@ -44,7 +45,7 @@ class FakeProvider:
             await asyncio.sleep(self.delay)
             if self.error:
                 raise self.error
-            return "Синтетическая проверка."
+            return self.transcript
         except asyncio.CancelledError:
             self.cancelled.set()
             raise
@@ -86,9 +87,7 @@ class ContentTests(unittest.TestCase):
     def test_all_final_segments_are_assembled(self):
         self.assertEqual(cloud.transcript_text(response(" Первая часть. ", "", "Вторая часть.")), "Первая часть. Вторая часть.")
         for value in [response(), response("  ")]:
-            with self.assertRaises(cloud.SpeechError) as caught:
-                cloud.transcript_text(value)
-            self.assertEqual(caught.exception.code, "no-speech")
+            self.assertEqual(cloud.transcript_text(value), "")
         with self.assertRaises(cloud.SpeechError):
             cloud.transcript_text(response("x" * (cloud.MAX_TEXT_CHARACTERS + 1)))
 
@@ -180,6 +179,63 @@ class WireTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result.type, "transcript")
             self.assertEqual(result.data["language"], "ru")
         self.assertEqual([len(p) for p in self.provider.calls], [6400, 6400])
+
+    async def test_empty_transcript_preserves_no_speech_telemetry_and_connection_reuse(self):
+        reader, writer = await self.connect()
+        self.provider.transcript = ""
+        with self.assertLogs(level="INFO") as captured:
+            await self.start(writer)
+            await self.audio(writer, b"\x01\x00" * 10)
+            await async_write_event(AudioStop().event(), writer)
+            result = await self.event(reader)
+            self.assertEqual(result.type, "transcript")
+            self.assertEqual(result.data, {"text": "", "language": "ru"})
+            # A following request synchronizes after completion and proves that
+            # no-speech released capacity and cleared the previous capture.
+            self.provider.transcript = "Следующая фраза."
+            await self.start(writer)
+            await self.audio(writer, b"\x02\x00" * 12)
+            await async_write_event(AudioStop().event(), writer)
+            result = await self.event(reader)
+            self.assertEqual(result.type, "transcript")
+            self.assertEqual(result.data["text"], "Следующая фраза.")
+            await async_write_event(Describe().event(), writer)
+            self.assertEqual((await self.event(reader)).type, "info")
+        self.assertFalse(any(self.service.owners.values()))
+        self.assertEqual(self.provider.calls, [b"\x01\x00" * 10, b"\x02\x00" * 12])
+        logs = "\n".join(captured.output)
+        self.assertRegex(logs, r"stage=asr outcome=no-speech elapsed_ms=\d+")
+        self.assertRegex(logs, r"stage=asr outcome=ok elapsed_ms=\d+")
+        self.assertNotIn("FCC_CLOUD_SPEECH_FAILURE", logs)
+        self.assertNotIn("Следующая", logs)
+
+    async def test_provider_failures_remain_wyoming_errors(self):
+        for failure, expected in [
+            (cloud.SpeechError("provider-auth"), "provider-auth"),
+            (cloud.SpeechError("timeout"), "timeout"),
+            (cloud.SpeechError("provider-unavailable"), "provider-unavailable"),
+            (TypeError("synthetic malformed provider response"), "provider-unavailable"),
+        ]:
+            with self.subTest(expected=expected, failure=type(failure).__name__):
+                self.provider.error = failure
+                reader, writer = await self.connect()
+                await self.start(writer)
+                await self.audio(writer)
+                await async_write_event(AudioStop().event(), writer)
+                result = await self.event(reader)
+                self.assertEqual(result.type, "error")
+                self.assertEqual(result.data["code"], expected)
+                self.assertIsNone(await self.event(reader))
+                self.assertFalse(any(self.service.owners.values()))
+
+    async def test_no_audio_frames_remain_invalid_audio(self):
+        reader, writer = await self.connect()
+        await self.start(writer)
+        await async_write_event(AudioStop().event(), writer)
+        result = await self.event(reader)
+        self.assertEqual(result.type, "error")
+        self.assertEqual(result.data["code"], "invalid-audio")
+        self.assertFalse(self.provider.calls)
 
     async def test_thirty_seconds_accepted_but_not_one_sample_more(self):
         reader, writer = await self.connect()
@@ -431,6 +487,7 @@ class GrpcTests(unittest.IsolatedAsyncioTestCase):
         self.channels = []
         self.delay = 0
         self.failure = None
+        self.asr_response = response("Один.", "Два.")
         self.tts_audio = b"\0" * 22050
         outer = self
 
@@ -440,7 +497,7 @@ class GrpcTests(unittest.IsolatedAsyncioTestCase):
                 if outer.failure:
                     await context.abort(outer.failure, "synthetic-private-upstream-detail")
                 await asyncio.sleep(outer.delay)
-                return response("Один.", "Два.")
+                return outer.asr_response
 
         class TtsServicer(cloud.rtts_grpc.RivaSpeechSynthesisServicer):
             async def Synthesize(self, request, context):
@@ -476,6 +533,11 @@ class GrpcTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(metadata["authorization"], "Bearer synthetic-key-12345")
         self.assertGreater(remaining, 0)
         self.assertLessEqual(remaining, 1.1)
+
+    async def test_completed_grpc_empty_results_are_valid_empty_transcripts(self):
+        for value in [response(), response(""), response(" \n ")]:
+            self.asr_response = value
+            self.assertEqual(await self.provider.transcribe(b"\0" * 320), "")
 
     def runtime_channel(self, target, credentials, **kwargs):
         self.assertEqual(target, "grpc.nvcf.nvidia.com:443")

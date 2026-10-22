@@ -26,7 +26,7 @@ from wyoming.error import Error
 from wyoming.event import Event, async_write_event
 from wyoming.info import AsrModel, AsrProgram, Attribution, Info, TtsProgram, TtsVoice
 
-VERSION = "0.1.2"
+VERSION = "0.1.3"
 RIVA_TARGET = "grpc.nvcf.nvidia.com:443"
 ASR_FUNCTION_ID = "71203149-d3b7-4460-8231-1be2543a1fca"
 TTS_FUNCTION_ID = "ddacc747-1269-4fab-bfd9-8f593dead106"
@@ -131,8 +131,8 @@ def transcript_text(response: rasr.RecognizeResponse) -> str:
     parts = [result.alternatives[0].transcript.strip()
              for result in response.results if result.alternatives]
     text = " ".join(part for part in parts if part)
-    if not text:
-        raise SpeechError("no-speech")
+    # A completed recognition with no speech is a valid empty transcript.
+    # Wyoming Error would make HA report a stream failure instead of no text.
     if len(text) > MAX_TEXT_CHARACTERS:
         raise SpeechError("provider-unavailable")
     return text
@@ -395,7 +395,7 @@ class SpeechService:
                     text = await self._request(reader, self.provider.transcribe(bytes(audio)))
                     await asyncio.wait_for(async_write_event(Transcript(text=text, language="ru").event(), writer), 5)
                     audio.clear()
-                    finish("ok")
+                    finish("ok" if text else "no-speech")
                     self.owners["asr"].discard(token)
                     state, chunks = "idle", 0
                 else:
