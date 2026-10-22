@@ -52,7 +52,7 @@ provider terms and data handling apply. No paid fallback is configured.
 
 ```bash
 docker build -f integrations/fcc-voice-backup/Dockerfile.cloud \
-  -t fcc-cloud-speech:0.1.2 integrations/fcc-voice-backup
+  -t fcc-cloud-speech:0.1.3 integrations/fcc-voice-backup
 ```
 
 Import this image into the selected node's k3s/containerd store before applying
@@ -222,6 +222,35 @@ The adapter uses the Riva package's shipped protobuf classes and does not invoke
 this rollout, including protobuf 6.33.5. This is a recorded dependency-refresh
 follow-up, not a claim that the dependency set is warning-free or that code
 generation with this combination is supported.
+
+### Empty recognition results: 0.1.3
+
+A completed recognition request can legitimately contain no recognized text.
+Version 0.1.3 sends a Wyoming `Transcript` with an empty string for that result,
+allowing Home Assistant to report `stt-no-text-recognized`. Earlier versions
+sent `Error(no-speech)`, which HA classified as `stt-stream-failed` even though
+the cloud request had succeeded. Stage telemetry still records `no-speech`;
+audio and recognized text are not logged.
+
+This change applies only after valid audio has completed recognition. Missing
+or invalid audio, malformed replies, authentication failures, unavailable
+providers and timeouts retain their error paths. It does not change the
+conversation agent, TTS or a satellite's policy for rearming after no speech.
+
+Build and load the new image on the selected worker before selecting it. Wait
+for voice requests to finish, then update only the cloud-speech container:
+
+```sh
+kubectl -n homeassistant set image deployment/fcc-cloud-speech \
+  cloud-speech=fcc-cloud-speech:0.1.3
+kubectl -n homeassistant rollout status deployment/fcc-cloud-speech
+```
+
+Keep the previous image available. Roll back this change by selecting
+`cloud-speech=fcc-cloud-speech:0.1.2` with the same command. No HA restart or
+credential changes are required. A successful offline protocol test does not
+establish live satellite acceptance; verify a normal request and a no-speech
+request separately after the coordinated rollout.
 
 ### Deployed checkpoint: 2026-10-14
 
