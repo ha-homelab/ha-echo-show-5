@@ -1,6 +1,24 @@
 # Changelog
 
-## [0.1.4] - Unreleased
+## [0.1.5] - Unreleased
+
+### Fixed
+
+- Keep setuptools 84.2.1 explicitly pinned and hash-locked in the FCC cloud adapter dependency set, so the strict-hash Docker installation includes its required build dependency.
+
+### Changed
+
+- Validate native voice routing against Home Assistant 2026.10.3 and its compatible uv 0.13.5 dependency. The source-suite version changes independently from component and external artifact versions.
+
+### Upgrade
+
+Use the documented installation procedure for the components you operate, retaining the previous package and configuration for rollback. This release distributes reviewed source; it does not flash firmware or install an APK or container automatically.
+
+### Security
+
+The cloud dependency update resolves the reported setuptools advisory in that dependency set. Home Assistant still requires Pillow 12.3.0 in the isolated test environment; the separate upstream constraint remains open. Synthetic and isolated tests do not replace physical audio or installation acceptance.
+
+## [0.1.4] - 2026-10-24
 
 ### Added
 
