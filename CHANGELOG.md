@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.6] - Unreleased
+
+### Changed
+
+- Update the FCC cloud adapter to hash-locked grpcio 1.84.1 and refresh the pinned Debian Bookworm host-image base.
+- Keep reusable workflow references and runtime inputs aligned, with verified upstream ref metadata and a single Renovate owner for GitHub Actions updates.
+
+### Upgrade
+
+Rebuild only the source components you operate, following their existing installation instructions. Preserve operator configuration and the previous verified package for rollback. This source-suite release does not flash firmware or install an APK or container automatically.
+
+### Security
+
+Dependency hashes, TLS verification and the public source inventory remain required. The isolated Home Assistant test environment still pins Pillow 12.3.0; its upstream constraint remains open. Synthetic, browser and source-build checks do not establish physical audio, firmware or installation acceptance.
+
 ## [0.1.5] - Unreleased
 
 ### Fixed
