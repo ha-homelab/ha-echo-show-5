@@ -6,6 +6,7 @@
 
 - Update the FCC cloud adapter to hash-locked grpcio 1.84.1 and refresh the pinned Debian Bookworm host-image base.
 - Keep reusable workflow references and runtime inputs aligned, with verified upstream ref metadata and a single Renovate owner for GitHub Actions updates.
+- Use the reviewed Ubuntu mirror fallback in browser CI and release-archive checks, preserving the required browser matrix.
 
 ### Upgrade
 
