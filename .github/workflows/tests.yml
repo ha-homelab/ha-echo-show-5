@@ -10,7 +10,7 @@ jobs:
       contents: read
   browser-compatibility:
     name: Clock and authentication browser acceptance
-    uses: victron-venus/venus-os-ci-toolkit/.github/workflows/typescript-ci.yml@e71559f44e41f39ad0037bf13c7f43bbbb2ec9af # main
+    uses: victron-venus/venus-os-ci-toolkit/.github/workflows/typescript-ci.yml@94b1116449af128810b86f4c0c723602be17b372 # main
     permissions:
       contents: read
     with:
