@@ -184,3 +184,89 @@ python3 -m unittest discover -s tests -p 'test_remote_endpoint.py'
 These tests do not replace HA configuration validation or per-device playback,
 call, screen and reconnect acceptance. Keep device-specific deployment receipts
 private and identify any unperformed physical checks in the delivery report.
+
+## Sendspin pilot acceptance — 2026-10-29
+
+Both installed SendspinDroid 2.0.0 clients were registered as distinct Music
+Assistant 2.10.8 players, **Show One** and **Show Two**. Their initial queues were
+empty, idle and ungrouped. The second Show then ran one bounded test using an
+existing Plex-library track. The interval from play command to confirmed stop
+was **10.92 seconds**.
+
+The Android client negotiated **Opus, 48 kHz, 16-bit stereo**. Retained client
+counters showed **870 chunks received, 370 played and zero dropped**. It reported
+zero underruns, inserted/dropped correction frames, re-anchors, filled gaps and
+trimmed overlaps. Music Assistant returned the endpoint to idle, cleared only
+the test item, and restored its original volume. Other players' playback and
+group membership were unchanged. These are transport/decoder observations; no
+human listening test or long-duration synchronization test was performed.
+
+Both the client's protocol screen and established socket showed a direct LAN
+connection between the NUC and the second Show. The NUC initiated the connection
+to the Show's Sendspin listener. This establishes the final media hop; it does
+not establish the upstream route from the Plex library to Music Assistant.
+Private receipts contain the exact player identifiers, socket endpoints and
+before/after snapshots. No new playback group was created.
+
+## AirPlay receiver on the NUC — Show Two pilot
+
+The installed MA server advertises the `airplay_receiver` plugin, marked
+**alpha** and limited to one configured instance. On **2026-10-29**, it was enabled
+for the verified **Show Two** player only, with the advertised name **Show Two**.
+The existing `airplay` player provider sends audio to AirPlay speakers; the new
+receiver plugin provides the opposite direction from an iPhone.
+
+The receiver's installed source provides these runtime options:
+
+- `connected_players`: optional list of MA player IDs; default empty. Only
+  selected players are advertised, and an empty list leaves the plugin idle.
+- `publish_name_template`: required choice controlling the advertised name;
+  supported values are `player_mass` (default), `player`, and `mass_player`.
+  They display player name followed by Music Assistant, player name only, or
+  Music Assistant followed by player name, respectively.
+
+One receiver process is created per selected player, using deterministically
+assigned ports in the 7000–7999 range. The pilot verified one healthy receiver
+process on the NUC, ownership of its IPv4 and IPv6 listener, and an exact
+one-player configuration. All 28 pre-existing provider records and all observed
+player playback, volume and group states remained unchanged. No playback was
+started during activation. Phone discovery, audio, stop and volume recovery
+still require an actual iPhone acceptance test before expanding the selection.
+
+The intended route is **iPhone → AirPlay receiver on NUC → Sendspin → Show**.
+The Show must keep its Sendspin player connected; receiver provisioning does not
+prove that Android can wake a force-stopped player. Use the endpoint Sendspin
+action to open it when necessary.
+The official guide requires devices on the same network and describes approximately
+five seconds of buffering, which makes this a music input rather than an
+intercom path. Cross-subnet discovery has not been tested here.
+[Music Assistant AirPlay Receiver guide](https://www.music-assistant.io/plugins/airplay-receiver/).
+
+Provisioning used the supported `config/providers/setup` API to create an idle
+instance, then read its runtime entries and used `config/providers/save` to select
+only Show Two. The installed client's older domain-only schema request does not
+match this server's runtime-instance API; the exact workflow and option values
+were confirmed in installed source. No MA storage files were edited directly.
+
+A private backup retains the original MA settings and provider inventory. The
+activation receipt records the new instance ID and an exact
+`config/providers/remove` rollback request. To roll back, verify that the recorded
+instance is the `airplay_receiver` plugin and still targets only this Show, then
+remove that instance. Do not remove the separate `airplay` player provider or
+restore the complete settings file over unrelated later changes.
+
+## Standalone OttPlayer distribution check
+
+The separate OttPlayer app remains distinct from the installed OTTPlay FOSS
+client. On **2026-10-29**, the [publisher's Android page](https://ottplayer.tv/soft/android)
+advertised **OttPlayer 6.0.9** for Android newer than 5.0 and linked the
+[official APK](https://ottplayer.tv/public/soft/OttPlayer_6.0.9.apk). Ordinary HTTPS
+requests from the deployment environment returned **HTTP 403** for the page and
+APK, including an APK request with the publisher page as its referrer.
+
+No binary was obtained, installed or launched. Consequently the expected
+`es.ottplayer.tv` package identifier, ARMv7 compatibility, manifest minimum SDK
+and signing certificate remain unverified for that download. The fixed
+OttPlayer endpoint mode retains its installed-package preflight and must not be
+reported as a working installed app. Retry the publisher distribution when it is
+accessible; this check did not use mirrors or bypass access challenges.

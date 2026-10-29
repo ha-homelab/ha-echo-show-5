@@ -1,6 +1,6 @@
 # Room panel and offline clock
 
-Display revision `20261029-r13` adds an optional room panel to the existing
+Display revision `20261029-r14` adds an optional room panel to the existing
 960 × 480 clock. The clock remains the default view. **Room** opens six large
 action buttons, up to four readings, and local timer controls. **Clock** closes
 the panel. Camera playback still occupies the whole screen without room controls,

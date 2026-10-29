@@ -32,7 +32,7 @@ A secondary-model configuration change only needs the private JSON file and an a
 
 ### Clock and camera page
 
-Treat HTML, scripts, styles, poster and configuration as one release. Copy only the reviewed assets to HA, use a **new HTML filename and new cache version on every asset**, then change only the intended VACA entry's home path. The current source includes `i18n.js`; do not omit it when deploying localization. Keep the previous complete release privately. A rollback also needs a fresh version, since old URLs can remain cached.
+Treat HTML, scripts, styles, poster, offline worker and configuration as one release. Copy the complete [installation file list](../../integrations/show5-display/README.md#installation) to a **new versioned directory**, with a new HTML filename and new versions on its asset URLs, then change only the intended VACA entry's home path. Include `i18n.js`, `room.js` and `offline-worker.js`; omitting them breaks localization, room controls or offline installation. The new directory also separates service-worker scopes and unversioned cache fetches. Keep the previous complete release privately. A rollback also needs a fresh release ID, since old URLs can remain cached.
 
 Do not append the dashboard path to VACA's HA server URL. Use the reviewed `ha_dashboard` option patch described in the [clock guide](../../integrations/show5-display/README.md). Changed Python integration modules require the documented HA Core restart; a static page change alone does not. Preserve the server origin used for token refresh.
 

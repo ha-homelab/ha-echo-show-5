@@ -81,7 +81,7 @@
     var retryMs = 1000;
     var subscriptions = new Map();
     var operations = new Set();
-    var roomOperations = new Set();
+    var roomOperations = new Map();
     var videoRefreshWaiters = new Set();
     var forceNextAuth = false;
     var manualUntil = 0;
@@ -310,7 +310,8 @@
     function roomRequest(path, method) {
       if (hidden || destroyed) { return Promise.reject(failure("inactive")); }
       var controller = new Abort();
-      roomOperations.add(controller);
+      var operation = { method: method, dispatched: false };
+      roomOperations.set(controller, operation);
       var timer = setTimer(function () { controller.abort(); }, method === "POST" ? 90000 : TIMEOUT_MS);
       var stop = new Promise(function (_, reject) {
         controller.signal.addEventListener("abort", function () { reject(failure("room_request_failed")); }, { once: true });
@@ -320,6 +321,7 @@
         try {
           var used = await getToken(false);
           if (controller.signal.aborted) { throw failure("room_request_failed"); }
+          operation.dispatched = true;
           response = await fetch(new URL(path, origin).href, {
             method: method, headers: { Authorization: "Bearer " + used, "Content-Type": "application/json" },
             body: method === "POST" ? "{}" : undefined, signal: controller.signal,
@@ -551,7 +553,13 @@
         clearTimer(reconnectTimer); reconnectTimer = null;
         clearTimer(refreshTimer); refreshTimer = null;
         closeSocket(); operations.forEach(function (operation) { operation.abort(); });
-        roomOperations.forEach(function (operation) { operation.abort(); });
+        roomOperations.forEach(function (operation, controller) {
+          // A fixed command can intentionally launch Android Home or another
+          // app, briefly hiding this WebView. Its dispatched request must still
+          // receive HA's result; cancellation would not undo the server action.
+          // Read polling and commands still waiting for auth have no such need.
+          if (operation.method !== "POST" || !operation.dispatched) { controller.abort(); }
+        });
         videoRefreshWaiters.forEach(function (cancel) { cancel(); });
         state = "hidden"; clock();
       } else if (!destroyed) {
@@ -562,6 +570,7 @@
 
     function destroy() {
       destroyed = true; setHidden(true); token = null; tokenExpires = 0;
+      roomOperations.forEach(function (_, controller) { controller.abort(); });
       if (pendingAuth) {
         clearTimer(pendingAuth.timer); pendingAuth.reject(failure("inactive")); pendingAuth = null;
       }

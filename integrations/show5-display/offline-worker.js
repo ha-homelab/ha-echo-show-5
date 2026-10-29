@@ -3,7 +3,7 @@
 var scopeURL = new URL(self.registration.scope);
 var shell = new URL(self.location.href).searchParams.get("shell");
 if (!/^[A-Za-z0-9_.-]+\.html$/.test(shell || "")) { shell = "index.html"; }
-var cacheName = "show5-room-r13:" + scopeURL.pathname;
+var cacheName = "show5-room-r14:" + scopeURL.pathname;
 var pointerKey = new URL(".offline-generation", scopeURL).href;
 var staticNames = [shell, "display.css", "i18n.js", "room.js", "stream.js", "auth.js", "display.js", "blank-video.svg", "config.js"];
 var photoUpdate = Promise.resolve();

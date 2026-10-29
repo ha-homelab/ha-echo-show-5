@@ -125,7 +125,7 @@ test("room rejects mismatched and oversized state bodies; failed commands are no
   await h.timers.tick(30000); assert.equal(h.requests.length, 3);
 });
 
-test("room operations have independent diagnostics, a hard timeout, and stop when hidden", async () => {
+test("room reads have independent diagnostics, a hard timeout, and stop when hidden", async () => {
   const h = harness(ROOM_CONFIG);
   const pending = h.adapter.fetchRoomState("sensor.temperature"); h.token(); await flush();
   assert.equal(h.adapter.status().inFlightSnapshots, 0);
@@ -134,10 +134,42 @@ test("room operations have independent diagnostics, a hard timeout, and stop whe
   await h.timers.tick(10000); await rejected;
   assert.equal(h.requests[0].options.signal.aborted, true);
   assert.equal(h.adapter.status().inFlightRoomRequests, 0);
-  const second = h.adapter.runRoomAction("home"); await flush();
+  const second = h.adapter.fetchRoomState("sensor.temperature"); await flush();
   h.adapter.setHidden(true); await assert.rejects(second, /room_request_failed/);
   assert.equal(h.requests[1].options.signal.aborted, true);
   await assert.rejects(h.adapter.runRoomAction("home"), /inactive/);
+});
+
+test("a dispatched room command survives app-launch hiding and gets the real result without replay", async () => {
+  const h = harness(ROOM_CONFIG), pending = h.adapter.runRoomAction("home");
+  h.token(); await flush(); assert.equal(h.requests.length, 1);
+  h.adapter.setHidden(true); await h.timers.tick(12000);
+  assert.equal(h.requests[0].options.signal.aborted, false);
+  assert.equal(h.adapter.status().inFlightRoomRequests, 1);
+  h.adapter.setHidden(false); await flush(); assert.equal(h.requests.length, 1);
+  h.requests[0].resolve(new Response("[]", { headers: { "Content-Type": "application/json" } }));
+  assert.equal(await pending, true);
+  assert.equal(h.adapter.status().inFlightRoomRequests, 0);
+});
+
+test("hiding before room command auth completes prevents later dispatch", async () => {
+  const h = harness(ROOM_CONFIG), pending = h.adapter.runRoomAction("home");
+  h.adapter.setHidden(true); await assert.rejects(pending, /room_request_failed/);
+  h.token(); await flush(); assert.equal(h.requests.length, 0);
+  h.adapter.setHidden(false); await flush(); assert.equal(h.requests.length, 0);
+});
+
+test("hidden dispatched commands retain their deadline and destruction still aborts them", async () => {
+  const h = harness(ROOM_CONFIG), pending = h.adapter.runRoomAction("home");
+  h.token(); await flush(); h.adapter.setHidden(true);
+  const rejected = assert.rejects(pending, /room_request_failed/);
+  await h.timers.tick(89999); assert.equal(h.requests[0].options.signal.aborted, false);
+  await h.timers.tick(1); await rejected; assert.equal(h.requests[0].options.signal.aborted, true);
+  const second = harness(ROOM_CONFIG), other = second.adapter.runRoomAction("home");
+  second.token(); await flush(); second.adapter.destroy();
+  await assert.rejects(other, /room_request_failed/);
+  assert.equal(second.requests[0].options.signal.aborted, true);
+  assert.equal(second.requests.length, 1);
 });
 
 test("motion verifies fresh idle room ownership, coalesces bursts and rejects busy or delayed results", async () => {
