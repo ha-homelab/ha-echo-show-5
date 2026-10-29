@@ -1,0 +1,243 @@
+--- a/app/src/main/AndroidManifest.xml
++++ b/app/src/main/AndroidManifest.xml
+@@ -2,6 +2,8 @@
+ <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:tools="http://schemas.android.com/tools">
+ 
++    <permission android:name="com.msp1974.vacompanion.permission.AUDIO_LEASE"
++        android:protectionLevel="signature" />
+     <uses-permission android:name="android.permission.INTERNET" />
+     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+@@ -87,6 +89,9 @@
+             </intent-filter>
+         </activity>
+ 
++        <service android:name=".telephony.AudioLeaseService" android:exported="true"
++            android:permission="com.msp1974.vacompanion.permission.AUDIO_LEASE" />
++
+         <!--Service-->
+         <service
+             android:name=".service.VAForegroundService"
+--- a/app/src/main/java/com/msp1974/vacompanion/VACAApplication.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/VACAApplication.kt
+@@ -21,6 +21,7 @@
+ 
+     override fun onCreate() {
+         super.onCreate()
++        com.msp1974.vacompanion.telephony.AudioLeaseRuntime.initialize(this)
+ 
+         Timber.plant(DebugTree())
+ 
+--- a/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
+@@ -2,6 +2,8 @@
+ 
+ import android.annotation.SuppressLint
+ import android.content.Context
++import com.msp1974.vacompanion.telephony.AudioLeaseRuntime
++import com.msp1974.vacompanion.players.MusicPlayerService
+ import androidx.media3.common.Player
+ import androidx.core.net.toUri
+ import com.msp1974.vacompanion.audio.AudioDSP
+@@ -115,7 +117,33 @@
+         }
+     }
+ 
++    init { AudioLeaseRuntime.attach(this) }
++
++    fun isBusyForAudioLease(): Boolean =
++        (audioPipeline != null && audioPipeline?.pipelineStage != PipelineStage.ENDED) ||
++        mediaManager.voicePlayer.isPlaying() || mediaManager.alarmPlayer.isSounding() ||
++        MusicPlayerService.sInstance != null
++
++    suspend fun pauseForAudioLease() {
++        check(AudioLeaseRuntime.inhibited)
++        stopAudioPipeline()
++        // .9's stop waits for the worker and MicrophoneInput.close(), not merely a settings update.
++        stopWakeWordDetection()
++        mediaManager.stopAll()
++    }
++
++    suspend fun resumeAfterAudioLease() {
++        startWakeWordDetection()
++        withTimeout(10_000L) {
++            while (!config.isMuted && config.wakeWord != "none" &&
++                wakeWordHandler?.state != WakeWordHandlerState.RUNNING) {
++                delay(25L)
++            }
++        }
++    }
++
+     suspend fun start() {
++        AudioLeaseRuntime.attach(this)
+         // Add config change listeners
+         Timber.d("Satellite starting...")
+         val startTime = System.currentTimeMillis()
+@@ -282,6 +310,7 @@
+             { motionTask.release() },
+         )
+         state = SatelliteState.STOPPED
++        AudioLeaseRuntime.detach(this)
+         BroadcastSender.sendBroadcast(context, BroadcastSender.SATELLITE_STOPPED)
+     }
+ 
+@@ -316,6 +345,7 @@
+     @OptIn(ExperimentalAtomicApi::class)
+     private suspend fun startWakeWordDetectionLocked() {
+         stopWakeWordDetectionLocked()
++        if (AudioLeaseRuntime.inhibited) return
+ 
+         Timber.d("Starting Wake Word Detection")
+         sendDiagnostics(0f, 0f)
+@@ -382,6 +412,7 @@
+     }
+ 
+     suspend fun handleWakeWordDetection(detection: WakeWordEngineProvider.WakeWordDetection) {
++        if (AudioLeaseRuntime.inhibited) return
+         if (clientId.isEmpty()) {
+             Timber.e("Unable to run audio pipeline. Satellite not connected to HA")
+             return
+@@ -421,6 +452,7 @@
+     }
+ 
+     suspend fun playWakeWordDetectionSound() {
++        if (AudioLeaseRuntime.inhibited) return
+         if (config.wakeWordSound != "none") {
+             try {
+                 val soundUri = currentWakeWordSoundUri ?: resolveWakeSoundUri(config.wakeWordSound)
+@@ -472,6 +504,7 @@
+     }
+ 
+     fun playErrorSound() {
++        if (AudioLeaseRuntime.inhibited) return
+         try {
+             scope.launch {
+                 // Same reasoning as playWakeWordDetectionSound() - keep the error sound's
+@@ -487,6 +520,7 @@
+ 
+ 
+     fun muteMicrophone(muted: Boolean) {
++        if (AudioLeaseRuntime.inhibited) return
+         runCatching {
+             wakeWordHandler?.engine?.setMuted(muted)
+         }
+@@ -505,6 +539,7 @@
+ 
+     @OptIn(ExperimentalAtomicApi::class)
+     fun startAudioPipeline(startStage: PipelineStartMode, eventId: Long = System.currentTimeMillis()) {
++        if (AudioLeaseRuntime.inhibited) return
+         if (audioPipeline != null) {
+             audioPipeline?.stop()
+             audioPipeline = null
+@@ -596,6 +631,7 @@
+ 
+     @OptIn(ExperimentalAtomicApi::class)
+     private suspend fun handleAction(action: String, packet: WyomingPacket) {
++        if (AudioLeaseRuntime.inhibited && action in setOf("play-media", "play", "wake")) return
+         Timber.d("Action received: $action")
+         runCatching {
+             val payloadStr = packet.getProp("payload")
+@@ -625,6 +661,7 @@
+ 
+     private suspend fun handleMediaPlayerAction(action: String, payloadStr: String) {
+         withContext(Dispatchers.Main) {
++            if (AudioLeaseRuntime.inhibited && action in setOf("play-media", "play")) return@withContext
+             when (action) {
+                 "play-media" -> if (payloadStr.isNotEmpty()) {
+                     val payload = Json.parseToJsonElement(payloadStr).jsonObject
+@@ -643,7 +680,9 @@
+     }
+ 
+     private suspend fun handleAlarmAction(enable: Boolean) {
++        if (enable && AudioLeaseRuntime.inhibited) return
+         withContext(Dispatchers.Main) {
++            if (enable && AudioLeaseRuntime.inhibited) return@withContext
+             if (enable) {
+                 val alarm = config.availableAlarms.find { it.id == config.alarmSound }
+                 val mediaUri = if (alarm != null) {
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -26,8 +26,8 @@
+         applicationId = "com.msp1974.vacompanion"
+         minSdk = 26
+         targetSdk = 36
+-        versionName = "0.13.4+myshka.9"
+-        versionCode = 7009
++        versionName = "0.13.4+myshka.10-sip.1"
++        versionCode = 7010
+         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+     }
+ 
+--- a/app/src/main/java/com/msp1974/vacompanion/players/MusicPlayerService.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/players/MusicPlayerService.kt
+@@ -1,4 +1,6 @@
+ package com.msp1974.vacompanion.players
++
++import com.msp1974.vacompanion.telephony.AudioLeaseRuntime
+ 
+ import android.annotation.SuppressLint
+ import android.app.Service
+@@ -124,6 +126,10 @@
+ 
+ 
+     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
++        if (AudioLeaseRuntime.inhibited) {
++            stopSelf(startId)
++            return START_NOT_STICKY
++        }
+         if (mediaPlayer == null) {
+             createMediaPlayer()
+         }
+@@ -135,6 +141,7 @@
+     }
+ 
+     fun play(url: String) {
++        if (AudioLeaseRuntime.inhibited) return
+         if (url.isNotEmpty()) {
+             lastUrl = url
+         }
+@@ -163,6 +170,7 @@
+     }
+ 
+     fun resume() {
++        if (AudioLeaseRuntime.inhibited) return
+         Timber.d("Music player: Resuming music")
+         mediaPlayer?.let { player ->
+             if (!player.isPlaying) {
+--- a/app/src/main/java/com/msp1974/vacompanion/players/AlarmService.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/players/AlarmService.kt
+@@ -1,4 +1,6 @@
+ package com.msp1974.vacompanion.players
++
++import com.msp1974.vacompanion.telephony.AudioLeaseRuntime
+ 
+ import android.annotation.SuppressLint
+ import android.app.Service
+@@ -37,6 +39,10 @@
+     }
+ 
+     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
++        if (AudioLeaseRuntime.inhibited) {
++            stopSelf(startId)
++            return START_NOT_STICKY
++        }
+         if (mediaPlayer == null) {
+             mediaPlayer = createPlayer()
+         }
+@@ -63,6 +69,7 @@
+     }
+ 
+     fun play(uri: Uri) {
++        if (AudioLeaseRuntime.inhibited) return
+         Timber.i("Alarm started: $uri")
+         val player = mediaPlayer ?: return
+ 
+@@ -88,6 +95,7 @@
+     }
+ 
+     fun resume() {
++        if (AudioLeaseRuntime.inhibited) return
+         mediaPlayer?.let { player ->
+             if (!player.isPlaying) {
+                 if (requestAudioFocus()) {

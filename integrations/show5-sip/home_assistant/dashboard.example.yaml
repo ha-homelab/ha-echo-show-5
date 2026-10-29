@@ -1,0 +1,44 @@
+# Place on an administrator-only dashboard. Replace entity IDs after setup.
+type: vertical-stack
+cards:
+  - type: entities
+    title: Show telephone
+    entities:
+      - entity: sensor.show_one_sip_registration
+        name: Registration
+      - entity: sensor.show_one_sip_call
+        name: Call
+  - type: horizontal-stack
+    cards:
+      - type: button
+        entity: button.show_one_answer_call
+        name: Answer
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.show_one_answer_call
+      - type: button
+        entity: button.show_one_decline_call
+        name: Decline
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.show_one_decline_call
+      - type: button
+        entity: button.show_one_hang_up
+        name: Hang up
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.show_one_hang_up
+  - type: button
+    entity: button.show_one_call_kitchen
+    name: Call kitchen
+    tap_action:
+      action: perform-action
+      perform_action: button.press
+      target:
+        entity_id: button.show_one_call_kitchen

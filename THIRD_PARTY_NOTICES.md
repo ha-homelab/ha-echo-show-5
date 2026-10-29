@@ -34,6 +34,16 @@ upstream release. Keep these notices with redistributions of the patch.
 
 ## Referenced downloads and binaries
 
+The optional native SIP application under `integrations/show5-sip/android`
+uses Linphone SDK 5.5.39 by Belledonne Communications and contributors. That
+isolated application is distributed under AGPL-3.0-only, with its full
+[license](integrations/show5-sip/android/LICENSE) and
+[notice](integrations/show5-sip/android/NOTICE). The SDK binary is downloaded from
+the official repository and checked against the recorded digest; it is not
+checked into this repository. Preserve its licensing and corresponding source
+obligations when redistributing a built APK. The separate VACA bridge retains
+the VACA component's Apache-2.0 terms.
+
 Firmware, recovery images, APKs, trained weights, recordings and device backups
 are not redistributed by these notices. Artifact JSON records identify external
 sources and downloaded-file digests; a digest does not grant redistribution

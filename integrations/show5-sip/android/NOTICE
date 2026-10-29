@@ -1,0 +1,16 @@
+Show phone Android application
+SPDX-License-Identifier: AGPL-3.0-only
+
+This Android module is licensed under the GNU Affero General Public License,
+version 3. This applies to the files within this android/ directory and does not
+relicense unrelated files in the containing repository.
+
+The application uses Linphone SDK 5.5.39, copyright Belledonne Communications,
+under its upstream open-source license. Its exact tagged README and LICENSE
+describe AGPLv3; the Maven POM's shorter GPLv3 description is not substituted
+for the upstream license. Source and dependency build information:
+https://github.com/BelledonneCommunications/linphone-sdk/tree/5.5.39
+https://github.com/BelledonneCommunications/linphone-sdk/blob/5.5.39/LICENSE.txt
+
+No SDK binaries are stored in this source directory. The build helper downloads
+the official artifact and checks its pinned SHA-256 before Gradle consumes it.

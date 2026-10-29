@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "coordinate": "org.linphone:linphone-sdk-android:5.5.39",
+  "version": "5.5.39",
+  "url": "https://download.linphone.org/maven_repository/org/linphone/linphone-sdk-android/5.5.39/linphone-sdk-android-5.5.39.aar",
+  "bytes": 60983822,
+  "sha256": "d3654346f2c99995d89beb712fc15d475ca994d8500b2af482565a0fd8f8a9c0",
+  "minimum_sdk": 23,
+  "required_abi": "armeabi-v7a",
+  "license": "AGPL-3.0-only or commercial license",
+  "source": "https://gitlab.linphone.org/BC/public/linphone-sdk/-/tree/5.5.39",
+  "note": "The isolated SIP application uses AGPL-3.0-only. No proprietary license or subscription is required for that distribution. This is not a SIP account."
+}
