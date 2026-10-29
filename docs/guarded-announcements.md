@@ -5,12 +5,13 @@ ordinary calls. Each physical Show retains **one** SIP account. An announcement
 does not create another extension, dial a number, start a conversation, or upload
 microphone audio for speech recognition.
 
-This is a candidate integration. The [October 29 validation record](../integrations/vaca-announce/build-validation-2026-10-29-r2.md)
+This is a candidate integration. The [baseline validation record](../integrations/vaca-announce/build-validation-2026-10-29-r2.md)
 identifies the checked baseline artifacts and quiet installation on two endpoints;
 the linked PR records final live activation checks. The optional `duck_music`
 extension is a separate candidate and is not validated by that baseline record.
 Audible playback and room-level acoustic acceptance remain pending.
-Do not enable a dispatcher until the installed endpoint reports the required
+The [7014 ducking record](../integrations/vaca-announce/build-validation-2026-10-29-duck.md)
+separately tracks the optional music policy. Do not enable a dispatcher until the installed endpoint reports the required
 capabilities. There is no automatic fallback to an unguarded announcement.
 
 ![The announcement request is checked, decoded once, admitted by the device, and acknowledged with its original request ID. Calls keep their separate SIP route.](assets/guarded-announcements.svg)

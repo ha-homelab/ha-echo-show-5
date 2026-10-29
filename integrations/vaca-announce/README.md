@@ -9,8 +9,9 @@ See the [operator guide](../../docs/guarded-announcements.md) and the
 
 [October 29 post-review validation](build-validation-2026-10-29-r2.md) records the exact
 baseline APK hashes, passed tests, quiet rollout evidence and remaining acoustic acceptance.
-The optional `duck_music` extension is a follow-on candidate; that baseline
-record does not establish its build, deployment or audible behavior.
+The optional `duck_music` extension is the `7014` follow-on candidate. Its separate
+[build and rollout record](build-validation-2026-10-29-duck.md) distinguishes
+software checks and quiet installation from pending acoustic acceptance.
 
 ## Build without devices
 
