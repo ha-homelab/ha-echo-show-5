@@ -28,7 +28,7 @@ final class AudioDiagnostics {
         channels = channelCount > 0 && channelCount <= 8 ? channelCount : null;
         upload = finiteRate(sentKbps); download = finiteRate(receivedKbps);
         ice = Arrays.asList("NotActivated", "Failed", "InProgress", "HostConnection", "ReflexiveConnection", "RelayConnection").contains(iceState) ? iceState : null;
-        sampledAt = Math.max(0, now); samples++; 
+        sampledAt = Math.max(0, now); samples++;
     }
     synchronized void end(String id) { if (callId != null && callId.equals(id)) retained = true; }
     synchronized String json(long now) {
