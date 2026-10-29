@@ -106,7 +106,7 @@ class NearestRuntime(
 
     /** Returns immediately to the PCM collection; network I/O never runs on its coroutine. */
     fun wake(detection: WakeWordEngineProvider.WakeWordDetection) {
-        if (!canAnswer()) return
+        if (!nearestWakeAllowed(config.enabled, canAnswer, captureAllowed)) return
         val token = guard.begin() ?: return
         val worker = scope ?: parentScope
         val started = SystemClock.elapsedRealtime()
@@ -121,7 +121,7 @@ class NearestRuntime(
             task = worker.launch {
                 try {
                     result = "uncoordinated"; status()
-                    if (guard.current(token) && canAnswer()) open(detection)
+                    if (guard.current(token) && nearestWakeAllowed(config.enabled, canAnswer, captureAllowed)) open(detection)
                 }
                 finally { guard.finish(token) }
             }

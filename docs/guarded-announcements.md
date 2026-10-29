@@ -5,8 +5,9 @@ ordinary calls. Each physical Show retains **one** SIP account. An announcement
 does not create another extension, dial a number, start a conversation, or upload
 microphone audio for speech recognition.
 
-This is a candidate integration. Offline tests and an APK build do not establish
-audible playback, production installation, or room-level acoustic acceptance.
+This is a candidate integration. The [October 29 validation record](../integrations/vaca-announce/build-validation-2026-10-29.md)
+confirms quiet installation on two endpoints and successful live capability
+checks. Audible playback and room-level acoustic acceptance remain pending.
 Do not enable a dispatcher until the installed endpoint reports the required
 capabilities. There is no automatic fallback to an unguarded announcement.
 
@@ -115,3 +116,8 @@ Attended acceptance remains separate: intelligible playback, volume, actual
 completion, expiry, duplicate submission, concurrent calls/media/DND, owned
 stop, connection loss and restart recovery. Record those outcomes against the
 installed versions before promoting a candidate to a stable release.
+
+After restarting HA, allow AndroidTV and SIP setup retries to finish before
+interpreting `guard_state_unavailable` as a permanent configuration fault.
+Confirm each dependency is loaded and its correlated read-only status is valid.
+Do not weaken the guard or repeatedly restart HA to hide a missing input.

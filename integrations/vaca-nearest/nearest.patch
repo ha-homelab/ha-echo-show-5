@@ -13,7 +13,7 @@ index b9d4002..a5bb6ff 100644
          targetSdk = 36
 -        versionName = "0.13.4+myshka.10-sip.1"
 -        versionCode = 7010
-+        versionName = "0.13.4+myshka.11-nearest.1"
++        versionName = "0.13.4+myshka.11-nearest.2"
 +        versionCode = 7011
          testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
      }

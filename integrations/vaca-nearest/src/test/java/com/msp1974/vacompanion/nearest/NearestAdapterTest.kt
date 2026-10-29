@@ -5,6 +5,19 @@ import org.junit.Test
 import java.net.InetAddress
 
 class NearestAdapterTest {
+    @Test fun disabledArbitrationLeavesActivePipelineRecoveryToLocalHandler() {
+        var idleChecks = 0
+        assertTrue(nearestWakeAllowed(false, { idleChecks++; false }, { true }))
+        // The existing local handler, not arbitration, applies its 15s/30s timeout checks.
+        assertEquals(0, idleChecks)
+    }
+    @Test fun disabledArbitrationStillHonorsCaptureInhibitors() {
+        assertFalse(nearestWakeAllowed(false, { error("Idle check must not replace the capture guard") }, { false }))
+    }
+    @Test fun enabledArbitrationStillRequiresAnIdlePipeline() {
+        assertFalse(nearestWakeAllowed(true, { false }, { error("Use the coordinated admission guard") }))
+        assertTrue(nearestWakeAllowed(true, { true }, { false }))
+    }
     @Test fun bufferedProducerCannotReplayTheCurrentOrFutureFrame() {
         val b = PrerollBuffer()
         (1L..8).forEach { b.add(shortArrayOf(it.toShort()), it * 80, it * 80, it) }

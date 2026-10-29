@@ -117,7 +117,7 @@ def main():
                 nearest_suites[suite.get('name')] = int(suite.get('tests', '0'))
         if nearest_suites.get('com.msp1974.vacompanion.nearest.NearestCoreJUnitTest', 0) < 36:
             raise ValueError('Nearest protocol, DSP and four-device tests did not run')
-        if nearest_suites.get('com.msp1974.vacompanion.nearest.NearestAdapterTest', 0) < 11:
+        if nearest_suites.get('com.msp1974.vacompanion.nearest.NearestAdapterTest', 0) < 14:
             raise ValueError('Nearest adapter regression tests did not run')
         announce_suite = source / 'app/build/test-results/testDebugUnitTest/TEST-com.msp1974.vacompanion.announce.AnnouncementCoreTest.xml'
         if not announce_suite.exists() or int(ET.parse(announce_suite).getroot().get('tests', '0')) < 41:

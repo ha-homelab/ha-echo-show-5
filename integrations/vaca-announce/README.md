@@ -7,6 +7,9 @@ The companion SIP application is `0.1.1` / `2`. Each Show retains one SIP accoun
 See the [operator guide](../../docs/guarded-announcements.md) and the
 [HA service contract and staging procedure](home_assistant/README.md).
 
+[October 29 build validation](build-validation-2026-10-29.md) records the exact
+original APK hashes, passed tests, and pending rollout/acoustic acceptance.
+
 ## Build without devices
 
 Use the existing private signing identity that matches both installed apps.

@@ -12,7 +12,7 @@ import xml.etree.ElementTree as ET
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
-VERSION = '0.13.4+myshka.11-nearest.1'
+VERSION = '0.13.4+myshka.11-nearest.2'
 CODE = 7011
 
 
@@ -108,7 +108,7 @@ def main():
                 nearest_suites[suite.get('name')] = int(suite.get('tests', '0'))
         if nearest_suites.get('com.msp1974.vacompanion.nearest.NearestCoreJUnitTest', 0) < 36:
             raise ValueError('Nearest protocol, DSP and four-device tests did not run')
-        if nearest_suites.get('com.msp1974.vacompanion.nearest.NearestAdapterTest', 0) < 11:
+        if nearest_suites.get('com.msp1974.vacompanion.nearest.NearestAdapterTest', 0) < 14:
             raise ValueError('Nearest adapter regression tests did not run')
         if not b.source_matches(source, index_env):
             raise ValueError('Source changed during VACA build')

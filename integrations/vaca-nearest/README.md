@@ -24,7 +24,7 @@ python3 integrations/vaca-nearest/build.py \
 
 An optional `--source-cache /absolute/path/to/local/upstream/checkout` reuses Git
 objects; the pinned commit and exact source checks still apply. The output is
-`0.13.4+myshka.11-nearest.1` / version code `7011`, with an APK and JSON build
+`0.13.4+myshka.11-nearest.2` / version code `7011`, with an APK and JSON build
 receipt in the private build directory. The builder runs the JVM suite and
 verifies the final package, ARMv7 ABI and signing certificate. It never contacts a
 device or Home Assistant and never creates a replacement signing identity.
@@ -53,6 +53,9 @@ participation, a unique device name, the shared House word, election window
 (100–500 ms) and microphone offset (−30 to +30 dB). A blank House word field
 preserves the saved word; it is never redisplayed. Save reloads the election
 configuration. Disabling participation restores independent voice operation.
+The `.2` revision also preserves the local handler's existing timeout recovery
+when a prior Assist pipeline is still active and arbitration is disabled. Capture
+inhibitors remain enforced, and enabled arbitration still requires an idle pipeline.
 Existing nonempty TECHO5 House words remain import-compatible. The UI requires
 at least 16 characters for a newly entered word; leaving the field blank keeps
 an existing value without rotating credentials on the other devices.

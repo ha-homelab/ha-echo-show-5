@@ -15,6 +15,7 @@
 - Distinguish manual starts, auxiliary model detections and follow-up turns; cancel pending starts on mute, shutdown, reconnect and SIP preemption.
 - Add local settings, private configuration, bounded diagnostics, independent Go protocol/DSP fixtures, four-peer scenarios and Android adapter regression tests.
 - Document source licensing, deployment verification, HA fallback behavior and the limits of software-only acceptance.
+- Preserve the existing local Assist timeout-recovery path when nearest-device arbitration is disabled, while retaining microphone and call inhibitors. The standalone nearest revision is `.11-nearest.2`; the installed guarded revision is unchanged.
 
 ### Room endpoint expansion
 
