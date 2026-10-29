@@ -1,0 +1,57 @@
+dial:
+  name: Call a contact
+  description: Ask the Show to call one provisioned contact. Acceptance does not mean the call is connected.
+  fields:
+    endpoint_id:
+      name: Endpoint ID
+      required: true
+      selector:
+        text:
+    contact_id:
+      name: Contact ID
+      required: true
+      selector:
+        text:
+answer:
+  name: Answer a call
+  description: Answer only the identified ringing call after the local microphone handoff.
+  fields:
+    endpoint_id:
+      name: Endpoint ID
+      required: true
+      selector:
+        text:
+    expected_call_id:
+      name: Expected call ID
+      description: Read from the SIP call sensor. A changed call is rejected.
+      required: true
+      selector:
+        text:
+decline:
+  name: Decline a call
+  description: Decline only the identified ringing call.
+  fields:
+    endpoint_id:
+      name: Endpoint ID
+      required: true
+      selector:
+        text:
+    expected_call_id:
+      name: Expected call ID
+      required: true
+      selector:
+        text:
+hangup:
+  name: Hang up
+  description: Request normal SIP termination of the identified call. Check idle and lease_held false for completion.
+  fields:
+    endpoint_id:
+      name: Endpoint ID
+      required: true
+      selector:
+        text:
+    expected_call_id:
+      name: Expected call ID
+      required: true
+      selector:
+        text:

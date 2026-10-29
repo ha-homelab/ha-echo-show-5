@@ -1,0 +1,8 @@
+{
+  "app/src/main/AndroidManifest.xml": "a2193eef8feea0460c7250ac313255c56a8f96b2f17fc7b0018c3e43d988cd3e",
+  "app/src/main/java/com/msp1974/vacompanion/VACAApplication.kt": "6a245629477e50b5d55192b33c6898a9830e77304aa55a35368a50f1e7def1ae",
+  "app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt": "17528c81cad769df8082887adbd21380d66930634bef7f768c7e551c570d0527",
+  "app/build.gradle.kts": "8851e5584b5e4dfda7bc6cb14d9c64dd31b4f0c9d595e48d6863d701bff550de",
+  "app/src/main/java/com/msp1974/vacompanion/players/MusicPlayerService.kt": "2ccdedf1d10b6b374d329c51376998b4acfa1ae5d7e24ea6875494e844513e1a",
+  "app/src/main/java/com/msp1974/vacompanion/players/AlarmService.kt": "129c4ada7ab0fc7f96afcaa22990f666670b5c7a0e1be6de6018c34030bd4371"
+}

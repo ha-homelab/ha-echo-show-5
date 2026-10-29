@@ -79,6 +79,7 @@ limits. They do not establish a new build or current availability of either devi
 
 - [Camera and intercom pilot](camera-and-intercom.md) and [HA intercom integration](../integrations/show5-intercom/README.md).
 - [Native Jitsi pilot](jitsi-calls.md): attended call setup, resource ownership and restoration.
+- [Native SIP audio pilot](../integrations/show5-sip/README.md): an existing PBX account, local VACA lease, incoming/outgoing calls and HA controls.
 - Treat each guide's acceptance limits independently. A fresh camera frame, successful signaling or normal app restart does not prove an audible call or recovery after power loss.
 
 ## Maintain and publish

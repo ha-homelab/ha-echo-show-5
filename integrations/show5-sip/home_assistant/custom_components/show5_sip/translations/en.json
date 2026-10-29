@@ -1,0 +1,22 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect a Show SIP endpoint",
+        "description": "Paste the reviewed endpoint JSON containing endpoint_id, name, adb_entity, the full Android serial and allowed contact IDs/labels. The app must already be provisioned. Do not include SIP credentials or Home Assistant tokens.",
+        "data": {
+          "endpoint": "Reviewed endpoint JSON"
+        }
+      }
+    },
+    "error": {
+      "invalid_configuration": "Enter a valid, credential-free endpoint JSON object with unique allowed contacts."
+    },
+    "abort": {
+      "already_configured": "This Show SIP endpoint is already configured.",
+      "duplicate_endpoint": "Another Show SIP endpoint already uses this Android device or ADB entity.",
+      "endpoint_id_in_use": "This endpoint ID already has a different binding. Review the existing integration instead of replacing it through setup.",
+      "invalid_configuration": "The private Show SIP endpoint configuration is invalid."
+    }
+  }
+}

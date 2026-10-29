@@ -1,0 +1,12 @@
+# Example only. Keep the filled copy in Home Assistant's private configuration.
+# Contact IDs must already exist in this specific Show's SIP app provisioning.
+show5_sip:
+  - endpoint_id: show_one
+    name: Show one
+    adb_entity: media_player.show_one_adb
+    serial: REPLACE_WITH_FULL_SERIAL
+    contacts:
+      - id: kitchen
+        label: Kitchen
+      - id: study
+        label: Study

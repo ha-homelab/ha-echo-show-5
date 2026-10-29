@@ -1,0 +1,12 @@
+{
+  "domain": "show5_sip",
+  "name": "Show SIP",
+  "version": "0.1.0",
+  "documentation": "https://github.com/ha-homelab/ha-echo-show-5/tree/main/integrations/show5-sip/home_assistant",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": ["androidtv"],
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "requirements": []
+}

@@ -35,6 +35,20 @@ jobs:
           python3 integrations/vaca-dual-wake/build.py \
             --work-dir "$RUNNER_TEMP/vaca-build" \
             --signing-dir "$RUNNER_TEMP/vaca-test-signing" --create-signing-key
+      - name: Build the SIP phone and compatible VACA lease bridge
+        if: matrix.patch == 'vaca'
+        run: |
+          fingerprint=$(cat "$RUNNER_TEMP/vaca-test-signing/signer.sha256")
+          python3 integrations/show5-sip/build.py \
+            --work-dir "$RUNNER_TEMP/sip-build" \
+            --signing-dir "$RUNNER_TEMP/vaca-test-signing" \
+            --expected-signer-sha256 "$fingerprint" \
+            --gradle "$RUNNER_TEMP/vaca-build/source/gradlew"
+          python3 integrations/show5-sip/build_vaca.py \
+            --work-dir "$RUNNER_TEMP/sip-vaca-build" \
+            --signing-dir "$RUNNER_TEMP/vaca-test-signing" \
+            --expected-signer-sha256 "$fingerprint" \
+            --source-cache "$RUNNER_TEMP/vaca-build/source"
       - name: Read exact historical OTT Android source
         if: matrix.patch == 'ottplay'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
