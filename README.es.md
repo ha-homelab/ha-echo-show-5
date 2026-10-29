@@ -1,7 +1,7 @@
 # Echo Show 5 Gen2 → Android → Home Assistant
 
 
-[Current installed capabilities and expansion plan (English)](docs/installed-capabilities.md).
+[Current delivery, acceptance results and limitations (English)](docs/room-capability-delivery.md).
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15595/badge)](https://www.bestpractices.dev/projects/15595)
 
 [English](README.md) · [Русский](README.ru.md) · [Deutsch](README.de.md) · **Español** · [Français](README.fr.md)
@@ -92,3 +92,7 @@ Seleccione el **puerto USB físico observado y el número de serie completo**, n
 Guarde descargas en `downloads/`, fuentes externas en `vendor/`, copias en `backups/`, registros en `logs/` y claves, grabaciones y configuraciones rellenadas en `private/`. Git ignora estos directorios, pero `.gitignore` no elimina datos ya confirmados. Los archivos de HA bajo `/local` son públicos sin autenticación: no deben contener secretos.
 
 [Contribuciones y pruebas](CONTRIBUTING.md) · [seguridad](SECURITY.md) · [licencias externas](THIRD_PARTY_NOTICES.md) · [publicaciones](RELEASING.md). Una publicación del proyecto contiene fuentes de integración, no firmware ni APK. CI no confirma sonido audible ni fiabilidad física de un dispositivo concreto.
+
+### Room endpoint expansion
+
+[Room controls and timers](docs/room-panel.md) · [Session policy](docs/room-session-policy.md) · [Remote administration](docs/remote-admin-tools.md) · [Capability delivery and limits](docs/room-capability-delivery.md)

@@ -90,3 +90,7 @@ limits. They do not establish a new build or current availability of either devi
 - [OpenSSF evidence](openssf-evidence.md).
 
 Architecture and process SVGs describe logical relationships. The validation chart labels recorded test **counts**, not coverage percentages or a performance benchmark. Historical measurements keep their original conditions and dates. Downloaded firmware, backups, household mappings, raw receipts and credentials stay outside Git.
+
+- [Room endpoint delivery](room-capability-delivery.md): room controls, timers, media, administration and remaining hardware checks.
+- [Room panel](room-panel.md) and [session policy](room-session-policy.md).
+- [Remote administration](remote-admin-tools.md).

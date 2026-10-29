@@ -2,12 +2,41 @@
 
 This standalone page replaces the full Home Assistant dashboard with a large
 clock. A matching Front or Porch motion event shows that camera for 30 seconds;
-another event renews the lease, and the latest camera wins. Expiry returns to the
+another event from the same camera renews the lease. Other automatic camera
+events do not replace an already playing camera. Expiry returns to the
 clock. The interface, date and status messages use English by default; English,
 Russian, German and Spanish are available through an explicit locale setting. Camera video fills
 the entire screen without a title or clock header. `object-fit: cover` preserves
 proportions and crops the excess at the edges instead of stretching or adding
 borders; timestamps embedded by a camera remain part of its video.
+
+Revision **`20261029-r15`** keeps a successful live static response even if
+the offline cache is unavailable or its refresh fails, for example because
+storage was evicted or its quota is exhausted. A cache-write failure no longer substitutes old content or a network
+error for a response that was already fetched successfully. Network failures
+still use the existing cached fallback. Dated r14 device acceptance remains
+separate from this source correction.
+
+Revision **`20261029-r14`** prepares camera playback behind the current clock or
+Room menu. Nothing switches until the first image has decoded, or WebRTC has
+both started playback and delivered a decoded/presented frame. There is no
+loading, connecting, delayed-frame or error screen. Initial failure leaves the
+current interface intact. Opening Room cancels a pending camera so a late frame
+cannot take the menu away. An established WebRTC failure returns silently to
+the clock after the stream adapter's existing bounded health checks; snapshot
+refresh failures retain the last good image for at most fifteen seconds before
+returning to the clock. Competing automatic camera events do not discard a
+working stream; explicit manual camera selection remains available. These
+changes preserve the one-decoder and one-request bounds.
+
+Revision **`20261029-r12`** adds an optional [room panel](../../docs/room-panel.md)
+with six fixed actions, four status readings, HA reminders, local timer controls,
+and an opt-in static offline cache/photo frame. A configured room session sensor
+guards automatic motion playback: the room must be freshly confirmed idle, and
+the Room menu must be closed. These options do not change the default clock or
+full-screen camera layout. Credentials and live sensor/camera responses are
+never stored in the offline cache. Local timers are browser timers, not native
+Android alarms; the runbook describes their suspension and reboot limits.
 
 Revision **`20261015-r11`** recovers when Home Assistant accepts WebSocket
 authentication before MQTT has registered its subscription command. An explicit
@@ -163,27 +192,39 @@ do not add external scripts, frames or navigation to this authenticated page.
 
 ## Installation
 
-1. Back up any existing `/config/www/show5-display` directory outside `/config/www`.
-2. Copy the seven assets `display.css`, `i18n.js`, `display.js`, `stream.js`,
-   `auth.js`, `blank-video.svg` and the filled `config.js` to
-   `/config/www/show5-display/`. Copy the source `index.html` as
-   **`index-20261015-r11.html`**, with all seven asset URL versions set to
-   **`?v=20261015-r11`**. Keep `i18n.js` before `display.js` in the deferred
-   script order. Do not copy tests or backup files.
-3. Open `/local/show5-display/index-20261015-r11.html?external_auth=1` in the selected VACA
-   WebView. Verify the clock and the sanitized `Show5Auth.status()` result.
+1. Keep a private backup of the selected device's existing complete display
+   release outside `/config/www`.
+2. Create a new versioned directory, for example
+   `/config/www/show5-display-20261029-r15/`. Copy these **nine assets**:
+   `display.css`, `i18n.js`, `room.js`, `stream.js`, `auth.js`, `display.js`,
+   `blank-video.svg`, `offline-worker.js`, and the filled `config.js`.
+   Copy the source `index.html` as **`index-20261029-r15.html`**. That makes
+   **ten files**, including the HTML entry and deployment-specific configuration.
+   Keep every versioned asset URL in the HTML at **`?v=20261029-r15`** for this
+   release. Preserve the deferred script order: configuration, i18n, room,
+   stream, auth, then display. Do not copy tests, private data or backup files.
+3. Open
+   `/local/show5-display-20261029-r15/index-20261029-r15.html?external_auth=1`
+   in the selected VACA WebView. Verify the clock and the sanitized
+   `Show5Auth.status()` result. The directory prefix may identify the endpoint;
+   keep each endpoint's configuration and service-worker scope separate.
 4. Configure the selected device's persistent home path as described below.
    A one-time browser navigation alone does not survive VACA Refresh/restart.
-5. Check each camera, the return to clock and the unchanged voice assistant.
+5. Check each camera, the silent first-frame transition, the return to clock,
+   optional room controls and the unchanged voice assistant. If offline mode
+   is enabled, let its initial cache installation finish online before testing
+   an offline reload. See [room panel and offline clock](../../docs/room-panel.md).
 
 HA `/local` responses can be cached for 31 days. VACA uses `LOAD_DEFAULT` and
 its Refresh action does not clear the WebView cache. **Every deployed update,
-including a configuration-only change, needs a new entry filename and a new
-version on all seven asset URLs in the HTML.** Change the selected entry's home
-path to that new filename after copying the complete release. Keep a private
-backup of the previous complete release; a rollback also needs a fresh release
-ID because the original asset URLs may already be cached. Restarting the app
-alone is not a cache invalidation strategy.
+including a configuration-only change, needs a new release directory, entry
+filename and version on all versioned asset URLs in the HTML.** The offline
+worker reads its dependencies relative to that directory, so changing only the
+HTML query strings is insufficient to isolate its cached configuration. Change
+the selected entry's home path after copying the complete release. Keep a
+private backup of the previous complete release; a rollback also needs a fresh
+release ID because original asset URLs may already be cached. Restarting the
+app alone is not a cache invalidation strategy.
 
 ### Persistent VACA home path
 

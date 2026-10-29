@@ -49,10 +49,12 @@ function harness(config = CONFIG, prepareSnapshot, startVideo) {
   const view = {
     video: {},
     clearVideo() { state.video = false; },
-    showVideoLoading() { state.status = "video-loading"; },
+    showVideoLoading() { state.status = null; },
+    stageCamera(label) { state.mode = "clock"; state.label = label; },
+    cancelCamera() { state.mode = "clock"; state.status = null; },
     showVideo() { state.video = true; state.status = null; },
     showClock() { state.mode = "clock"; },
-    showCamera(label) { state.mode = "camera"; state.label = label; state.status = "loading"; },
+    showCamera(label) { state.mode = "camera"; state.label = label; state.status = null; },
     clearSnapshot() { clears.push(timers.time); state.image = null; },
     showSnapshot(url) { state.image = url; state.status = null; },
     showDelayed() { state.status = "delayed"; },
@@ -186,7 +188,7 @@ test("hiding discards the lease; showing again does not silently resume the came
   assert.equal(h.created.length, 0);
 });
 
-test("a held frame gets a delay badge at five seconds and expires at fifteen despite repeated motion", async () => {
+test("a held frame stays silent and returns to clock at fifteen seconds despite repeated motion", async () => {
   const h = harness();
   h.controller.showCamera("front");
   h.calls[0].resolve(goodImage()); await flush();
@@ -195,13 +197,13 @@ test("a held frame gets a delay badge at five seconds and expires at fifteen des
   assert.equal(h.calls.length, 2);
   await h.timers.tick(1);
   assert.equal(h.state.image, "blob:test-1");
-  assert.equal(h.state.status, "delayed");
+  assert.equal(h.state.status, null);
   h.controller.showCamera("front");
   await h.timers.tick(9999);
   assert.equal(h.state.image, "blob:test-1");
   await h.timers.tick(1);
   assert.equal(h.state.image, null);
-  assert.equal(h.state.status, "unavailable");
+  assert.equal(h.state.status, null);
   assert.deepEqual(h.revoked, ["blob:test-1"]);
 });
 
@@ -210,7 +212,7 @@ test("the ten-second request deadline aborts, clears state and retries only afte
   h.controller.showCamera("front");
   await h.timers.tick(10000);
   assert.equal(h.calls[0].signal.aborted, true);
-  assert.equal(h.state.status, "unavailable");
+  assert.equal(h.state.status, null);
   await h.timers.tick(2000);
   assert.equal(h.calls.length, 1, "an abort-ignoring request must not overlap a retry");
   h.calls[0].reject(new Error("aborted")); await flush();
@@ -227,7 +229,7 @@ test("transient refresh failures retain the previous frame and retry with bounde
   await h.timers.tick(1000);
   h.calls[1].reject(new Error("private network diagnostics")); await flush();
   assert.equal(h.state.image, "blob:test-1");
-  assert.equal(h.state.status, "delayed");
+  assert.equal(h.state.status, null);
   assert.deepEqual(h.revoked, []);
   await h.timers.tick(1000);
   h.calls[2].reject(new Error("second failure")); await flush();
@@ -269,7 +271,7 @@ test("old frame remains until replacement decode completes and bad replacements 
   assert.deepEqual(h.revoked, []);
   prepared[1].reject(new Error("decode failed")); await flush();
   assert.equal(h.state.image, "blob:test-1");
-  assert.equal(h.state.status, "delayed");
+  assert.equal(h.state.status, null);
   assert.deepEqual(h.revoked, ["blob:test-2"]);
   await h.timers.tick(1000);
   h.calls[2].resolve(goodImage()); await flush();
@@ -316,8 +318,9 @@ test("repeat motion renews the bounded lease without aborting an in-flight same-
   assert.equal(h.calls[0].signal.aborted, false);
   assert.equal(h.calls.length, 1);
   await h.timers.tick(1000);
-  assert.equal(h.state.mode, "camera", "original lease must not return to clock");
-  await h.timers.tick(3999); assert.equal(h.state.mode, "camera");
+  assert.equal(h.state.mode, "clock", "first frame is still pending");
+  assert.equal(h.calls[0].signal.aborted, true, "renewal cannot extend an individual request deadline");
+  await h.timers.tick(3999); assert.equal(h.state.mode, "clock");
   await h.timers.tick(1); assert.equal(h.state.mode, "clock");
 });
 
@@ -340,7 +343,7 @@ test("non-image, empty and oversized responses never become displayed blobs", as
     const h = harness();
     h.controller.showCamera("front"); h.calls[0].resolve(blob); await flush();
     assert.equal(h.state.image, null);
-    assert.equal(h.state.status, "unavailable");
+    assert.equal(h.state.status, null);
     assert.equal(h.created.length, 0);
   }
 });
@@ -350,7 +353,7 @@ test("decode failure clears a frame and destroy prevents any future activation",
   h.controller.showCamera("front"); h.calls[0].resolve(goodImage()); await flush();
   h.controller.snapshotFailed();
   assert.equal(h.state.image, null);
-  assert.equal(h.state.status, "unavailable");
+  assert.equal(h.state.status, null);
   h.controller.destroy();
   assert.equal(h.controller.showCamera("porch"), false);
   await h.timers.tick(120000);
@@ -381,11 +384,12 @@ test("DOM view keeps camera labels accessible and clears the image source on rem
   view.clearSnapshot();
   assert.equal(doc.elements["camera-image"].src, undefined);
   assert.equal(doc.elements["camera-image"].hidden, true);
-  view.showUnavailable();
-  assert.equal(doc.elements["camera-status"].textContent, "Camera unavailable");
+  view.cancelCamera();
+  assert.equal(doc.elements["camera-status"].textContent, "");
+  assert.equal(doc.elements["camera-status"].hidden, true);
 });
 
-test("all display messages and accessible names use the selected local catalog without camera overlays", () => {
+test("accessible names are localized while camera preparation stays text-free in every locale", () => {
   const { messages } = require("../i18n.js");
   for (const [locale, words] of Object.entries(messages)) {
     const doc = fakeDocument();
@@ -399,21 +403,20 @@ test("all display messages and accessible names use the selected local catalog w
     assert.equal(doc.elements["camera-video"]["aria-label"], words.cameraVideo);
     view.showCamera(words.front);
     assert.equal(doc.elements["camera-view"]["aria-label"], words.front);
-    assert.equal(doc.elements["camera-status"].textContent, words.loading);
+    assert.equal(doc.elements["camera-status"].textContent, "");
     view.showVideoLoading();
-    assert.equal(doc.elements["camera-status"].textContent, words.connecting);
+    assert.equal(doc.elements["camera-status"].textContent, "");
     view.showVideo();
     assert.equal(doc.elements["camera-status"].hidden, true);
     assert.equal(doc.elements["clock-view"].hidden, true);
     assert.equal(doc.elements["camera-view"].textContent, "", "no visible title is added over video");
-    view.showDelayed();
-    assert.equal(doc.elements["camera-status"].textContent, words.delayed);
-    view.showUnavailable();
-    assert.equal(doc.elements["camera-status"].textContent, words.unavailable);
+    view.cancelCamera();
+    assert.equal(doc.elements["camera-status"].hidden, true);
+    assert.equal(doc.elements["camera-status"].textContent, "");
   }
 });
 
-test("camera startup and retry never reveal a poster, and teardown masks before abort", async () => {
+test("camera preparation stays behind clock, reveals only ready video and masks before abort", async () => {
   const doc = fakeDocument();
   const view = createView(doc);
   const video = view.video;
@@ -436,7 +439,9 @@ test("camera startup and retry never reveal a poster, and teardown masks before 
   });
   controller.showCamera("front"); await flush();
   assert.equal(video.classList.contains("has-frame"), false);
-  assert.equal(doc.elements["camera-status"].hidden, false);
+  assert.equal(doc.elements["camera-status"].hidden, true);
+  assert.equal(doc.elements["clock-view"].hidden, false);
+  assert.equal(doc.elements["camera-view"].hidden, false, "staged decoder remains renderable behind clock");
   streams[0].resolve({ close() {} }); await flush();
   assert.equal(video.classList.contains("has-frame"), true);
   assert.equal(doc.elements["camera-status"].hidden, true);
@@ -444,9 +449,11 @@ test("camera startup and retry never reveal a poster, and teardown masks before 
   assert.equal(streams.length, 1, "repeated motion keeps playing video");
   streams[0].options.onError();
   assert.equal(video.hidden, true);
+  assert.equal(doc.elements["clock-view"].hidden, false);
+  assert.equal(doc.elements["camera-view"].hidden, true);
   await timers.tick(5000);
-  assert.equal(streams.length, 2);
-  assert.equal(video.classList.contains("has-frame"), false);
+  assert.equal(streams.length, 1, "terminal playback failure does not show a retry loop");
+  controller.showCamera("front"); await flush();
   controller.showClock();
   streams[1].resolve({ close() {} }); await flush();
   assert.equal(video.hidden, true, "a stale frame cannot reveal the poster");
@@ -488,7 +495,7 @@ function browserHarness(config = CONFIG, search = "?external_auth=1") {
 
 test("browser bootstrap exposes only the display controls and delegates authenticated snapshots", async () => {
   const { sandbox, document, calls, events, listeners, intervals } = browserHarness();
-  assert.deepEqual(Object.keys(sandbox.Show5Display).sort(), ["showCamera", "showClock"]);
+  assert.deepEqual(Object.keys(sandbox.Show5Display).sort(), ["showCamera", "showClock", "showMotionCamera"]);
   assert.ok(events.includes("show5-display-ready"));
   assert.match(document.elements["clock-time"].textContent, /^\d{2}:\d{2}$/);
   assert.equal(calls.length, 0);
@@ -514,22 +521,22 @@ test("browser bootstrap applies the configured locale without URL overrides or n
     assert.equal(calls.length, 0);
     sandbox.Show5Display.showCamera("front");
     assert.equal(calls[0].entityId, "camera.front");
-    assert.equal(document.elements["camera-status"].textContent, words.loading);
+    assert.equal(document.elements["camera-status"].textContent, "");
     listeners.pagehide();
   }
 });
 
 test("page assets are local, CSP disallows external scripts and camera CSS preserves aspect", () => {
   const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
-  assert.deepEqual([...html.matchAll(/<script src="([^"]+)" defer>/g)].map(x => x[1]), ["config.js?v=20261015-r11", "i18n.js?v=20261015-r11", "stream.js?v=20261015-r11", "auth.js?v=20261015-r11", "display.js?v=20261015-r11"]);
-  assert.match(html, /href="display.css\?v=20261015-r11"/);
+  assert.deepEqual([...html.matchAll(/<script src="([^"]+)" defer>/g)].map(x => x[1]), ["config.js?v=20261029-r15", "i18n.js?v=20261029-r15", "room.js?v=20261029-r15", "stream.js?v=20261029-r15", "auth.js?v=20261029-r15", "display.js?v=20261029-r15"]);
+  assert.match(html, /href="display.css\?v=20261029-r15"/);
   assert.match(html, /default-src 'none'/);
   assert.match(html, /script-src 'self'/);
   assert.match(html, /connect-src 'self'/);
   assert.match(html, /img-src 'self' blob:/);
   assert.doesNotMatch(html, /https?:\/\/|unsafe-inline|unsafe-eval|<iframe|<audio/);
   assert.match(html, /media-src 'self' blob:/);
-  assert.match(html, /<video id="camera-video" aria-label="Camera video" autoplay muted playsinline poster="blank-video.svg\?v=20261015-r11" disableremoteplayback hidden>/);
+  assert.match(html, /<video id="camera-video" aria-label="Camera video" autoplay muted playsinline poster="blank-video.svg\?v=20261029-r15" disableremoteplayback hidden>/);
   const css = fs.readFileSync(path.join(__dirname, "../display.css"), "utf8");
   assert.match(css, /object-fit:\s*cover/);
   assert.doesNotMatch(css, /@import|https?:\/\//);
@@ -571,7 +578,8 @@ test("WebRTC startup can take twelve seconds without the JPEG deadline aborting 
   h.controller.showCamera("front"); await flush();
   await h.timers.tick(12000);
   assert.equal(streams[0].opts.signal.aborted, false);
-  assert.equal(h.state.status, "video-loading");
+  assert.equal(h.state.status, null);
+  assert.equal(h.state.mode, "clock");
   streams[0].resolve({close(){closed++;}}); await flush();
   assert.equal(h.state.video, true);
   await h.timers.tick(4001);
@@ -596,19 +604,78 @@ test("a short camera lease caps the longer WebRTC startup deadline", async () =>
   assert.equal(h.timers.tasks.size, 0);
 });
 
-test("WebRTC failure retries only within the active lease and startup cannot hang indefinitely", async () => {
+test("WebRTC startup timeout stays silent and releases the candidate without automatic replay", async () => {
   const streams = []; let closed = 0;
   const h = harness({...CONFIG, cameraMode: "webrtc"}, null,
     (entity, video, opts) => new Promise(resolve => streams.push({opts, resolve})));
   h.controller.showCamera("front"); await flush();
   await h.timers.tick(15999);
   assert.equal(streams[0].opts.signal.aborted, false);
+  assert.equal(h.state.mode, "clock"); assert.equal(h.state.status, null);
   await h.timers.tick(1);
-  assert.equal(streams[0].opts.signal.aborted, true); assert.equal(h.state.status, "unavailable");
-  await h.timers.tick(5000); assert.equal(streams.length, 2);
-  streams[1].resolve({close(){closed++;}}); await flush();
-  streams[1].opts.onError();
+  assert.equal(streams[0].opts.signal.aborted, true);
+  assert.equal(h.state.mode, "clock"); assert.equal(h.state.status, null);
+  await h.timers.tick(5000); assert.equal(streams.length, 1);
+  streams[0].resolve({close(){closed++;}}); await flush();
   assert.equal(closed, 1); assert.equal(h.state.video, false);
-  h.controller.showClock(); await h.timers.tick(120000);
-  assert.equal(streams.length, 2); assert.equal(h.timers.tasks.size, 0);
+  await h.timers.tick(120000);
+  assert.equal(h.timers.tasks.size, 0);
+});
+
+test("first JPEG leaves clock untouched through download and decode, then commits exactly once", async () => {
+  const prepared = [];
+  const h = harness(CONFIG, (url, signal) => new Promise((resolve, reject) => prepared.push({url, signal, resolve, reject})));
+  h.controller.showCamera("front");
+  assert.equal(h.state.mode, "clock"); assert.equal(h.state.status, null);
+  h.calls[0].resolve(goodImage()); await flush();
+  assert.equal(h.state.mode, "clock"); assert.equal(h.state.image, null);
+  prepared[0].resolve(); await flush();
+  assert.equal(h.state.mode, "camera"); assert.equal(h.state.image, "blob:test-1");
+  assert.equal(h.state.status, null);
+});
+
+test("failed video preparation preserves an already open room menu", async () => {
+  const doc = fakeDocument();
+  doc.elements["room-panel"] = { hidden: true };
+  doc.elements["room-toggle"] = { setAttribute() {} };
+  const view = createView(doc), timers = new Timers();
+  let reject;
+  const controller = createController({ config:{...CONFIG,cameraMode:"webrtc"},view,
+    now:()=>timers.time,setTimeout:timers.set,clearTimeout:timers.clear,
+    startVideo:()=>new Promise((yes,no)=>{reject=no;}) });
+  doc.elements["room-panel"].hidden=false;
+  controller.showCamera("front"); await flush();
+  assert.equal(doc.elements["room-panel"].hidden,false);
+  assert.equal(doc.elements["clock-view"].hidden,false);
+  reject(new Error("no video")); await flush();
+  assert.equal(doc.elements["room-panel"].hidden,false);
+  assert.equal(doc.elements["clock-view"].hidden,false);
+  assert.equal(doc.elements["camera-view"].hidden,true);
+  assert.equal(doc.elements["camera-status"].textContent,"");
+});
+
+test("explicit Home or menu cancellation cannot reveal a late prepared video", async () => {
+  const streams=[]; let closed=0;
+  const h=harness({...CONFIG,cameraMode:"webrtc"},null,(entity,video,opts)=>new Promise(resolve=>streams.push({opts,resolve})));
+  h.controller.showCamera("front"); await flush();
+  h.controller.showClock();
+  streams[0].resolve({close(){closed++;}}); await flush();
+  assert.equal(closed,1); assert.equal(h.state.mode,"clock"); assert.equal(h.state.video,false);
+  assert.equal(h.timers.tasks.size,0);
+});
+
+
+test("a presented camera rejects competing automatic motion without discarding its good stream", async () => {
+  const streams=[];let closed=0;
+  const h=harness({...CONFIG,cameraMode:"webrtc"},null,(entity,video,opts)=>{
+    streams.push({entity,opts});return Promise.resolve({close(){closed++;}});
+  });
+  assert.equal(h.controller.showMotionCamera("front"),true);await flush();
+  assert.equal(h.state.mode,"camera");assert.equal(h.state.label,"Front");
+  assert.equal(h.controller.showMotionCamera("porch"),false);await flush();
+  assert.equal(streams.length,1);assert.equal(closed,0);assert.equal(h.state.label,"Front");
+  assert.equal(h.controller.showMotionCamera("front"),true);await flush();
+  assert.equal(streams.length,1);
+  assert.equal(h.controller.showCamera("porch"),true);await flush();
+  assert.equal(streams.length,2);assert.equal(closed,1);assert.equal(h.state.label,"Porch");
 });

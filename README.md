@@ -23,16 +23,25 @@ The real display page (revision `20261015-r11`) captured in desktop Chrome at
 960 × 480 with the public example configuration. It shows only the local clock;
 no Home Assistant login, camera feed or device was used. Click for the flat original.
 
-## October 29: installed capability audit
+## October 29: room endpoint delivery
 
-Both Shows are available and run VACA `0.13.4+myshka.10-sip.1` / 7010.
-The audit confirms one real light sensor per device, existing HA lux entities,
-bundled SSH binaries, an Android Bluetooth sink profile, and different installed
-media players. It separates observed functions from untested expansion options.
-The earlier SIP pilot verified HA-controlled pair calls and microphone return.
+Both Shows run the r15 clock and room interface, with six fixed actions, compact
+readings, timers and quiet camera startup. Real camera checks passed on both:
+the clock stays visible until decoded video is ready, with no loading or failure
+overlay. Both HA room-health sensors report ready.
 
-[Measured baseline, priorities and limitations](docs/installed-capabilities.md) ·
-[Remote access](docs/android-remote-access.md) · [Permissions](docs/android-permissions-and-limits.md).
+VLC, native OTTPlay and SendspinDroid are installed on both Shows; Sendspin has
+two distinct connected players. A bounded Show-two audio transport test passed,
+and its NUC-hosted AirPlay receiver is enabled for an iPhone playback trial.
+Bluetooth music played on Show one but disrupted Wi-Fi until the phone
+Bluetooth connection ended, so that route remains experimental.
+
+[Delivery, acceptance results and remaining limits](docs/room-capability-delivery.md) ·
+[Room controls](docs/room-panel.md) · [Remote administration](docs/remote-admin-tools.md).
+
+The [original installed-capability audit](docs/installed-capabilities.md) records
+the baseline before these additions. Both Shows retain VACA
+`0.13.4+myshka.10-sip.1` / 7010 and the existing voice/SIP configuration.
 
 The October 20 section below is a historical checkpoint; its Show 2 availability
 and application version do not describe the October 29 installation.
@@ -167,3 +176,7 @@ Original project code and documentation are available under the [MIT license](LI
 ## Screenshot artwork
 
 See [capture provenance and regeneration](docs/screenshot-artwork.md).
+
+### Room endpoint expansion
+
+[Room controls and timers](docs/room-panel.md) · [Session policy](docs/room-session-policy.md) · [Remote administration](docs/remote-admin-tools.md) · [Capability delivery and limits](docs/room-capability-delivery.md)

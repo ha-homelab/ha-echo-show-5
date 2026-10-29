@@ -33,7 +33,7 @@ class Timers {
 function harness(config = CONFIG) {
   const timers = new Timers();
   const native = [], requests = [], sockets = [], displayed = [], cameraSeconds = [];
-  let clocks = 0, displayAvailable = true, displayResult = true;
+  let clocks = 0, displayAvailable = true, displayResult = true, roomIsOpen = false;
   class Socket {
     constructor(url) { this.url = url; this.sent = []; this.closed = false; sockets.push(this); }
     send(raw) { this.sent.push(JSON.parse(raw)); }
@@ -45,6 +45,7 @@ function harness(config = CONFIG) {
     config, origin: "https://ha.example.invalid", WebSocket: Socket,
     now: () => timers.time, wallNow: () => 1800000000 + timers.time / 1000, setTimeout: timers.set, clearTimeout: timers.clear,
     requestNative(raw) { native.push(JSON.parse(raw)); },
+    roomOpen() { return roomIsOpen; },
     display() { return displayAvailable ? { showCamera(role, seconds) {
       displayed.push(role); cameraSeconds.push(seconds); return displayResult;
     }, showClock() { clocks += 1; } } : undefined; },
@@ -67,6 +68,7 @@ function harness(config = CONFIG) {
     socket.message({ type: "event", id: sub.id, event: { topic, payload, retain } });
   }
   return { adapter, timers, native, requests, sockets, displayed, cameraSeconds, token, ready, event,
+    setRoomOpen(value) { roomIsOpen = value; },
     clocks: () => clocks, setDisplay: value => { displayAvailable = value; }, setDisplayResult: value => { displayResult = value; } };
 }
 
@@ -84,6 +86,125 @@ test("configuration limits camera entities and exact topics/matchers", () => {
   }
   assert.throws(() => configuration({ cameras: { other: { entityId: "camera.front" } } }));
   assert.throws(() => configuration({ cameras: { front: { entityId: "https://foreign.invalid" } } }));
+});
+
+const ROOM_CONFIG = { ...CONFIG, remoteTarget: "show_one", room: {
+  actions: [{ id: "home", label: "Clock", script: "script.show_one_room_home" }],
+  status: [{ entityId: "sensor.temperature", label: "Room" }],
+  dismissScript: "script.show_one_room_dismiss"
+} };
+
+test("room state reads and actions use configured entities and fixed empty-body scripts", async () => {
+  const h = harness(ROOM_CONFIG);
+  await assert.rejects(h.adapter.fetchRoomState("sensor.secret"), /room_entity_not_allowed/);
+  await assert.rejects(h.adapter.runRoomAction("restart"), /room_action_not_allowed/);
+  assert.equal(h.requests.length, 0);
+  const state = h.adapter.fetchRoomState("sensor.temperature"); h.token(); await flush();
+  assert.equal(h.requests[0].url, "https://ha.example.invalid/api/states/sensor.temperature");
+  assert.equal(h.requests[0].options.cache, "no-store");
+  h.requests[0].resolve(new Response(JSON.stringify({ entity_id: "sensor.temperature", state: "21", attributes: {} }), { headers: { "Content-Type": "application/json" } }));
+  assert.equal((await state).state, "21");
+  const action = h.adapter.runRoomAction("home"); await flush();
+  assert.equal(h.requests[1].url, "https://ha.example.invalid/api/services/script/show_one_room_home");
+  assert.equal(h.requests[1].options.method, "POST"); assert.equal(h.requests[1].options.body, "{}");
+  h.requests[1].resolve(new Response("[]", { headers: { "Content-Type": "application/json" } }));
+  assert.equal(await action, true);
+});
+
+test("room rejects mismatched and oversized state bodies; failed commands are not retried", async () => {
+  const h = harness(ROOM_CONFIG);
+  const a = h.adapter.fetchRoomState("sensor.temperature"); h.token(); await flush();
+  h.requests[0].resolve(new Response(JSON.stringify({ entity_id: "sensor.other", state: "21" }), { headers: { "Content-Type": "application/json" } }));
+  await assert.rejects(a, /room_response_invalid/);
+  const b = h.adapter.fetchRoomState("sensor.temperature"); await flush();
+  h.requests[1].resolve(new Response(" ".repeat(65537), { headers: { "Content-Type": "application/json" } }));
+  await assert.rejects(b, /room_request_failed/);
+  const c = h.adapter.runRoomAction("home"); await flush();
+  h.requests[2].resolve(new Response("private failure", { status: 500 }));
+  await assert.rejects(c, /room_request_failed/);
+  await h.timers.tick(30000); assert.equal(h.requests.length, 3);
+});
+
+test("room reads have independent diagnostics, a hard timeout, and stop when hidden", async () => {
+  const h = harness(ROOM_CONFIG);
+  const pending = h.adapter.fetchRoomState("sensor.temperature"); h.token(); await flush();
+  assert.equal(h.adapter.status().inFlightSnapshots, 0);
+  assert.equal(h.adapter.status().inFlightRoomRequests, 1);
+  const rejected = assert.rejects(pending, /room_request_failed/);
+  await h.timers.tick(10000); await rejected;
+  assert.equal(h.requests[0].options.signal.aborted, true);
+  assert.equal(h.adapter.status().inFlightRoomRequests, 0);
+  const second = h.adapter.fetchRoomState("sensor.temperature"); await flush();
+  h.adapter.setHidden(true); await assert.rejects(second, /room_request_failed/);
+  assert.equal(h.requests[1].options.signal.aborted, true);
+  await assert.rejects(h.adapter.runRoomAction("home"), /inactive/);
+});
+
+test("a dispatched room command survives app-launch hiding and gets the real result without replay", async () => {
+  const h = harness(ROOM_CONFIG), pending = h.adapter.runRoomAction("home");
+  h.token(); await flush(); assert.equal(h.requests.length, 1);
+  h.adapter.setHidden(true); await h.timers.tick(12000);
+  assert.equal(h.requests[0].options.signal.aborted, false);
+  assert.equal(h.adapter.status().inFlightRoomRequests, 1);
+  h.adapter.setHidden(false); await flush(); assert.equal(h.requests.length, 1);
+  h.requests[0].resolve(new Response("[]", { headers: { "Content-Type": "application/json" } }));
+  assert.equal(await pending, true);
+  assert.equal(h.adapter.status().inFlightRoomRequests, 0);
+});
+
+test("hiding before room command auth completes prevents later dispatch", async () => {
+  const h = harness(ROOM_CONFIG), pending = h.adapter.runRoomAction("home");
+  h.adapter.setHidden(true); await assert.rejects(pending, /room_request_failed/);
+  h.token(); await flush(); assert.equal(h.requests.length, 0);
+  h.adapter.setHidden(false); await flush(); assert.equal(h.requests.length, 0);
+});
+
+test("hidden dispatched commands retain their deadline and destruction still aborts them", async () => {
+  const h = harness(ROOM_CONFIG), pending = h.adapter.runRoomAction("home");
+  h.token(); await flush(); h.adapter.setHidden(true);
+  const rejected = assert.rejects(pending, /room_request_failed/);
+  await h.timers.tick(89999); assert.equal(h.requests[0].options.signal.aborted, false);
+  await h.timers.tick(1); await rejected; assert.equal(h.requests[0].options.signal.aborted, true);
+  const second = harness(ROOM_CONFIG), other = second.adapter.runRoomAction("home");
+  second.token(); await flush(); second.adapter.destroy();
+  await assert.rejects(other, /room_request_failed/);
+  assert.equal(second.requests[0].options.signal.aborted, true);
+  assert.equal(second.requests.length, 1);
+});
+
+test("motion verifies fresh idle room ownership, coalesces bursts and rejects busy or delayed results", async () => {
+  const h = harness({ ...ROOM_CONFIG, room: { ...ROOM_CONFIG.room, sessionEntity: "sensor.room_session" } });
+  const socket = await h.ready();
+  h.event(socket, "test/front", "motion"); h.event(socket, "test/porch", '{"name":"Porch"}');
+  await flush(); assert.equal(h.requests.length, 1); assert.deepEqual(h.displayed, []);
+  h.requests[0].resolve(new Response(JSON.stringify({ entity_id: "sensor.room_session", state: "phone", attributes: { busy: true } }), { headers: { "Content-Type": "application/json" } }));
+  await flush(); assert.deepEqual(h.displayed, []);
+  await h.timers.tick(5000); h.event(socket, "test/front", "motion"); await flush();
+  h.requests[1].resolve(new Response(JSON.stringify({ entity_id: "sensor.room_session", state: "idle", attributes: { busy: false } }), { headers: { "Content-Type": "application/json" } }));
+  await flush(); assert.deepEqual(h.displayed, ["front"]);
+  await h.timers.tick(5000); h.event(socket, "test/front", "motion"); await flush();
+  await h.timers.tick(5001);
+  h.requests[2].resolve(new Response(JSON.stringify({ entity_id: "sensor.room_session", state: "idle", attributes: { busy: false } }), { headers: { "Content-Type": "application/json" } }));
+  await flush(); assert.deepEqual(h.displayed, ["front"], "slow old motion never replays");
+});
+
+test("an open room menu suppresses motion both before and during its ownership check", async () => {
+  const h = harness({ ...ROOM_CONFIG, room: { ...ROOM_CONFIG.room, sessionEntity: "sensor.room_session" } });
+  const socket = await h.ready(); h.setRoomOpen(true);
+  h.event(socket, "test/front", "motion"); await flush(); assert.equal(h.requests.length, 0);
+  h.setRoomOpen(false); h.event(socket, "test/front", "motion"); await flush();
+  h.setRoomOpen(true);
+  h.requests[0].resolve(new Response(JSON.stringify({ entity_id: "sensor.room_session", state: "idle", attributes: { busy: false } }), { headers: { "Content-Type": "application/json" } }));
+  await flush(); assert.deepEqual(h.displayed, []);
+});
+
+test("a slow fixed room action has ninety seconds to finish without premature failure or duplicate dispatch", async () => {
+  const h = harness(ROOM_CONFIG), action = h.adapter.runRoomAction("home");
+  h.token(); await flush(); await h.timers.tick(30000);
+  assert.equal(h.adapter.status().inFlightRoomRequests, 1);
+  assert.equal(h.requests.length, 1);
+  h.requests[0].resolve(new Response("[]", { headers: { "Content-Type": "application/json" } }));
+  assert.equal(await action, true);
 });
 
 test("native authentication is coalesced, in memory and bounded; unsolicited callbacks ignored", async () => {
@@ -492,7 +613,7 @@ test("browser entrypoint installs the exact native callback and exposes media/st
     fetch() { return Promise.resolve(image()); }, WebSocket: class {}, URL, Set, Map, Blob, AbortController,
     performance: { now: () => timers.time }, setTimeout: timers.set, clearTimeout: timers.clear };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, "../auth.js"), "utf8"), context);
-  assert.deepEqual(Object.keys(context.Show5Auth).sort(), ["fetchSnapshot", "startVideo", "status"]);
+  assert.deepEqual(Object.keys(context.Show5Auth).sort(), ["fetchRoomState", "fetchSnapshot", "runRoomAction", "startVideo", "status"]);
   assert.equal(typeof context.externalAuthSetToken, "function");
   const result = context.Show5Auth.fetchSnapshot("camera.front");
   assert.deepEqual(native, [{ force: false }]);

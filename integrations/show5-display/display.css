@@ -11,14 +11,45 @@
 html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
 body { -webkit-user-select: none; user-select: none; }
 #display, #clock-view, #camera-view { width: 100%; height: 100%; }
+#display { position: relative; }
 
 #clock-view {
+  position: relative;
+  z-index: 1;
+  background: #050608;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 16px;
 }
+
+button { font: inherit; color: #f5f6f8; background: #172339; border: 1px solid #385477; border-radius: 10px; cursor: pointer; min-height: 44px; padding: 8px 16px; }
+button:focus-visible { outline: 3px solid #78c6ff; outline-offset: 3px; }
+button:disabled { opacity: .5; cursor: wait; }
+#room-toggle { position: absolute; top: 10px; right: 12px; font-size: 19px; z-index: 1; }
+#room-network { position: absolute; top: 10px; left: 14px; font-size: 16px; color: #ffc878; margin: 10px 0; z-index: 1; }
+#room-timer { font-size: 23px; color: #a7d9ff; margin: 16px 0 0; font-variant-numeric: tabular-nums; z-index: 1; }
+#room-timer.due { color: #ffe08a; font-weight: 650; }
+#room-panel { position: absolute; inset: 0; padding: 12px 20px; background: #080e19; z-index: 2; overflow: auto; }
+#room-panel header { display: flex; align-items: center; justify-content: space-between; }
+#room-panel h1 { font-size: 24px; margin: 0; }
+#room-readings { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+#room-readings p { margin: 12px 0; overflow: hidden; }
+#room-readings span { display: block; font-size: 15px; color: #a3b7cd; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#room-readings strong { display: block; font-size: 21px; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#room-readings .stale strong { color: #b3a38a; }
+#room-readings .stale strong::before { content: "~ "; }
+#room-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+#room-actions button { min-height: 70px; font-size: 23px; background: #142b46; }
+#room-local-timers { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+#room-local-label { font-size: 17px; margin-right: auto; }
+#room-timer-note, #room-action-status { color: #a3b7cd; font-size: 14px; margin: 7px 0; min-height: 17px; }
+#room-action-status { color: #dcecff; }
+#room-reminder { display: flex; position: absolute; bottom: 10px; left: 12px; right: 12px; gap: 18px; align-items: center; justify-content: space-between; padding: 8px 16px; background: #183346; border: 1px solid #63aad4; border-radius: 12px; z-index: 3; }
+#room-reminder p { font-size: 21px; margin: 0; }
+#room-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .25; pointer-events: none; }
+#clock-time, #clock-date { position: relative; }
 
 #clock-time {
   font-size: 26vw;
@@ -41,32 +72,14 @@ body { -webkit-user-select: none; user-select: none; }
 /* The day-period marker needs room; the default 24-hour clock is unchanged. */
 html[data-hour-cycle="h12"] #clock-time { font-size: clamp(4rem, 20vw, 14rem); }
 
-#camera-view { position: relative; background: #000; }
+#camera-view { position: absolute; inset: 0; z-index: 0; background: #000; }
 .camera-frame { position: absolute; inset: 0; }
 #camera-image, #camera-video { width: 100%; height: 100%; object-fit: cover; display: block; }
 /* Do not paint Android's native poster while the first frame is pending. */
 #camera-video { opacity: 0; pointer-events: none; }
 #camera-video.has-frame { opacity: 1; }
-#camera-status {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  font-size: clamp(1rem, 3vw, 1.8rem);
-  color: #a6adb8;
-  margin: 0;
-  padding: 24px;
-}
-
-#camera-status.frame-delayed {
-  inset: auto 10px 10px auto;
-  padding: 6px 10px;
-  border-radius: 4px;
-  background: rgb(0 0 0 / 70%);
-  font-size: 14px;
-}
+/* Playback prepares behind the clock; camera status text is never shown. */
+#camera-status { display: none; }
 
 @media (max-height: 300px) {
   #clock-time { font-size: 54vh; }

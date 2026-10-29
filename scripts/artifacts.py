@@ -12,6 +12,8 @@ import urllib.request
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
+APK_KINDS = ('companion', 'vaca', 'androidipcamera', 'jitsi', 'sendspindroid')
+ARTIFACT_KINDS = ('lineage', 'companion', 'amonet', 'vaca', 'androidipcamera', 'jitsi', 'sendspindroid')
 
 
 def digest(path):
@@ -41,10 +43,10 @@ def verify_file(kind, item, p):
         raise ValueError('Artifact must be a regular file')
     if p.stat().st_size != item['size'] or digest(p) != item['sha256']:
         raise ValueError('Artifact size/SHA256 mismatch: ' + str(p))
-    expected_suffix = '.apk' if kind in ('companion', 'vaca', 'androidipcamera', 'jitsi') else '.zip'
+    expected_suffix = '.apk' if kind in APK_KINDS else '.zip'
     if Path(item['name']).suffix != expected_suffix:
         raise ValueError('Unexpected file type for ' + kind)
-    if kind in ('lineage', 'companion', 'amonet', 'vaca', 'androidipcamera', 'jitsi'):
+    if kind in ARTIFACT_KINDS:
         with zipfile.ZipFile(p) as z:
             if z.testzip():
                 raise ValueError('Archive CRC failed: ' + str(p))
@@ -113,7 +115,7 @@ def fetch(kind):
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('action', choices=['fetch', 'verify'])
-    ap.add_argument('kinds', nargs='+', choices=['lineage', 'companion', 'amonet', 'vaca', 'androidipcamera', 'jitsi'])
+    ap.add_argument('kinds', nargs='+', choices=ARTIFACT_KINDS)
     args = ap.parse_args()
     for kind in args.kinds:
         p = fetch(kind) if args.action == 'fetch' else verify(kind)

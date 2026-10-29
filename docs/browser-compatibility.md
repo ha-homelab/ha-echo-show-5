@@ -25,8 +25,10 @@ For releases, the browser job downloads the **same immutable artifact ID** that
 contains the staged integration-source archive. The existing release receipt
 binds its archive digest to source SHA, workflow run and attempt. A bounded
 streaming reader checks the existing explicit source inventory, rejects links
-and unexpected members, and requires all seven display assets to match that
-exact checkout before testing their extracted bytes. A missing, modified or
+and unexpected members, and requires all nine source display files to match
+that exact checkout before testing their extracted bytes. This includes
+`room.js` and `offline-worker.js`; the synthetic test configuration is generated
+separately. A missing, modified or
 misattributed candidate blocks the build workflow and therefore publication.
 
 These desktop engines do **not** establish Android System WebView, native

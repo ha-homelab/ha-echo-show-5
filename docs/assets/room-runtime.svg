@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1120" viewBox="0 0 1440 1120" role="img" aria-labelledby="title desc">
+  <title id="title">Room endpoint delivery: interface, policy, apps and administration</title>
+  <desc id="desc">Three main layers connect the room display to Home Assistant policy and existing Android applications. The r15 display and policy are deployed on both Shows; real camera checks passed on both and timer checks passed on Show two. VLC, OTTPlay and SendspinDroid are installed on both devices; Sendspin is connected on both devices; a bounded Show-two transport test passed. Bluetooth music played but disrupted Show-one Wi-Fi until phone disconnection; BLE needs physical tests. The device has about 974 MiB RAM, an ARMv7 application ABI and one verified light sensor.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#091326"/><stop offset="1" stop-color="#101e31"/></linearGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#133a55"/><stop offset="1" stop-color="#102a3e"/></linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M 0 1 L 8 5 L 0 9" fill="none" stroke="#77bdfa" stroke-width="2"/></marker>
+  </defs>
+  <style>
+    text{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    .title{fill:#f6f9ff;font-size:36px;font-weight:700;letter-spacing:-.7px}
+    .sub{fill:#a9bfd5;font-size:18px}
+    .heading{fill:#f3f7fe;font-size:25px;font-weight:650}
+    .body{fill:#c3d2e1;font-size:18px}
+    .small{fill:#9ab0c6;font-size:15px}
+    .badge{font-size:13px;font-weight:700;letter-spacing:.8px}
+    .card{fill:#122339;stroke:#29425d;stroke-width:1.5}
+    .rule{stroke:#2d465f;stroke-width:1}
+    .blue{fill:#a1d5ff}.green{fill:#86e3bf}.amber{fill:#ffd18a}
+  </style>
+  <rect width="1440" height="1120" rx="24" fill="url(#background)"/>
+  <text x="48" y="68" class="title">One useful room endpoint</text>
+  <text x="48" y="104" class="sub">Delivery checkpoint · 29 October 2026 · Control routes, not measured media paths</text>
+  <circle cx="1070" cy="50" r="5" fill="#77bdfa"/><text x="1084" y="55" class="small">Implemented / deployed</text>
+  <circle cx="1070" cy="77" r="5" fill="#79d8af"/><text x="1084" y="82" class="small">Existing or installed</text>
+  <circle cx="1070" cy="104" r="5" fill="#f6bd67"/><text x="1084" y="109" class="small">Acceptance pending</text>
+
+  <rect x="48" y="150" width="400" height="418" rx="20" class="card"/>
+  <rect x="72" y="173" width="181" height="26" rx="13" fill="#173b5d"/><text x="85" y="191" class="badge blue">INTERFACE · LIVE</text>
+  <text x="72" y="237" class="heading">Five-inch room display</text>
+  <rect x="72" y="260" width="352" height="132" rx="12" fill="url(#screen)"/>
+  <text x="248" y="329" text-anchor="middle" fill="#f5f9ff" font-size="62" font-weight="550">20:46</text>
+  <text x="248" y="365" text-anchor="middle" fill="#9ed4ef" font-size="16">Clock first · Room controls on demand</text>
+  <text x="72" y="425" class="body">Six fixed actions · Four readings</text>
+  <text x="72" y="454" class="body">Timers · Messages · Freshness</text>
+  <text x="72" y="483" class="body">Full-screen camera, no overlays</text>
+  <text x="72" y="524" class="small">Optional offline shell + local photo cache</text>
+  <text x="72" y="546" class="small">Browser timer ≠ native Android alarm</text>
+
+  <path d="M 453 345 H 513" stroke="#77bdfa" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+  <text x="482" y="324" text-anchor="middle" class="small">fixed</text>
+  <text x="482" y="373" text-anchor="middle" class="small">actions</text>
+
+  <rect x="520" y="150" width="400" height="418" rx="20" class="card"/>
+  <rect x="544" y="173" width="160" height="26" rx="13" fill="#173b5d"/><text x="557" y="191" class="badge blue">POLICY · LIVE</text>
+  <text x="544" y="237" class="heading">Home Assistant</text>
+  <text x="544" y="277" class="body">Named actions and exact targets</text>
+  <text x="544" y="312" class="body">Call guard before media changes</text>
+  <text x="544" y="347" class="body">Expiry, cleanup and quiet hours</text>
+  <text x="544" y="382" class="body">Timers reconcile after an outage</text>
+  <rect x="544" y="411" width="352" height="75" rx="12" fill="#0c1b2b" stroke="#2b4d6b"/>
+  <text x="562" y="438" class="small">SESSION STATE</text>
+  <text x="562" y="468" fill="#a7dcff" font-size="21" font-weight="600">Owner · Busy · Lease · Health</text>
+  <text x="544" y="524" class="small">Configuration check passed</text>
+  <text x="544" y="546" class="small">Activated; both room-health sensors ready</text>
+
+  <path d="M 925 345 H 985" stroke="#77bdfa" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+  <text x="955" y="324" text-anchor="middle" class="small">known</text>
+  <text x="955" y="373" text-anchor="middle" class="small">targets</text>
+
+  <rect x="992" y="150" width="400" height="418" rx="20" class="card"/>
+  <rect x="1016" y="173" width="182" height="26" rx="13" fill="#173e39"/><text x="1029" y="191" class="badge green">RUNTIME · EXISTING</text>
+  <text x="1016" y="237" class="heading">Android applications</text>
+  <text x="1016" y="280" fill="#b3efd8" font-size="21" font-weight="600">VACA</text>
+  <text x="1016" y="307" class="body">Wake words · Voice · Lux</text>
+  <line x1="1016" y1="325" x2="1368" y2="325" class="rule"/>
+  <text x="1016" y="360" fill="#b3efd8" font-size="21" font-weight="600">Native SIP</text>
+  <text x="1016" y="387" class="body">Explicit calls · VACA audio lease</text>
+  <line x1="1016" y1="405" x2="1368" y2="405" class="rule"/>
+  <text x="1016" y="440" fill="#b3efd8" font-size="21" font-weight="600">Jitsi + camera</text>
+  <text x="1016" y="467" class="body">Existing deliberate launch paths</text>
+  <text x="1016" y="524" class="small">HA coordination is not a global</text>
+  <text x="1016" y="546" class="small">Android microphone/camera mutex</text>
+
+  <rect x="48" y="596" width="1344" height="165" rx="20" fill="#132b33" stroke="#2d5757" stroke-width="1.5"/>
+  <text x="72" y="636" class="heading">Media installation parity</text>
+  <text x="72" y="669" class="body">Present on both Shows</text>
+  <text x="72" y="709" class="small">App presence is not a playback result.</text>
+  <text x="72" y="732" class="small">Keep one owner and a clear Stop/Home path.</text>
+  <rect x="460" y="620" width="258" height="113" rx="12" fill="#183c3a"/>
+  <text x="482" y="655" fill="#b5f0d5" font-size="24" font-weight="650">VLC</text>
+  <text x="482" y="686" class="body">Library / network client</text>
+  <text x="482" y="712" class="small">Share + decode test pending</text>
+  <rect x="738" y="620" width="258" height="113" rx="12" fill="#183c3a"/>
+  <text x="760" y="655" fill="#b5f0d5" font-size="24" font-weight="650">OTTPlay</text>
+  <text x="760" y="686" class="body">Native player on both</text>
+  <text x="760" y="712" class="small">Per-device playback acceptance</text>
+  <rect x="1016" y="620" width="352" height="113" rx="12" fill="#3a3023"/>
+  <text x="1038" y="655" class="amber" font-size="24" font-weight="650">SendspinDroid 2.0</text>
+  <text x="1038" y="686" class="body">Connected · Two distinct players</text>
+  <text x="1038" y="712" class="small">No synchronization claim yet</text>
+
+  <rect x="48" y="789" width="654" height="165" rx="20" class="card"/>
+  <text x="72" y="829" class="heading">Administration with existing access</text>
+  <text x="72" y="864" class="body">Checked scrcpy · Scoped files · APK checks · Health</text>
+  <text x="72" y="898" class="small">Both Shows: direct-LAN health verified</text>
+  <text x="72" y="923" class="small">NAS SSH forwarding refused; no policy bypass or new daemon</text>
+
+  <rect x="726" y="789" width="666" height="165" rx="20" fill="#302b28" stroke="#6c5540" stroke-width="1.5"/>
+  <text x="750" y="829" class="heading">Real hardware still needs a real test</text>
+  <text x="750" y="864" class="body">Bluetooth coexistence · BLE · USB accessories</text>
+  <text x="750" y="898" class="small">BLE proxy, sound-event summaries and QR scanning are not installed.</text>
+  <text x="750" y="923" class="small">Bluetooth music worked; phone disconnect restored Wi-Fi.</text>
+
+  <rect x="48" y="983" width="1344" height="87" rx="16" fill="#0b192b" stroke="#2d425b"/>
+  <text x="72" y="1018" fill="#c7dcf2" font-size="18" font-weight="650">ANDROID 11  ·  ARMv7  ·  ABOUT 974 MiB RAM  ·  ONE VERIFIED SENSOR: LIGHT</text>
+  <text x="72" y="1048" class="small">Keep inference, transcoding and indexing on servers. Accept each endpoint feature before calling it ready.</text>
+  <text x="1392" y="1097" text-anchor="end" fill="#6f89a4" font-size="13">ha-echo-show-5 · capability delivery</text>
+</svg>

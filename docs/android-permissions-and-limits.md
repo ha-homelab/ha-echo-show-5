@@ -1,5 +1,12 @@
 # Android permissions and limits on the converted Show
 
+**Permission inventory checkpoint.** The installed-grant matrix below preserves
+the original October 29 audit. General Android permission boundaries still apply,
+but the matrix is not a continuously refreshed app inventory. Later r15 deployment,
+player installation and physical acceptance are recorded in the
+[capability delivery register](room-capability-delivery.md); do not infer later
+permissions or feature success from this earlier table.
+
 Reviewed **2026-10-29** for **Echo Show 5 Gen2 / cronos, LineageOS 18.1 / Android 11**. This is a capability and configuration guide, not a record that every optional permission has been granted. A manifest declaration, an enabled Android setting, a live HA entity and a successful physical test are four different kinds of evidence.
 
 The useful expansion path is to give a selected application the access needed for a defined room function, then verify the complete function. More permissions do not create missing sensors, add codecs, turn an ordinary application into a system service or solve contention between two microphone users.

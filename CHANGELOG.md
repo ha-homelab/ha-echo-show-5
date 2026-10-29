@@ -2,6 +2,17 @@
 
 ## [0.1.6] - Unreleased
 
+### Room endpoint expansion
+
+- Add optional six-button room controls, compact live readings, reminders, local timer journals and a scoped offline static cache.
+- Keep the clock visible until the first decoded camera frame; suppress connection and failure overlays.
+- Preserve already dispatched room actions across app-launch visibility changes, so successful commands do not report a false failure.
+- Use successful live static responses even if offline-cache opening, lookup or writing fails.
+- Add device-bound room actions, quiet-hour announcements, timer overdue reconciliation, session/health status and native-call guards.
+- Add direct-LAN and existing-SSH administration tools, bounded scrcpy and verified SendspinDroid artifacts.
+- Document feature readiness and physical-test limits in the complete capability register and runtime diagram.
+
+
 ### Changed
 
 - Update the FCC cloud adapter to hash-locked grpcio 1.84.1 and refresh the pinned Debian Bookworm host-image base.

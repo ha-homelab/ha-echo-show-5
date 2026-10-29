@@ -146,6 +146,10 @@ class JitsiArtifactTests(OptionalApkChecks, unittest.TestCase):
     kind = 'jitsi'
 
 
+class SendspinDroidArtifactTests(OptionalApkChecks, unittest.TestCase):
+    kind = 'sendspindroid'
+
+
 class ArtifactTransferBoundaryTests(unittest.TestCase):
     kind = 'vaca'
     setUp = OptionalApkChecks.setUp
