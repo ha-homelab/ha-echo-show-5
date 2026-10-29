@@ -146,6 +146,12 @@ def main():
         raise ValueError('Wrong application or missing ARMv7 APK support')
     if 'application-debuggable' in manifest:
         raise ValueError('Deploy only a non-debuggable release')
+    # Liblinphone's call foreground service uses ApplicationInfo.icon.
+    # A missing icon compiles successfully but kills the process at first call.
+    icon = re.search(r"^application:.* icon='([^']+)'", manifest, re.M)
+    with zipfile.ZipFile(apk) as archive:
+        if icon is None or icon.group(1) not in archive.namelist():
+            raise ValueError('SIP call foreground service requires a packaged application icon')
     permissions = subprocess.run([str(builder.sdk_tool(Path(sdk), 'aapt')), 'dump', 'permissions', str(apk)],
                                  check=True, capture_output=True, text=True).stdout
     if any("name='" + name + "'" in permissions for name in

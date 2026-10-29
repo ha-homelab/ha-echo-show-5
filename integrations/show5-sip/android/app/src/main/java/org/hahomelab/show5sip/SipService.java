@@ -17,6 +17,8 @@ import java.util.*;
 /** One registered endpoint, one call and one local audio lease. Never auto-answers. */
 public final class SipService extends Service implements AudioLeaseClient.Owner {
     static final String CHANNEL = "show-phone", INCOMING = "show-phone-incoming";
+    // Linphone CoreService owns ID 1; incoming call notifications own ID 2.
+    private static final int STATUS_NOTIFICATION_ID = 3;
     static volatile String statusJson = "{\"schema\":1,\"configured\":false,\"config_sha256\":null,\"config_error\":null,\"endpoint_id\":null,\"registration\":\"unconfigured\",\"state\":\"idle\",\"call_id\":null,\"contact_id\":null,\"lease_held\":false,\"last_error\":null,\"last_command_id\":null,\"last_command_result\":null,\"last_command_error\":null}";
     static SipService instance;
     static final AudioDiagnostics diagnostics = new AudioDiagnostics();
@@ -122,7 +124,7 @@ public final class SipService extends Service implements AudioLeaseClient.Owner 
         NotificationManager manager = getSystemService(NotificationManager.class);
         manager.createNotificationChannel(new NotificationChannel(CHANNEL, "Phone status", NotificationManager.IMPORTANCE_LOW));
         manager.createNotificationChannel(new NotificationChannel(INCOMING, "Incoming phone calls", NotificationManager.IMPORTANCE_HIGH));
-        startForeground(1, notification("Phone starting"));
+        startForeground(STATUS_NOTIFICATION_ID, notification("Phone starting"));
         lease = new AudioLeaseClient(this, handler, this);
         loadConfig();
         if (lease.hasToken()) { state = "ending"; lease.recover(); }
@@ -322,7 +324,7 @@ public final class SipService extends Service implements AudioLeaseClient.Owner 
             status.put("lease_held", lease != null && lease.hasToken()); status.put("last_error", nullable(lastError));
             status.put("last_command_id", nullable(commandId)); status.put("last_command_result", nullable(commandResult)); status.put("last_command_error", nullable(commandError));
             statusJson = status.toString();
-            getSystemService(NotificationManager.class).notify(1, notification("Phone: " + state + " · " + registration));
+            getSystemService(NotificationManager.class).notify(STATUS_NOTIFICATION_ID, notification("Phone: " + state + " · " + registration));
         } catch (Exception ignored) { }
     }
     private static Object nullable(String value) { return value == null ? JSONObject.NULL : value; }

@@ -161,6 +161,7 @@
     "integrations/show5-sip/android/app/src/main/java/org/hahomelab/show5sip/MainActivity.java",
     "integrations/show5-sip/android/app/src/main/java/org/hahomelab/show5sip/SipConfig.java",
     "integrations/show5-sip/android/app/src/main/java/org/hahomelab/show5sip/SipService.java",
+    "integrations/show5-sip/android/app/src/main/res/drawable/ic_phone.xml",
     "integrations/show5-sip/android/app/src/test/java/org/hahomelab/show5sip/AudioDiagnosticsTest.java",
     "integrations/show5-sip/android/app/src/test/java/org/hahomelab/show5sip/LeaseReplyMatcherTest.java",
     "integrations/show5-sip/android/app/src/test/java/org/hahomelab/show5sip/SipConfigTest.java",
