@@ -7,7 +7,7 @@ installed application and a working physical feature are different results.
 The room packages passed HA configuration validation and were activated by one
 coordinated restart. Both VACA options now point to the new room display with
 `20261029-r14` assets. Both displays now show the new clock, and both HA room-health sensors report
-ready. Camera and timer acceptance was performed on Show two. Show one recovered
+ready. Camera acceptance passed on both; timer acceptance was performed on Show two. Show one recovered
 from the Bluetooth-related Wi-Fi outage after the phone disconnected; the radio
 coexistence limitation remains open. Existing voice and call acceptance stays
 separately scoped.
@@ -58,7 +58,7 @@ audible playback, radio reception or an Android cold start.
 | Capability from the expansion list | Delivered state at this checkpoint | Remaining acceptance or boundary |
 | --- | --- | --- |
 | Room clock and status | **Implemented / deployed.** Large default clock; optional room panel, four readings, transport freshness and a current timer. | r14 clocks are visible on both; the room layout is verified on Show two. Long-term brightness checks remain. |
-| Front-door camera and doorbell | **Existing + implemented / deployed.** Existing Front/Porch stream path; fixed manual actions; fresh idle-owner and menu guards for automatic motion; expiring visual messages can accompany an event. | The real stream and a browser-scoped network failure passed the silent-transition check on Show two. A dedicated doorbell binding is still required where no existing event maps to it. |
+| Front-door camera and doorbell | **Existing + implemented / deployed.** Existing Front/Porch stream path; fixed manual actions; fresh idle-owner and menu guards for automatic motion; expiring visual messages can accompany an event. | Real streams passed the silent-transition check on both Shows; a browser-scoped network failure was also checked on Show two. A dedicated doorbell binding is still required where no existing event maps to it. |
 | Room actions | **Implemented / deployed.** Six configured buttons, with fixed endpoint, light, climate, scene, script or timer actions. Requests carry no arbitrary shell or service input. | Confirm each selected household binding affects the intended room. |
 | Voice control | **Existing / scoped.** Existing VACA wake-word and Assist configuration is retained. Typed room scripts provide deterministic targets for HA. | New voice exposure and actual spoken requests require their own mapping and attended test; new scripts alone do not make an LLM call them correctly. |
 | Phone endpoint | **Existing + implemented / deployed.** Native SIP and Jitsi paths remain; HA media/display commands gain a fresh native-call guard. | Prior SIP checks covered bidirectional G.722 and return to VACA. This is not an Android-wide mutex; simultaneous independent SIP/Jitsi operation remains unaccepted. |
@@ -115,8 +115,8 @@ does not bypass the user's Android debugging approval.
 
 1. Verify every selected room action against its intended household target. Both
    r14 clocks and the HA packages are live; no further Core restart is needed.
-2. Extend the completed Show-two camera and timer checks to Show one, then test
-   one audible announcement, native-call rejection and recovery. Keep the
+2. Extend the completed Show-two timer check to Show one, then test one audible
+   announcement, native-call rejection and recovery. Keep the
    current voice configuration and manual brightness baseline.
 3. Complete the remaining administration cases: a bounded Show-two scrcpy
    session and one disposable scoped shared-storage round trip.
@@ -148,6 +148,11 @@ kept the clock visible through 189 samples over 19 seconds, with no video reveal
 or status overlay. Network emulation was then removed and the native-auth
 connection returned to ready. This tests the installed Android WebView as well
 as the independent synthetic browser suite.
+
+After network recovery, Show one also passed: the clock stayed visible for
+approximately 6.62 seconds until decoded 854 × 480 video was ready; frames
+advanced from 4 to 32 over the next three seconds, with no status overlay or
+premature reveal. It then returned to the clock.
 
 
 ## Bluetooth and Wi-Fi coexistence incident
