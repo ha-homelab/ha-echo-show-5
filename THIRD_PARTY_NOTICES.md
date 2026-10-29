@@ -34,6 +34,16 @@ upstream release. Keep these notices with redistributions of the patch.
 
 ## Referenced downloads and binaries
 
+`integrations/vaca-nearest` implements interoperability with the TECHO5
+nearest-device protocol and adapts its signal scoring semantics. The reviewed
+TECHO5 source is commit
+[`2ae3c75776eb04f614295ceba7de3cfcf60e531f`](https://github.com/HuskerMinion/techo5/tree/2ae3c75776eb04f614295ceba7de3cfcf60e531f),
+Copyright (c) 2026 TECHO5 contributors. Its
+[MIT license](licenses/TECHO5-MIT.txt) is preserved. The VACA patch contains
+Apache-2.0 source context from the pinned ViewAssistCompanionApp source described
+above; its upstream license and NOTICE remain applicable. The Kotlin overlay is
+a local modification, not an upstream VACA or TECHO5 release.
+
 The optional native SIP application under `integrations/show5-sip/android`
 uses Linphone SDK 5.5.39 by Belledonne Communications and contributors. That
 isolated application is distributed under AGPL-3.0-only, with its full

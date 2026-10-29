@@ -4,6 +4,12 @@
 
 This route targets **Echo Show 5 Gen2 / 2021 / cronos**, using **LineageOS / Android**, Companion and optional voice/display integrations. It is distinct from [EchoLocal on Dot 2](https://github.com/ha-homelab/ha-echo-dot) and [EchoMuse on emOS](https://github.com/ha-homelab/ha-echomuse). Never reuse another model's firmware or unlock commands.
 
+## Nearest-device interoperability
+
+[One voice response across VACA Shows and TECHO5 Dots](nearest-device-arbitration.md)
+explains the optional pre-pipeline election, the separate HA fallback, build
+provenance, and the difference between software checks and physical acceptance.
+
 ## October 29: installed capability audit
 
 Both Shows are available and run VACA `0.13.4+myshka.10-sip.1` / 7010.
@@ -69,6 +75,7 @@ limits. They do not establish a new build or current availability of either devi
 
 ## Speech services and diagnostics
 
+- [Guarded announcements](guarded-announcements.md): direct audio, request ownership, honest completion and quiet rollout alongside ordinary SIP calls.
 - [FCC voice backup](fcc-voice-backup.md): separate speech paths and controlled switching; the selected Russian path still uses cloud speech recognition.
 - [Assist behavior](fcc-assist-behavior.md), [audio model capabilities](fcc-audio-models.md), [cloud audio](fcc-cloud-audio.md) and [local speech experiment](fcc-local-speech-experiment.md).
 - Speech recognition, TTS voice, conversation-agent language, display language and wake-word models are independent settings. Translating documentation changes none of them.

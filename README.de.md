@@ -96,3 +96,5 @@ Downloads gehören nach `downloads/`, fremder Quellcode nach `vendor/`, Sicherun
 ### Room endpoint expansion
 
 [Room controls and timers](docs/room-panel.md) · [Session policy](docs/room-session-policy.md) · [Remote administration](docs/remote-admin-tools.md) · [Capability delivery and limits](docs/room-capability-delivery.md)
+
+[Auswahl des antwortenden Geräts: VACA und TECHO5 (Englisch)](docs/nearest-device-arbitration.md).

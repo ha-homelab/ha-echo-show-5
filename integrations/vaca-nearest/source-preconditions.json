@@ -1,0 +1,11 @@
+{
+  "app/build.gradle.kts": "a5e51e722446314415858b73bac01a42d5b117ebbdd782a6b919ff52197163c5",
+  "app/src/main/java/com/msp1974/vacompanion/audio/MicrophoneInput.kt": "0346797e8556100cd13663efdc439f2731041f8aec829a67264c6a083ae4c7a6",
+  "app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt": "66bb6317b6c53f6a2cdfba29bf02fe04207daa4634a073d3cdee65091cd15912",
+  "app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteAudioPipeline.kt": "e688f7bc7c1c9c9a1df7bacab4bd8564b31f5bcca74d13afc52c0ba6b285f6cd",
+  "app/src/main/java/com/msp1974/vacompanion/ui/layouts/SettingsLayout.kt": "7c9ea1577a0260baf3433b52032e84deef00b9244f72c0543b1fa86a43a92ea9",
+  "app/src/main/java/com/msp1974/vacompanion/wakeword/WakeWordEngineProvider.kt": "9bb62d21075acdbb01d32a63107f7760fb2a97e01bb0e62b9563385b131eb93f",
+  "app/src/main/java/com/msp1974/vacompanion/wakeword/microwakeword/MicroWakeWordEngine.kt": "b1129a267fad12bec407e31a67092941fb13fb67ed7d04a5c310d18d7f8ba482",
+  "app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/ExactOnnxWakeEngine.kt": "1817bc287eb55ac752fc106d934310cc95c0b1a825791f187361e3f9e60bb24a",
+  "app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/OpenWakeWordEngine.kt": "74ac9766ef361e59036f25b406263ca7edaf0a71f3e6a8941fae7da29bc4f17e"
+}

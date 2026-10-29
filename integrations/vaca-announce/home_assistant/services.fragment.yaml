@@ -1,0 +1,76 @@
+announcement_submit:
+  name: Submit guarded announcement
+  description: Queue previously synthesized Home Assistant TTS audio. Accepted does not mean played. Busy devices are skipped; no conversation is started.
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          domain: assist_satellite
+          integration: vaca
+    request_id:
+      required: true
+      selector:
+        text:
+    media_id:
+      required: true
+      description: A prepared /api/tts_proxy/ path or its URL on this Home Assistant instance. No synthesis is performed.
+      selector:
+        text:
+    expires_at:
+      required: true
+      description: Absolute Unix UTC seconds, at most 300 seconds ahead. Audio may be at most 120 seconds long.
+      selector:
+        number:
+          min: 0
+          max: 4102444800
+          mode: box
+    preannounce:
+      default: false
+      description: Must be false. No chime is played.
+      selector:
+        boolean:
+    busy_policy:
+      default: skip
+      selector:
+        select:
+          options:
+            - skip
+announcement_status:
+  name: Read guarded announcement status
+  description: Read or reconcile one request receipt. This action never initiates playback.
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          domain: assist_satellite
+          integration: vaca
+    request_id:
+      required: true
+      selector:
+        text:
+announcement_stop:
+  name: Stop owned guarded announcement
+  description: Cancel only this authenticated user's exact request on this satellite. Never stops unrelated media or calls.
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          domain: assist_satellite
+          integration: vaca
+    request_id:
+      required: true
+      selector:
+        text:
+announcement_capabilities:
+  name: Read guarded announcement capabilities
+  description: Read native protocol support and guard readiness without synthesizing, playing or reserving audio.
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          domain: assist_satellite
+          integration: vaca

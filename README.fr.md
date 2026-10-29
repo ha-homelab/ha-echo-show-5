@@ -106,3 +106,5 @@ EchoMuse avec emOS est une autre pile logicielle pour Dot. Sa configuration et s
 ### Room endpoint expansion
 
 [Room controls and timers](docs/room-panel.md) · [Session policy](docs/room-session-policy.md) · [Remote administration](docs/remote-admin-tools.md) · [Capability delivery and limits](docs/room-capability-delivery.md)
+
+[Choix de l’appareil qui répond : VACA et TECHO5 (anglais)](docs/nearest-device-arbitration.md).

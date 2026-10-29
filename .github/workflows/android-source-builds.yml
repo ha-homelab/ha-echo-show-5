@@ -49,6 +49,34 @@ jobs:
             --signing-dir "$RUNNER_TEMP/vaca-test-signing" \
             --expected-signer-sha256 "$fingerprint" \
             --source-cache "$RUNNER_TEMP/vaca-build/source"
+      - name: Build nearest-device interoperability with the retained SIP bridge
+        if: matrix.patch == 'vaca'
+        run: |
+          fingerprint=$(cat "$RUNNER_TEMP/vaca-test-signing/signer.sha256")
+          python3 integrations/vaca-nearest/build.py \
+            --work-dir "$RUNNER_TEMP/nearest-vaca-build" \
+            --signing-dir "$RUNNER_TEMP/vaca-test-signing" \
+            --expected-signer-sha256 "$fingerprint" \
+            --source-cache "$RUNNER_TEMP/vaca-build/source"
+      - name: Build guarded announcements with SIP and nearest-device support
+        if: matrix.patch == 'vaca'
+        run: |
+          fingerprint=$(cat "$RUNNER_TEMP/vaca-test-signing/signer.sha256")
+          python3 integrations/vaca-announce/build.py \
+            --work-dir "$RUNNER_TEMP/announce-vaca-build" \
+            --signing-dir "$RUNNER_TEMP/vaca-test-signing" \
+            --expected-signer-sha256 "$fingerprint" \
+            --source-cache "$RUNNER_TEMP/vaca-build/source"
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        if: matrix.patch == 'vaca'
+        with:
+          go-version: '1.25.x'
+          cache: false
+      - name: Verify independent Go protocol and signal-score fixtures
+        if: matrix.patch == 'vaca'
+        run: |
+          go run integrations/vaca-nearest/src/test/golden_vectors.go > "$RUNNER_TEMP/nearest-golden.txt"
+          cmp integrations/vaca-nearest/src/test/golden-vectors.txt "$RUNNER_TEMP/nearest-golden.txt"
       - name: Read exact historical OTT Android source
         if: matrix.patch == 'ottplay'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -80,7 +108,11 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: vaca-source-build-receipt
-          path: ${{ runner.temp }}/vaca-build/*.json
+          path: |
+            ${{ runner.temp }}/vaca-build/*.json
+            ${{ runner.temp }}/sip-vaca-build/*.json
+            ${{ runner.temp }}/nearest-vaca-build/*.json
+            ${{ runner.temp }}/announce-vaca-build/*.json
           if-no-files-found: error
           retention-days: 30
       - name: Remove ephemeral test signing identity

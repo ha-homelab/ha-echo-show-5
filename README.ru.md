@@ -95,3 +95,5 @@ python3 scripts/remote.py inventory
 ### Room endpoint expansion
 
 [Room controls and timers](docs/room-panel.md) · [Session policy](docs/room-session-policy.md) · [Remote administration](docs/remote-admin-tools.md) · [Capability delivery and limits](docs/room-capability-delivery.md)
+
+[Выбор отвечающей колонки: VACA и TECHO5 (на английском)](docs/nearest-device-arbitration.md).

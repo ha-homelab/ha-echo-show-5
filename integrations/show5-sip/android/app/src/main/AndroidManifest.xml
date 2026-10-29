@@ -18,6 +18,7 @@
     <queries><package android:name="com.msp1974.vacompanion" /></queries>
     <application android:label="Show phone" android:icon="@drawable/ic_phone" android:theme="@android:style/Theme.Material.NoActionBar"
         android:allowBackup="false" android:usesCleartextTraffic="false" android:supportsRtl="true">
+        <meta-data android:name="org.hahomelab.show5sip.ANNOUNCEMENT_GUARD" android:value="1" />
         <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask"
             android:showWhenLocked="true" android:turnScreenOn="true">
             <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>

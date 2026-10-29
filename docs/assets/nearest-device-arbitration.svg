@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 430" role="img" aria-labelledby="title desc">
+  <title id="title">One Assist turn across TECHO5 and VACA</title>
+  <desc id="desc">Two TECHO5 Dots and two VACA Shows detect a wake phrase, compare authenticated local signal scores, and send only the winning audio to Home Assistant. A separate Home Assistant duplicate gate is a fallback. Microphone audio is not shared during election.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#536783"/></marker></defs>
+  <rect width="1120" height="430" rx="22" fill="#f3f6fc"/>
+  <g font-family="system-ui, sans-serif" fill="#152b49">
+    <text x="36" y="48" font-size="26" font-weight="700">One wake phrase. One selected voice endpoint.</text>
+    <text x="36" y="78" font-size="15">Local, authenticated selection before speech recognition or device commands.</text>
+    <rect x="36" y="115" width="225" height="79" rx="14" fill="#d9efff" stroke="#327cb1"/>
+    <text x="57" y="146" font-size="19" font-weight="650">2 × TECHO5 Dot</text><text x="57" y="173" font-size="14">Native nearest-device protocol</text>
+    <rect x="36" y="221" width="225" height="79" rx="14" fill="#ece2ff" stroke="#8664ba"/>
+    <text x="57" y="252" font-size="19" font-weight="650">2 × VACA Show</text><text x="57" y="279" font-size="14">Compatible local overlay</text>
+    <path d="M261 155H307V190H349M261 260H307V226H349" fill="none" stroke="#536783" stroke-width="2.5" marker-end="url(#arrow)"/>
+    <rect x="353" y="144" width="290" height="128" rx="14" fill="#fff0cc" stroke="#bf8c28"/>
+    <text x="375" y="175" font-size="19" font-weight="650">Short local election</text>
+    <text x="375" y="202" font-size="14">Matching model ID + House word</text><text x="375" y="225" font-size="14">Compare speech above noise floor</text><text x="375" y="248" font-size="14">Others return to wake listening</text>
+    <path d="M643 207H706" stroke="#536783" stroke-width="2.5" marker-end="url(#arrow)"/>
+    <rect x="712" y="144" width="365" height="128" rx="14" fill="#d8f1e4" stroke="#348260"/>
+    <text x="735" y="175" font-size="19" font-weight="650">Winner → Home Assistant</text>
+    <text x="735" y="202" font-size="14">Buffered + live audio → normal Assist</text><text x="735" y="225" font-size="14">STT → local conversation → TTS</text><text x="735" y="248" font-size="14">HA duplicate gate remains a fallback</text>
+    <rect x="36" y="331" width="1041" height="63" rx="12" fill="#fff" stroke="#cbd5e3"/>
+    <text x="55" y="356" font-size="14" font-weight="650">Claims contain metadata, never recorded audio.</text>
+    <text x="55" y="379" font-size="14">Signal quality is not physical distance. Network partitions can still produce independent answers.</text>
+  </g>
+</svg>

@@ -4,6 +4,13 @@
 
 This wiki is versioned with the code under `docs/wiki/`. It describes the **Echo Show 5 Gen2 / 2021 / `cronos`** route. It is readable in a local checkout and on GitHub without enabling the separate GitHub Wiki feature. Detailed instructions and evidence remain linked at their source rather than copied into conflicting procedures.
 
+## Guarded announcement candidate
+
+[Direct announcements and ordinary SIP calls](../guarded-announcements.md)
+describes request ownership, expiry, honest completion, the shared native guard
+and its external-app limits. Build and quiet installation evidence do not replace
+attended acoustic acceptance.
+
 ## October 29: room endpoint delivery
 
 The **r15** room display and HA policy are deployed on both Shows. Use the

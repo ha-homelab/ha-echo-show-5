@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "enabled": false,
+  "name": "show-example",
+  "house_word": "REPLACE_WITH_YOUR_EXISTING_HOUSE_WORD",
+  "window_ms": 300,
+  "offset_db": 0,
+  "port": 18127
+}

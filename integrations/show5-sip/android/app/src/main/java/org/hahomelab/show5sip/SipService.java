@@ -86,13 +86,13 @@ public final class SipService extends Service implements AudioLeaseClient.Owner 
                 if (callId != null || lease.hasToken() || stopRequested) { changed.decline(Reason.Busy); return; }
                 call = changed; callId = UUID.randomUUID().toString(); contactId = null;
                 diagnostics.begin(callId);
-                state = "ringing"; lastError = null;
+                state = "preparing"; pendingAction = "ring"; lastError = null;
                 if (config != null) for (SipConfig.Contact entry : config.contacts.values()) {
                     Address expected = Factory.instance().createAddress(entry.address);
                     if (expected != null && expected.weakEqual(changed.getRemoteAddress())) { contactId = entry.id; break; }
                 }
                 handler.removeCallbacks(callLimit); handler.postDelayed(callLimit, 30000);
-                showIncoming(); publish(); return;
+                publish(); lease.acquire(); return;
             }
             // Wrappers may differ across JNI callbacks; compare their native call identity.
             if (call == null || changed.getNativePointer() != call.getNativePointer()) return;
@@ -213,7 +213,8 @@ public final class SipService extends Service implements AudioLeaseClient.Owner 
             if (callId == null || !callId.equals(expected)) commandError = "stale_call";
             else if ("answer".equals(action)) {
                 if (!"ringing".equals(state) || call == null) commandError = "not_ringing";
-                else { pendingAction = "answer"; state = "preparing"; acceptCommand(); lease.acquire(); }
+                else { pendingAction = "answer"; state = "preparing"; acceptCommand();
+                    if (lease.isHeld()) leaseGranted(); else lease.acquire(); }
             } else if ("decline".equals(action) && !"ringing".equals(state)) commandError = "not_ringing";
             else { acceptCommand(); endCall(null); }
         }
@@ -226,6 +227,10 @@ public final class SipService extends Service implements AudioLeaseClient.Owner 
         if (!"preparing".equals(state) || pendingAction == null || core == null) { finishMedia(); return; }
         try {
             String action = pendingAction; pendingAction = null;
+            if ("ring".equals(action)) {
+                if (call == null) { finishMedia(); return; }
+                state = "ringing"; showIncoming(); publish(); return;
+            }
             CallParams params = core.createCallParams("answer".equals(action) ? call : null);
             if (params == null) throw new IllegalStateException();
             params.setAudioEnabled(true); params.setVideoEnabled(false);
