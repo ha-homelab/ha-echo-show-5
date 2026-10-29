@@ -20,6 +20,7 @@ class Adapter:
         self.calls = []
         self.generation = 0
         self.reason = ''
+        self.music_playing = False
         self.caps = dict(protocol=core.PROTOCOL, **{key: True for key in core.CAPABILITIES})
         self.claim_reply = {'status': 'accepted', 'deduplicated': False}
         self.cancel_reply = {'status': 'stopped', 'reason': 'cancelled'}
@@ -32,8 +33,8 @@ class Adapter:
     def validate_media(self, media):
         if media != MEDIA:
             raise core.AnnouncementError('unapproved_media_origin')
-    def busy_reason(self):
-        return self.reason
+    def busy_reason(self, policy='skip'):
+        return self.reason or ('media_busy' if self.music_playing and policy != 'duck_music' else '')
     async def capabilities(self):
         self.calls.append(('capabilities',))
         return self.caps
@@ -53,7 +54,7 @@ class Adapter:
     async def send(self, op, request_id, **data):
         self.calls.append((op, request_id, data))
         if op == 'audio-stop' and self.autocomplete:
-            await self.manager.receipt(ENTITY, {'request_id': request_id, 'op': 'event', 'status': 'completed'})
+            await self.manager.receipt(ENTITY, {'request_id': request_id, 'op': 'event', 'status': 'completed', 'busy_policy': self.manager.records[self.manager.key(ENTITY, request_id)].get('busy_policy', 'skip')})
 
 class ManagerTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -213,6 +214,161 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
         await self.submit(); await self.finish()
         self.assertEqual(self.manager.records[self.manager.key(ENTITY, ID)]['status'], 'unknown')
         self.assertNotIn('audio-start', [c[0] for c in self.adapter.calls])
+
+    def enable_duck(self):
+        self.adapter.caps.update(duck_music=True, duck_music_player='vaca', duck_music_scope='owned_player')
+        self.adapter.claim_reply['busy_policy'] = 'duck_music'
+        self.adapter.cancel_reply['busy_policy'] = 'duck_music'
+        self.adapter.status_reply['busy_policy'] = 'duck_music'
+
+    async def test_default_skip_still_rejects_music_without_dispatch(self):
+        self.adapter.music_playing = True
+        data = self.data(); data.pop('busy_policy')
+        result = await self.submit(data)
+        self.assertEqual(result['status'], 'skipped')
+        self.assertEqual(result['reason'], 'media_busy')
+        self.assertEqual(self.adapter.calls, [])
+
+    async def test_duck_requires_exact_native_capability_without_fallback(self):
+        variants = [{}, {'duck_music': False}, {'duck_music': 'true'},
+                    {'duck_music': True, 'duck_music_player': 'sendspin', 'duck_music_scope': 'owned_player'},
+                    {'duck_music': True, 'duck_music_player': 'vaca', 'duck_music_scope': 'global_volume'}]
+        for fields in variants:
+            with self.subTest(fields=fields):
+                self.manager.records.clear(); self.adapter.calls.clear()
+                self.adapter.caps = dict(protocol=core.PROTOCOL, **{key: True for key in core.CAPABILITIES}, **fields)
+                await self.submit(dict(self.data(), busy_policy='duck_music')); await self.finish()
+                receipt = await self.manager.status(ENTITY, ID)
+                self.assertEqual(receipt['status'], 'skipped')
+                self.assertEqual(receipt['reason'], 'duck_music_unavailable')
+                self.assertEqual([call[0] for call in self.adapter.calls], ['capabilities'])
+
+    async def test_duck_keeps_all_five_guarantees_required(self):
+        self.enable_duck(); self.adapter.caps['owned_cancel'] = False
+        await self.submit(dict(self.data(), busy_policy='duck_music')); await self.finish()
+        self.assertEqual((await self.manager.status(ENTITY, ID))['status'], 'skipped')
+        self.assertNotIn('claim', [call[0] for call in self.adapter.calls])
+
+    async def test_duck_claim_binds_policy_and_has_no_duplicate_replay(self):
+        self.enable_duck(); self.adapter.music_playing = True
+        data = dict(self.data(), busy_policy='duck_music')
+        await self.submit(data); await self.finish()
+        claim = next(call for call in self.adapter.calls if call[0] == 'claim')
+        self.assertEqual(claim[2]['busy_policy'], 'duck_music')
+        self.assertEqual(claim[2]['payload_fingerprint'], core.media_fingerprint(MEDIA, 'duck_music'))
+        self.assertNotEqual(claim[2]['payload_fingerprint'], core.media_fingerprint(MEDIA))
+        count = len(self.adapter.calls)
+        self.assertEqual((await self.submit(data))['status'], 'completed')
+        self.assertEqual(len(self.adapter.calls), count)
+        with self.assertRaisesRegex(core.AnnouncementError, 'request_conflict'):
+            await self.submit(self.data())
+
+    async def test_old_skip_receipt_and_hashes_remain_compatible(self):
+        expected = '2b256f1e1e474ae3693f7e6f196a41b0fed5f8d0388d9bd957949e657ad1a150'
+        self.assertEqual(core.digest(MEDIA, 1180.0), expected)
+        self.assertEqual(core.digest(MEDIA, 1180.0, 'skip'), expected)
+        self.assertEqual(core.media_fingerprint(MEDIA), 'ef9528b8c4830d4255c8b145d6968a7b0c718770e6c7c7f577d8eb89df158a79')
+        self.manager.records[self.manager.key(ENTITY, ID)] = dict(entity_id=ENTITY, request_id=ID,
+            owner=OWNER, fingerprint=expected, expires_at=1180.0, status='unknown', reason='legacy_receipt', claimed=True, claim_sent=True)
+        self.assertEqual((await self.submit(self.data()))['status'], 'unknown')
+        data = self.data(); data.pop('busy_policy')
+        self.assertEqual((await self.submit(data))['status'], 'unknown')
+        with self.assertRaisesRegex(core.AnnouncementError, 'request_conflict'):
+            await self.submit(dict(data, busy_policy='duck_music'))
+        self.assertEqual(self.adapter.calls, [])
+
+    async def test_skip_wire_shape_unchanged(self):
+        await self.submit(); await self.finish()
+        claim = next(call for call in self.adapter.calls if call[0] == 'claim')
+        self.assertNotIn('busy_policy', claim[2])
+        self.assertEqual(claim[2]['payload_fingerprint'], 'ef9528b8c4830d4255c8b145d6968a7b0c718770e6c7c7f577d8eb89df158a79')
+
+    async def test_skipped_request_cannot_change_to_duck(self):
+        self.adapter.reason = 'sip_busy'
+        self.assertEqual((await self.submit())['status'], 'skipped')
+        with self.assertRaisesRegex(core.AnnouncementError, 'request_conflict'):
+            await self.submit(dict(self.data(), busy_policy='duck_music'))
+
+    async def test_native_duck_rejection_never_falls_back_to_skip(self):
+        self.enable_duck()
+        self.adapter.claim_reply = {'status': 'skipped', 'reason': 'unsupported_music'}
+        await self.submit(dict(self.data(), busy_policy='duck_music')); await self.finish()
+        self.assertEqual((await self.manager.status(ENTITY, ID))['status'], 'skipped')
+        self.assertEqual([call[0] for call in self.adapter.calls].count('claim'), 1)
+        self.assertNotIn('audio-start', [call[0] for call in self.adapter.calls])
+
+    async def test_invalid_policy_types_and_values_are_rejected(self):
+        for policy in [None, True, [], {}, '', 'interrupt', 'duck']:
+            with self.subTest(policy=policy), self.assertRaises(core.AnnouncementError):
+                await self.submit(dict(self.data(), busy_policy=policy))
+        self.assertEqual(self.adapter.calls, [])
+
+    async def test_duck_missing_or_wrong_policy_ack_never_streams(self):
+        self.enable_duck()
+        for echo in [None, 'skip', True]:
+            with self.subTest(echo=echo):
+                self.manager.records.clear(); self.adapter.calls.clear()
+                self.adapter.claim_reply['busy_policy'] = echo
+                await self.submit(dict(self.data(), busy_policy='duck_music')); await self.finish()
+                record = self.manager.records[self.manager.key(ENTITY, ID)]
+                self.assertEqual((record['status'], record['reason']), ('unknown', 'invalid_policy_receipt'))
+                self.assertNotIn('audio-start', [call[0] for call in self.adapter.calls])
+                self.assertEqual([call[1] for call in self.adapter.calls if call[0] == 'cancel'], [ID])
+
+    async def test_duck_native_duplicate_is_polled_without_restream(self):
+        self.enable_duck()
+        self.adapter.claim_reply['deduplicated'] = True
+        self.adapter.status_reply.update(status='completed', reason='drained')
+        await self.submit(dict(self.data(), busy_policy='duck_music')); await self.finish()
+        self.assertEqual((await self.manager.status(ENTITY, ID))['status'], 'completed')
+        self.assertNotIn('audio-start', [call[0] for call in self.adapter.calls])
+        self.assertEqual([call[0] for call in self.adapter.calls].count('claim'), 1)
+
+    async def test_duck_terminal_claim_needs_matching_policy_proof(self):
+        self.enable_duck()
+        for status in ['completed', 'stopped']:
+            for echo in [None, 'skip']:
+                with self.subTest(status=status, echo=echo):
+                    self.manager.records.clear(); self.adapter.calls.clear()
+                    self.adapter.claim_reply = dict(status=status, busy_policy=echo)
+                    await self.submit(dict(self.data(), busy_policy='duck_music')); await self.finish()
+                    record = self.manager.records[self.manager.key(ENTITY, ID)]
+                    self.assertEqual((record['status'], record['reason']), ('unknown', 'invalid_policy_receipt'))
+                    self.assertNotIn('audio-start', [call[0] for call in self.adapter.calls])
+                    self.assertEqual([call[1] for call in self.adapter.calls if call[0] == 'cancel'], [ID])
+
+    async def test_duck_matching_terminal_claim_never_replays_audio(self):
+        self.enable_duck()
+        self.adapter.claim_reply = dict(status='completed', busy_policy='duck_music')
+        await self.submit(dict(self.data(), busy_policy='duck_music')); await self.finish()
+        self.assertEqual((await self.manager.status(ENTITY, ID))['status'], 'completed')
+        self.assertNotIn('audio-start', [call[0] for call in self.adapter.calls])
+        self.assertNotIn('cancel', [call[0] for call in self.adapter.calls])
+
+    async def test_duck_completion_and_stop_require_matching_policy(self):
+        self.enable_duck(); self.adapter.autocomplete = False
+        await self.submit(dict(self.data(), busy_policy='duck_music')); await asyncio.sleep(0)
+        key = self.manager.key(ENTITY, ID)
+        self.assertTrue(self.manager.records[key]['claimed'])
+        await self.manager.receipt(ENTITY, dict(request_id=ID, op='event', status='completed'))
+        self.adapter.status_reply = dict(status='completed', busy_policy='skip')
+        self.assertEqual((await self.manager.status(ENTITY, ID))['status'], 'accepted')
+        self.adapter.cancel_reply = dict(status='stopped')
+        stopped = await self.manager.stop(ENTITY, OWNER, ID)
+        self.assertEqual((stopped['status'], stopped['reason']), ('unknown', 'invalid_policy_receipt'))
+        self.assertEqual([call[1] for call in self.adapter.calls if call[0] == 'cancel'], [ID])
+        await self.manager.receipt(ENTITY, dict(request_id=ID, op='event', status='stopped', busy_policy='duck_music'))
+        self.assertEqual(self.manager.records[key]['status'], 'stopped')
+
+    async def test_duck_aborts_only_owned_job_if_call_guard_becomes_busy(self):
+        self.enable_duck(); self.adapter.music_playing = True; self.adapter.autocomplete = False
+        await self.submit(dict(self.data(), busy_policy='duck_music')); await asyncio.sleep(0)
+        self.assertIn('audio-stop', [call[0] for call in self.adapter.calls])
+        self.adapter.reason = 'sip_busy'
+        await self.finish()
+        record = self.manager.records[self.manager.key(ENTITY, ID)]
+        self.assertEqual((record['status'], record['reason']), ('unknown', 'sip_busy'))
+        self.assertEqual([call[1] for call in self.adapter.calls if call[0] == 'cancel'], [ID])
 
 if __name__ == '__main__':
     unittest.main()

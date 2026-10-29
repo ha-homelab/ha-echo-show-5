@@ -1,16 +1,20 @@
+diff --git a/app/build.gradle.kts b/app/build.gradle.kts
+index 4ff9852..8e813e9 100644
 --- a/app/build.gradle.kts
 +++ b/app/build.gradle.kts
-@@ -27,8 +27,8 @@
+@@ -27,8 +27,8 @@ android {
          applicationId = "com.msp1974.vacompanion"
          minSdk = 26
          targetSdk = 36
 -        versionName = "0.13.4+myshka.11-nearest.2"
 -        versionCode = 7011
-+        versionName = "0.13.4+myshka.13-announce.2"
-+        versionCode = 7013
++        versionName = "0.13.4+myshka.14-announce.3"
++        versionCode = 7014
          testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
      }
  
+diff --git a/app/src/main/AndroidManifest.xml b/app/src/main/AndroidManifest.xml
+index 226bcae..9d9da21 100644
 --- a/app/src/main/AndroidManifest.xml
 +++ b/app/src/main/AndroidManifest.xml
 @@ -4,6 +4,7 @@
@@ -29,9 +33,11 @@
      <application
          android:name=".VACAApplication"
          android:usesCleartextTraffic="true"
+diff --git a/app/src/main/java/com/msp1974/vacompanion/VACAApplication.kt b/app/src/main/java/com/msp1974/vacompanion/VACAApplication.kt
+index 2bac573..fcb5379 100644
 --- a/app/src/main/java/com/msp1974/vacompanion/VACAApplication.kt
 +++ b/app/src/main/java/com/msp1974/vacompanion/VACAApplication.kt
-@@ -22,6 +22,7 @@
+@@ -22,6 +22,7 @@ class VACAApplication: Application(), CameraXConfig.Provider {
      override fun onCreate() {
          super.onCreate()
          com.msp1974.vacompanion.telephony.AudioLeaseRuntime.initialize(this)
@@ -39,290 +45,8 @@
  
          Timber.plant(DebugTree())
  
---- a/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
-+++ b/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
-@@ -2,6 +2,8 @@
- package com.msp1974.vacompanion.satellite
- 
- import com.msp1974.vacompanion.nearest.NearestRuntime
-+import com.msp1974.vacompanion.announce.AnnouncementGate
-+import com.msp1974.vacompanion.announce.AnnouncementRuntime
- 
- import android.annotation.SuppressLint
- import android.content.Context
-@@ -96,8 +98,8 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
-     private var audioPipelineLastStateChange = System.currentTimeMillis()
-     private val nearest = NearestRuntime(context, scope,
-         canAnswer = { state == SatelliteState.RUNNING && clientId.isNotEmpty() && !config.isMuted &&
--            !AudioLeaseRuntime.inhibited && (audioPipeline == null || audioPipeline?.pipelineStage == PipelineStage.ENDED) },
--        captureAllowed = { state == SatelliteState.RUNNING && !config.isMuted && !AudioLeaseRuntime.inhibited },
-+            !AudioLeaseRuntime.inhibited && !AnnouncementGate.busy && (audioPipeline == null || audioPipeline?.pipelineStage == PipelineStage.ENDED) },
-+        captureAllowed = { state == SatelliteState.RUNNING && !config.isMuted && !AudioLeaseRuntime.inhibited && !AnnouncementGate.busy },
-         open = { detection, turn -> handleWakeWordDetection(detection, turn) })
- 
-     private var soundEffectFinishTime: Long = 0
-@@ -125,12 +127,14 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
-         }
-     }
- 
--    init { AudioLeaseRuntime.attach(this) }
-+    init { AudioLeaseRuntime.attach(this); AnnouncementRuntime.attach(this) }
- 
--    fun isBusyForAudioLease(): Boolean =
-+    fun isBusyForAudioLease(): Boolean = synchronized(AnnouncementGate.monitor) {
-+        AnnouncementGate.busy ||
-         (audioPipeline != null && audioPipeline?.pipelineStage != PipelineStage.ENDED) ||
-         mediaManager.voicePlayer.isPlaying() || mediaManager.alarmPlayer.isSounding() ||
--        MusicPlayerService.sInstance != null
-+        MusicPlayerService.sInstance != null || mediaManager.soundPlayer.playing
-+    }
- 
-     suspend fun pauseForAudioLease() {
-         check(AudioLeaseRuntime.inhibited)
-@@ -152,6 +156,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
- 
-     suspend fun start() {
-         AudioLeaseRuntime.attach(this)
-+        AnnouncementRuntime.attach(this)
-         // Add config change listeners
-         Timber.d("Satellite starting...")
-         val startTime = System.currentTimeMillis()
-@@ -268,6 +273,8 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
-     }
- 
-     fun prepareSatelliteTakeover(clientId: String) {
-+        AnnouncementRuntime.detach(this)
-+        AnnouncementRuntime.attach(this)
-         nearest.cancel()
-         // This must run before WyomingTCPServer resumes reading the new connection.
-         // Otherwise its settings event can arrive before initSettings is reset.
-@@ -320,6 +327,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
-             { motionTask.release() },
-         )
-         state = SatelliteState.STOPPED
-+        AnnouncementRuntime.detach(this)
-         AudioLeaseRuntime.detach(this)
-         BroadcastSender.sendBroadcast(context, BroadcastSender.SATELLITE_STOPPED)
-     }
-@@ -333,7 +341,13 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
-         return true
-     }
- 
--    suspend fun processMessage(packet: WyomingPacket) {
-+    suspend fun processMessage(packet: WyomingPacket, sourceClient: String = clientId) {
-+        if (sourceClient != clientId) return
-+        if (packet.type == "guarded-announce") {
-+            AnnouncementRuntime.handle(this, packet, sourceClient)
-+            return
-+        }
-+        if (AnnouncementGate.busy && packet.type != WyomingEvent.CUSTOM_EVENT) return
-         when (packet.type) {
-             WyomingEvent.CUSTOM_EVENT -> customEventHandler(clientId, packet)
-             else -> {
-@@ -373,6 +387,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
-                 }
- 
-                 override suspend fun onWakeWordDetected(detection: WakeWordEngineProvider.WakeWordDetection) {
-+                    if (AnnouncementGate.busy) { AnnouncementRuntime.stopByWakeWord(this@Satellite); return }
-                     Timber.d("Wake word detected: $detection")
-                     if (audioPipeline != null && audioPipeline?.pipelineStage == PipelineStage.STREAMING_TTS) {
-                         onStopWordDetected(detection)
-@@ -424,7 +439,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
-     }
- 
-     suspend fun handleWakeWordDetection(detection: WakeWordEngineProvider.WakeWordDetection, nearestTurn: Long? = null) {
--        if (AudioLeaseRuntime.inhibited || config.isMuted || state != SatelliteState.RUNNING) return
-+        if (AudioLeaseRuntime.inhibited || AnnouncementGate.busy || config.isMuted || state != SatelliteState.RUNNING) return
-         if (detection.wakeWordId == "manual_wake") nearest.cancel()
-         if (clientId.isEmpty()) {
-             Timber.e("Unable to run audio pipeline. Satellite not connected to HA")
-@@ -465,7 +480,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
-     }
- 
-     suspend fun playWakeWordDetectionSound() {
--        if (AudioLeaseRuntime.inhibited) return
-+        if (AudioLeaseRuntime.inhibited || AnnouncementGate.busy) return
-         if (config.wakeWordSound != "none") {
-             try {
-                 val soundUri = currentWakeWordSoundUri ?: resolveWakeSoundUri(config.wakeWordSound)
-@@ -517,7 +532,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
-     }
- 
-     fun playErrorSound() {
--        if (AudioLeaseRuntime.inhibited) return
-+        if (AudioLeaseRuntime.inhibited || AnnouncementGate.busy) return
-         try {
-             scope.launch {
-                 // Same reasoning as playWakeWordDetectionSound() - keep the error sound's
-@@ -553,7 +568,8 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
- 
-     @OptIn(ExperimentalAtomicApi::class)
-     fun startAudioPipeline(startStage: PipelineStartMode, eventId: Long = System.currentTimeMillis(), wakeWordId: String = config.wakeWord, nearestTurn: Long? = null) {
--        if (AudioLeaseRuntime.inhibited) return
-+      synchronized(AnnouncementGate.monitor) {
-+        if (AudioLeaseRuntime.inhibited || AnnouncementGate.busy) return
-         if (audioPipeline != null) {
-             audioPipeline?.stop()
-             audioPipeline = null
-@@ -620,6 +636,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
-             nearest.bindReplay(nearestTurn, it)
-             it.run(startStage)
-         }
-+      }
-     }
- 
-     suspend fun sendAudio(audio: WakeWordEngineProvider.AudioResult.Audio) {
-@@ -648,7 +665,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
- 
-     @OptIn(ExperimentalAtomicApi::class)
-     private suspend fun handleAction(action: String, packet: WyomingPacket) {
--        if (AudioLeaseRuntime.inhibited && action in setOf("play-media", "play", "wake")) return
-+        if ((AudioLeaseRuntime.inhibited || AnnouncementGate.busy) && action in setOf("play-media", "play", "wake")) return
-         Timber.d("Action received: $action")
-         runCatching {
-             val payloadStr = packet.getProp("payload")
-@@ -678,7 +695,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
- 
-     private suspend fun handleMediaPlayerAction(action: String, payloadStr: String) {
-         withContext(Dispatchers.Main) {
--            if (AudioLeaseRuntime.inhibited && action in setOf("play-media", "play")) return@withContext
-+            if ((AudioLeaseRuntime.inhibited || AnnouncementGate.busy) && action in setOf("play-media", "play")) return@withContext
-             when (action) {
-                 "play-media" -> if (payloadStr.isNotEmpty()) {
-                     val payload = Json.parseToJsonElement(payloadStr).jsonObject
-@@ -697,9 +714,9 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
-     }
- 
-     private suspend fun handleAlarmAction(enable: Boolean) {
--        if (enable && AudioLeaseRuntime.inhibited) return
-+        if (enable && (AudioLeaseRuntime.inhibited || AnnouncementGate.busy)) return
-         withContext(Dispatchers.Main) {
--            if (enable && AudioLeaseRuntime.inhibited) return@withContext
-+            if (enable && (AudioLeaseRuntime.inhibited || AnnouncementGate.busy)) return@withContext
-             if (enable) {
-                 val alarm = config.availableAlarms.find { it.id == config.alarmSound }
-                 val mediaUri = if (alarm != null) {
---- a/app/src/main/java/com/msp1974/vacompanion/wyoming/WyomingTCPServer.kt
-+++ b/app/src/main/java/com/msp1974/vacompanion/wyoming/WyomingTCPServer.kt
-@@ -252,7 +252,7 @@
-     }
- 
-     private suspend fun messageHandler(clientId: String, packet: WyomingPacket) {
--        if (packet.type !in IGNORED_LOG_EVENTS) {
-+        if (packet.type !in IGNORED_LOG_EVENTS && packet.type != "guarded-announce") {
-             Timber.d("Received <- ${clientId}: ${packet.toMap()}")
-         }
- 
-@@ -271,7 +271,7 @@
-                     var processed = false
-                     while (retryCount > 0) {
-                         if (satellite != null && satellite?.state != SatelliteState.STOPPED) {
--                            satellite?.processMessage(packet)
-+                            satellite?.processMessage(packet, clientId)
-                             processed = true
-                             break
-                         } else {
---- a/app/src/main/java/com/msp1974/vacompanion/telephony/AudioLeaseCoordinator.kt
-+++ b/app/src/main/java/com/msp1974/vacompanion/telephony/AudioLeaseCoordinator.kt
-@@ -12,6 +12,7 @@
-     private val snapshotMuted: () -> Boolean,
-     private val prepare: suspend () -> Unit,
-     private val resume: suspend () -> Unit,
-+    private val beforeAcquire: suspend () -> Unit = {},
- ) {
-     data class Record(val uid: Int, val token: String, val priorMuted: Boolean,
-                       val deadline: Long, val boot: Int, val phase: String)
-@@ -32,7 +33,7 @@
-         if (old != null) return@withLock Result(false, old.phase, if (old.uid == uid) old.token else "", "busy")
-         // Gate all creation/restart paths before checking current ownership and stopping capture.
-         inhibited = true
--        val ready = try { canAcquire() } catch (e: Exception) {
-+        val ready = try { beforeAcquire(); canAcquire() } catch (e: Exception) {
-             inhibited = false
-             throw e
-         }
---- a/app/src/main/java/com/msp1974/vacompanion/telephony/AudioLeaseRuntime.kt
-+++ b/app/src/main/java/com/msp1974/vacompanion/telephony/AudioLeaseRuntime.kt
-@@ -22,6 +22,7 @@
-     internal var boot: Int = -1
-         private set
-     val inhibited: Boolean get() = invalidJournal || machine?.inhibited != false
-+    val reserved: Boolean get() = inhibited || machine?.status(-1)?.state != "idle"
-     internal val coordinator: AudioLeaseCoordinator get() = checkNotNull(machine)
- 
-     @Synchronized fun initialize(context: Context) {
-@@ -48,6 +49,7 @@
-             }
-         }
-         machine = AudioLeaseCoordinator(initial, SystemClock::elapsedRealtime,
-+            beforeAcquire = { com.msp1974.vacompanion.announce.AnnouncementRuntime.preemptForSip() },
-             persist = { record ->
-                 check(!invalidJournal) { "Invalid audio ownership journal" }
-                 if (record == null) {
-@@ -64,7 +66,7 @@
-                     catch (e: Exception) { journal.failWrite(stream); throw e }
-                 }
-             },
--            canAcquire = { !invalidJournal && satellites.none { it.isBusyForAudioLease() } },
-+            canAcquire = { !invalidJournal && !com.msp1974.vacompanion.announce.AnnouncementGate.busy && satellites.none { it.isBusyForAudioLease() } },
-             snapshotMuted = { satellites.firstOrNull()?.config?.isMuted ?: true },
-             prepare = { satellites.forEach { it.pauseForAudioLease() } },
-             resume = {
---- a/app/src/main/java/com/msp1974/vacompanion/players/MusicPlayerService.kt
-+++ b/app/src/main/java/com/msp1974/vacompanion/players/MusicPlayerService.kt
-@@ -1,6 +1,7 @@
- package com.msp1974.vacompanion.players
- 
- import com.msp1974.vacompanion.telephony.AudioLeaseRuntime
-+import com.msp1974.vacompanion.announce.AnnouncementGate
- 
- import android.annotation.SuppressLint
- import android.app.Service
-@@ -126,7 +127,7 @@
- 
- 
-     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
--        if (AudioLeaseRuntime.inhibited) {
-+        if ((AudioLeaseRuntime.inhibited || AnnouncementGate.busy)) {
-             stopSelf(startId)
-             return START_NOT_STICKY
-         }
-@@ -141,7 +142,8 @@
-     }
- 
-     fun play(url: String) {
--        if (AudioLeaseRuntime.inhibited) return
-+      synchronized(AnnouncementGate.monitor) {
-+        if ((AudioLeaseRuntime.inhibited || AnnouncementGate.busy)) return
-         if (url.isNotEmpty()) {
-             lastUrl = url
-         }
-@@ -161,6 +163,7 @@
-                 Timber.e("Error playing music: $e")
-             }
-         }
-+          }
-     }
- 
-     fun pause() {
-@@ -170,7 +173,8 @@
-     }
- 
-     fun resume() {
--        if (AudioLeaseRuntime.inhibited) return
-+      synchronized(AnnouncementGate.monitor) {
-+        if ((AudioLeaseRuntime.inhibited || AnnouncementGate.busy)) return
-         Timber.d("Music player: Resuming music")
-         mediaPlayer?.let { player ->
-             if (!player.isPlaying) {
-@@ -179,6 +183,7 @@
-                 }
-             }
-         }
-+          }
-     }
- 
-     fun stop() {
+diff --git a/app/src/main/java/com/msp1974/vacompanion/players/AlarmService.kt b/app/src/main/java/com/msp1974/vacompanion/players/AlarmService.kt
+index f27b717..744106c 100644
 --- a/app/src/main/java/com/msp1974/vacompanion/players/AlarmService.kt
 +++ b/app/src/main/java/com/msp1974/vacompanion/players/AlarmService.kt
 @@ -1,6 +1,7 @@
@@ -333,7 +57,7 @@
  
  import android.annotation.SuppressLint
  import android.app.Service
-@@ -39,7 +40,7 @@
+@@ -39,7 +40,7 @@ class AlarmService : Service() {
      }
  
      override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -342,7 +66,7 @@
              stopSelf(startId)
              return START_NOT_STICKY
          }
-@@ -69,7 +70,8 @@
+@@ -69,7 +70,8 @@ class AlarmService : Service() {
      }
  
      fun play(uri: Uri) {
@@ -352,7 +76,7 @@
          Timber.i("Alarm started: $uri")
          val player = mediaPlayer ?: return
  
-@@ -88,6 +90,7 @@
+@@ -88,6 +90,7 @@ class AlarmService : Service() {
          } catch (e: Exception) {
              Timber.e("Error playing music: $e")
          }
@@ -360,7 +84,7 @@
      }
  
      fun pause() {
-@@ -95,7 +98,8 @@
+@@ -95,7 +98,8 @@ class AlarmService : Service() {
      }
  
      fun resume() {
@@ -370,7 +94,7 @@
          mediaPlayer?.let { player ->
              if (!player.isPlaying) {
                  if (requestAudioFocus()) {
-@@ -104,6 +108,7 @@
+@@ -104,6 +108,7 @@ class AlarmService : Service() {
              }
              player.volume = 1.0f
          }
@@ -378,9 +102,337 @@
      }
  
      fun stop() {
+diff --git a/app/src/main/java/com/msp1974/vacompanion/players/MusicPlayerService.kt b/app/src/main/java/com/msp1974/vacompanion/players/MusicPlayerService.kt
+index 0366dfd..1994685 100644
+--- a/app/src/main/java/com/msp1974/vacompanion/players/MusicPlayerService.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/players/MusicPlayerService.kt
+@@ -1,6 +1,8 @@
+ package com.msp1974.vacompanion.players
+ 
+ import com.msp1974.vacompanion.telephony.AudioLeaseRuntime
++import com.msp1974.vacompanion.announce.AnnouncementGate
++import com.msp1974.vacompanion.announce.OwnedMusicGain
+ 
+ import android.annotation.SuppressLint
+ import android.app.Service
+@@ -27,7 +29,6 @@ import kotlinx.coroutines.launch
+ import kotlinx.coroutines.withContext
+ import timber.log.Timber
+ import javax.inject.Inject
+-import kotlin.math.min
+ import kotlin.time.Duration.Companion.milliseconds
+ 
+ @SuppressLint("UnsafeOptInUsageError")
+@@ -43,23 +44,47 @@ class MusicPlayerService : Service() {
+     private var mediaPlayer: ExoPlayer? = null
+     @SuppressLint("UnsafeOptInUsageError")
+     private var focusRequest: AudioFocusRequestCompat? = null
+-    private var hasAudioFocus = false
++    @Volatile private var hasAudioFocus = false
+     private var musicVolume: Float = 1f
+-    private var ducked: Boolean = false
+-    private var lastUrl: String = ""
++    private val gain = OwnedMusicGain()
++    @Volatile private var announcementRequest: String? = null
++    @Volatile private var announcementPlaying = false
++    @Volatile private var announcementEligible = false
++    @Volatile private var duckReleaseFailed = false
++    private var announcementInterrupted: (() -> Unit)? = null
++    fun isPlayingForAnnouncement(): Boolean = announcementPlaying
++    fun canDuckForAnnouncement(): Boolean = announcementEligible && announcementRequest == null && !duckReleaseFailed
++    fun ownsAnnouncementDuck(id: String): Boolean = announcementRequest == id && hasAudioFocus && !duckReleaseFailed
++    fun canContinueOwnedMusic(): Boolean = hasAudioFocus && !duckReleaseFailed && announcementRequest?.let { AnnouncementGate.owns(it) } == true
++    private fun updateAnnouncementEligibility() {
++        announcementPlaying = mediaPlayer?.isPlaying == true
++        announcementEligible = announcementPlaying && hasAudioFocus && !gain.focusLimited
++    }
++    fun beginAnnouncementDuck(id: String, interrupted: () -> Unit): Boolean = synchronized(AnnouncementGate.monitor) {
++        updateAnnouncementEligibility()
++        if (!canDuckForAnnouncement() || !AnnouncementGate.owns(id) || !gain.begin(id)) return@synchronized false
++        announcementRequest = id
++        announcementInterrupted = interrupted
++        applyOutputVolume()
++        true
++    }
++    fun endAnnouncementDuck(id: String) = synchronized(AnnouncementGate.monitor) {
++        if (announcementRequest != id) return@synchronized
++        gain.end(id)
++        try { applyOutputVolume() } catch (error: Exception) { duckReleaseFailed = true; throw error }
++        announcementRequest = null
++        announcementInterrupted = null
++        duckReleaseFailed = false
++    }
++    private fun interruptAnnouncement() { announcementInterrupted?.invoke() }
+ 
+-    // Player.getVolume() is only accessible on the main thread, but unDuckVolume()/
+-    // animateUnDuckingVolume() need the current volume for comparisons/animation math that can
+-    // run off it - so the current volume is cached here (kept in sync by setPlayerVolume(), the
+-    // only place that should ever assign mediaPlayer?.volume) instead of read from the player.
+-    @Volatile
+-    private var currentOutputVolume: Float = 1f
++    private var lastUrl: String = ""
+ 
+     private val job = SupervisorJob()
+     private val scope = CoroutineScope(Dispatchers.Default + job)
+ 
+     companion object {
+-        var sInstance: MusicPlayerService? = null
++        @Volatile var sInstance: MusicPlayerService? = null
+     }
+ 
+     val audioAttributes: AudioAttributes = AudioAttributes.Builder()
+@@ -75,6 +100,7 @@ class MusicPlayerService : Service() {
+ 
+     val mediaPlayerListener = object : Player.Listener {
+         override fun onIsPlayingChanged(isPlaying: Boolean) {
++            updateAnnouncementEligibility()
+             val event = Event("musicPlayerPlayingStatus", oldValue = !isPlaying, newValue = isPlaying)
+             config.eventBroadcaster.notifyEvent(event)
+ 
+@@ -126,7 +152,7 @@ class MusicPlayerService : Service() {
+ 
+ 
+     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+-        if (AudioLeaseRuntime.inhibited) {
++        if ((AudioLeaseRuntime.inhibited || (AnnouncementGate.busy && !canContinueOwnedMusic()))) {
+             stopSelf(startId)
+             return START_NOT_STICKY
+         }
+@@ -141,7 +167,8 @@ class MusicPlayerService : Service() {
+     }
+ 
+     fun play(url: String) {
+-        if (AudioLeaseRuntime.inhibited) return
++      synchronized(AnnouncementGate.monitor) {
++        if ((AudioLeaseRuntime.inhibited || (AnnouncementGate.busy && !canContinueOwnedMusic()))) return
+         if (url.isNotEmpty()) {
+             lastUrl = url
+         }
+@@ -161,16 +188,19 @@ class MusicPlayerService : Service() {
+                 Timber.e("Error playing music: $e")
+             }
+         }
++          }
+     }
+ 
+     fun pause() {
++        interruptAnnouncement()
+         Timber.d("Pausing music")
+         abandonAudioFocus()
+         mediaPlayer?.pause()
+     }
+ 
+     fun resume() {
+-        if (AudioLeaseRuntime.inhibited) return
++      synchronized(AnnouncementGate.monitor) {
++        if ((AudioLeaseRuntime.inhibited || (AnnouncementGate.busy && !canContinueOwnedMusic()))) return
+         Timber.d("Music player: Resuming music")
+         mediaPlayer?.let { player ->
+             if (!player.isPlaying) {
+@@ -179,9 +209,14 @@ class MusicPlayerService : Service() {
+                 }
+             }
+         }
++          }
+     }
+ 
+     fun stop() {
++        interruptAnnouncement()
++        announcementEligible = false; announcementPlaying = false
++        announcementRequest?.let { gain.end(it) }
++        announcementRequest = null; announcementInterrupted = null
+         Timber.d("Music player: Stopping music")
+         mediaPlayer?.let { player ->
+             try {
+@@ -197,17 +232,16 @@ class MusicPlayerService : Service() {
+     }
+ 
+     fun setVolume(volume: Float) {
+-        if (!ducked) {
+-            musicVolume = volume / 100f
+-            setPlayerVolume(musicVolume)
+-        }
++        require(volume.isFinite())
++        musicVolume = (volume / 100f).coerceIn(0f, 1f)
++        setPlayerVolume(musicVolume)
+     }
+ 
+-    /** The only place that should assign [ExoPlayer.volume] - keeps [currentOutputVolume] in sync. */
+     private fun setPlayerVolume(volume: Float) {
+-        mediaPlayer?.volume = volume
+-        currentOutputVolume = volume
++        gain.setTarget(volume)
++        applyOutputVolume()
+     }
++    private fun applyOutputVolume() { mediaPlayer?.volume = gain.output }
+ 
+     @SuppressLint("UnsafeOptInUsageError")
+     private fun requestAudioFocus(): Boolean {
+@@ -227,16 +261,19 @@ class MusicPlayerService : Service() {
+ 
+                     AudioManager.AUDIOFOCUS_LOSS -> {
+                         hasAudioFocus = false
++                        interruptAnnouncement()
+                         duckVolume()
+                     }
+ 
+                     AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                         hasAudioFocus = false
++                        interruptAnnouncement()
+                         duckVolume()
+                     }
+ 
+                     AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                         hasAudioFocus = false
++                        interruptAnnouncement()
+                         duckVolume()
+                     }
+                 }
+@@ -245,59 +282,29 @@ class MusicPlayerService : Service() {
+ 
+         val result = AudioManagerCompat.requestAudioFocus(audioManager, focusRequest!!)
+         hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
++        if (hasAudioFocus) { gain.focusGained(); applyOutputVolume() }
+         Timber.d("Music requestAudioFocus: $result")
++        updateAnnouncementEligibility()
+         return hasAudioFocus
+     }
+ 
+-    private fun getDuckingVolume(): Float {
+-        return min(config.duckingVolume / 50f, musicVolume)
+-    }
+-
+     private fun duckVolume(silence: Boolean = false) {
+-        val duckVolume = if (silence) 0f else getDuckingVolume()
+-        Timber.d("Music player: Ducking volume to $duckVolume")
+-        setPlayerVolume(duckVolume)
+-        ducked = true
++        gain.focusLost(if (silence) 0f else config.duckingVolume / 50f)
++        applyOutputVolume()
++        updateAnnouncementEligibility()
+     }
+ 
+-    private fun unDuckVolume(animate: Boolean = true) {
+-        if (currentOutputVolume == musicVolume) return
+-        if (animate) {
+-            animateUnDuckingVolume()
+-        } else {
+-            setPlayerVolume(musicVolume)
+-        }
+-        ducked = false
+-    }
+-
+-    private fun animateUnDuckingVolume (
+-        durationMs: Long = 1500,
+-        steps: Int = 5
+-    ) {
+-        Timber.d("Music player: Un-ducking volume")
+-        val delay = durationMs / steps
+-        val currentVolume = currentOutputVolume
+-        val increment = (musicVolume - currentVolume) / steps
+-        scope.launch {
+-            if (increment > 0) {
+-                for (i in 1..steps) {
+-                    val vol = currentVolume + (i * increment)
+-                    Timber.d("Music player: setting volume to $vol")
+-                    withContext(Dispatchers.Main) {
+-                        setPlayerVolume(vol)
+-                    }
+-                    delay(delay.milliseconds)
+-                }
+-            }
+-            delay(2000.milliseconds)
+-            ducked = false
+-        }
++    private fun unDuckVolume() {
++        gain.focusGained()
++        applyOutputVolume()
++        updateAnnouncementEligibility()
+     }
+ 
+     @SuppressLint("UnsafeOptInUsageError")
+     private fun abandonAudioFocus() {
+         if (hasAudioFocus) AudioManagerCompat.abandonAudioFocusRequest(audioManager, focusRequest!!)
+         hasAudioFocus = false
++        updateAnnouncementEligibility()
+         Timber.d("Music abandonAudioFocus")
+ 
+     }
+diff --git a/app/src/main/java/com/msp1974/vacompanion/players/SoundEffectsPlayer.kt b/app/src/main/java/com/msp1974/vacompanion/players/SoundEffectsPlayer.kt
+index 9da085e..0946600 100644
+--- a/app/src/main/java/com/msp1974/vacompanion/players/SoundEffectsPlayer.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/players/SoundEffectsPlayer.kt
+@@ -1,6 +1,8 @@
+ package com.msp1974.vacompanion.players
+ 
+ import android.content.Context
++import com.msp1974.vacompanion.announce.AnnouncementGate
++import com.msp1974.vacompanion.telephony.AudioLeaseRuntime
+ import android.net.Uri
+ import androidx.core.net.toUri
+ import androidx.media3.common.AudioAttributes
+@@ -16,6 +18,7 @@ import kotlinx.coroutines.withContext
+ import timber.log.Timber
+ 
+ class SoundEffectsPlayer(val context: Context) {
++    @Volatile var playing = false; private set
+     private val players = mutableMapOf<Int, ExoPlayer>()
+     private val uriPlayers = mutableMapOf<Uri, ExoPlayer>()
+     private var activeAdhocPlayer: ExoPlayer? = null
+@@ -61,6 +64,7 @@ class SoundEffectsPlayer(val context: Context) {
+             player.setAudioAttributes(audioAttributes, false)
+             player.setMediaItem(mediaItem)
+             player.addListener(object : Player.Listener {
++                override fun onIsPlayingChanged(isPlaying: Boolean) { playing = isPlaying }
+                 override fun onPlaybackStateChanged(playbackState: Int) {
+                     _state.value = playbackState
+                 }
+@@ -86,9 +90,11 @@ class SoundEffectsPlayer(val context: Context) {
+ 
+     suspend fun play(uri: Uri) {
+         withContext(Dispatchers.Main) {
++          synchronized(AnnouncementGate.monitor) {
++            if (AnnouncementGate.busy || AudioLeaseRuntime.inhibited) return@withContext
+             try {
+                 // Ensure only one feedback sound plays at a time
+-                stopAllInternal()
++                stopAllOnMain()
+ 
+                 val player = if (uri.scheme == "android.resource") {
+                     val resId = uri.lastPathSegment?.toInt() ?: -1
+@@ -133,6 +139,7 @@ class SoundEffectsPlayer(val context: Context) {
+                 Timber.e("Error playing sound effect: ${ex.message}")
+                 ex.printStackTrace()
+             }
++                  }
+         }
+     }
+ 
+@@ -141,8 +148,9 @@ class SoundEffectsPlayer(val context: Context) {
+         release()
+     }
+ 
+-    private suspend fun stopAllInternal() {
+-        withContext(Dispatchers.Main) {
++    private suspend fun stopAllInternal() = withContext(Dispatchers.Main) { stopAllOnMain() }
++
++    private fun stopAllOnMain() {
+             players.values.forEach {
+                 if (it.isPlaying) {
+                     it.pause()
+@@ -160,7 +168,6 @@ class SoundEffectsPlayer(val context: Context) {
+                 it.release()
+                 activeAdhocPlayer = null
+             }
+-        }
+     }
+ 
+     suspend fun release() {
+diff --git a/app/src/main/java/com/msp1974/vacompanion/players/VoicePlayerService.kt b/app/src/main/java/com/msp1974/vacompanion/players/VoicePlayerService.kt
+index fc71f8f..3d5dfba 100644
 --- a/app/src/main/java/com/msp1974/vacompanion/players/VoicePlayerService.kt
 +++ b/app/src/main/java/com/msp1974/vacompanion/players/VoicePlayerService.kt
-@@ -22,7 +22,21 @@
+@@ -22,7 +22,21 @@ class VoicePlayerService : Service() {
      var hasAudioFocus = false
  
      var isReady = false
@@ -402,7 +454,7 @@
  
      companion object {
          var sInstance: VoicePlayerService? = null
-@@ -71,8 +85,9 @@
+@@ -71,8 +85,9 @@ class VoicePlayerService : Service() {
              .build()
      }
  
@@ -413,7 +465,7 @@
          mediaPlayer = createPlayer(rate, width, channels)
          mediaPlayer?.setVolume(1.0f)
  
-@@ -80,27 +95,34 @@
+@@ -80,27 +95,34 @@ class VoicePlayerService : Service() {
              mediaPlayer?.play()
              isReady = true
          } catch (e: Exception) {
@@ -453,9 +505,176 @@
          Timber.d("Stopping voice audio...")
          mediaPlayer?.let { track ->
              try {
+diff --git a/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt b/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
+index b8d1d48..e955f82 100644
+--- a/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
+@@ -2,6 +2,8 @@
+ package com.msp1974.vacompanion.satellite
+ 
+ import com.msp1974.vacompanion.nearest.NearestRuntime
++import com.msp1974.vacompanion.announce.AnnouncementGate
++import com.msp1974.vacompanion.announce.AnnouncementRuntime
+ 
+ import android.annotation.SuppressLint
+ import android.content.Context
+@@ -96,8 +98,8 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+     private var audioPipelineLastStateChange = System.currentTimeMillis()
+     private val nearest = NearestRuntime(context, scope,
+         canAnswer = { state == SatelliteState.RUNNING && clientId.isNotEmpty() && !config.isMuted &&
+-            !AudioLeaseRuntime.inhibited && (audioPipeline == null || audioPipeline?.pipelineStage == PipelineStage.ENDED) },
+-        captureAllowed = { state == SatelliteState.RUNNING && !config.isMuted && !AudioLeaseRuntime.inhibited },
++            !AudioLeaseRuntime.inhibited && !AnnouncementGate.busy && (audioPipeline == null || audioPipeline?.pipelineStage == PipelineStage.ENDED) },
++        captureAllowed = { state == SatelliteState.RUNNING && !config.isMuted && !AudioLeaseRuntime.inhibited && !AnnouncementGate.busy },
+         open = { detection, turn -> handleWakeWordDetection(detection, turn) })
+ 
+     private var soundEffectFinishTime: Long = 0
+@@ -125,12 +127,15 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+         }
+     }
+ 
+-    init { AudioLeaseRuntime.attach(this) }
++    init { AudioLeaseRuntime.attach(this); AnnouncementRuntime.attach(this) }
+ 
+-    fun isBusyForAudioLease(): Boolean =
++    fun isBusyForAudioLease(): Boolean = synchronized(AnnouncementGate.monitor) { AnnouncementGate.busy || isBusyForAnnouncement(false) }
++
++    fun isBusyForAnnouncement(allowOwnedMusic: Boolean): Boolean = synchronized(AnnouncementGate.monitor) {
+         (audioPipeline != null && audioPipeline?.pipelineStage != PipelineStage.ENDED) ||
+         mediaManager.voicePlayer.isPlaying() || mediaManager.alarmPlayer.isSounding() ||
+-        MusicPlayerService.sInstance != null
++        (!allowOwnedMusic && MusicPlayerService.sInstance != null) || mediaManager.soundPlayer.playing
++    }
+ 
+     suspend fun pauseForAudioLease() {
+         check(AudioLeaseRuntime.inhibited)
+@@ -152,6 +157,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+ 
+     suspend fun start() {
+         AudioLeaseRuntime.attach(this)
++        AnnouncementRuntime.attach(this)
+         // Add config change listeners
+         Timber.d("Satellite starting...")
+         val startTime = System.currentTimeMillis()
+@@ -268,6 +274,8 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+     }
+ 
+     fun prepareSatelliteTakeover(clientId: String) {
++        AnnouncementRuntime.detach(this)
++        AnnouncementRuntime.attach(this)
+         nearest.cancel()
+         // This must run before WyomingTCPServer resumes reading the new connection.
+         // Otherwise its settings event can arrive before initSettings is reset.
+@@ -320,6 +328,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+             { motionTask.release() },
+         )
+         state = SatelliteState.STOPPED
++        AnnouncementRuntime.detach(this)
+         AudioLeaseRuntime.detach(this)
+         BroadcastSender.sendBroadcast(context, BroadcastSender.SATELLITE_STOPPED)
+     }
+@@ -333,7 +342,13 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+         return true
+     }
+ 
+-    suspend fun processMessage(packet: WyomingPacket) {
++    suspend fun processMessage(packet: WyomingPacket, sourceClient: String = clientId) {
++        if (sourceClient != clientId) return
++        if (packet.type == "guarded-announce") {
++            AnnouncementRuntime.handle(this, packet, sourceClient)
++            return
++        }
++        if (AnnouncementGate.busy && packet.type != WyomingEvent.CUSTOM_EVENT) return
+         when (packet.type) {
+             WyomingEvent.CUSTOM_EVENT -> customEventHandler(clientId, packet)
+             else -> {
+@@ -373,6 +388,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+                 }
+ 
+                 override suspend fun onWakeWordDetected(detection: WakeWordEngineProvider.WakeWordDetection) {
++                    if (AnnouncementGate.busy) { AnnouncementRuntime.stopByWakeWord(this@Satellite); return }
+                     Timber.d("Wake word detected: $detection")
+                     if (audioPipeline != null && audioPipeline?.pipelineStage == PipelineStage.STREAMING_TTS) {
+                         onStopWordDetected(detection)
+@@ -424,7 +440,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+     }
+ 
+     suspend fun handleWakeWordDetection(detection: WakeWordEngineProvider.WakeWordDetection, nearestTurn: Long? = null) {
+-        if (AudioLeaseRuntime.inhibited || config.isMuted || state != SatelliteState.RUNNING) return
++        if (AudioLeaseRuntime.inhibited || AnnouncementGate.busy || config.isMuted || state != SatelliteState.RUNNING) return
+         if (detection.wakeWordId == "manual_wake") nearest.cancel()
+         if (clientId.isEmpty()) {
+             Timber.e("Unable to run audio pipeline. Satellite not connected to HA")
+@@ -465,7 +481,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+     }
+ 
+     suspend fun playWakeWordDetectionSound() {
+-        if (AudioLeaseRuntime.inhibited) return
++        if (AudioLeaseRuntime.inhibited || AnnouncementGate.busy) return
+         if (config.wakeWordSound != "none") {
+             try {
+                 val soundUri = currentWakeWordSoundUri ?: resolveWakeSoundUri(config.wakeWordSound)
+@@ -517,7 +533,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+     }
+ 
+     fun playErrorSound() {
+-        if (AudioLeaseRuntime.inhibited) return
++        if (AudioLeaseRuntime.inhibited || AnnouncementGate.busy) return
+         try {
+             scope.launch {
+                 // Same reasoning as playWakeWordDetectionSound() - keep the error sound's
+@@ -553,7 +569,8 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+ 
+     @OptIn(ExperimentalAtomicApi::class)
+     fun startAudioPipeline(startStage: PipelineStartMode, eventId: Long = System.currentTimeMillis(), wakeWordId: String = config.wakeWord, nearestTurn: Long? = null) {
+-        if (AudioLeaseRuntime.inhibited) return
++      synchronized(AnnouncementGate.monitor) {
++        if (AudioLeaseRuntime.inhibited || AnnouncementGate.busy) return
+         if (audioPipeline != null) {
+             audioPipeline?.stop()
+             audioPipeline = null
+@@ -620,6 +637,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+             nearest.bindReplay(nearestTurn, it)
+             it.run(startStage)
+         }
++      }
+     }
+ 
+     suspend fun sendAudio(audio: WakeWordEngineProvider.AudioResult.Audio) {
+@@ -649,6 +667,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+     @OptIn(ExperimentalAtomicApi::class)
+     private suspend fun handleAction(action: String, packet: WyomingPacket) {
+         if (AudioLeaseRuntime.inhibited && action in setOf("play-media", "play", "wake")) return
++        if (AnnouncementGate.busy && (action == "wake" || (action in setOf("play-media", "play") && MusicPlayerService.sInstance?.canContinueOwnedMusic() != true))) return
+         Timber.d("Action received: $action")
+         runCatching {
+             val payloadStr = packet.getProp("payload")
+@@ -678,7 +697,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+ 
+     private suspend fun handleMediaPlayerAction(action: String, payloadStr: String) {
+         withContext(Dispatchers.Main) {
+-            if (AudioLeaseRuntime.inhibited && action in setOf("play-media", "play")) return@withContext
++            if ((AudioLeaseRuntime.inhibited || (AnnouncementGate.busy && MusicPlayerService.sInstance?.canContinueOwnedMusic() != true)) && action in setOf("play-media", "play")) return@withContext
+             when (action) {
+                 "play-media" -> if (payloadStr.isNotEmpty()) {
+                     val payload = Json.parseToJsonElement(payloadStr).jsonObject
+@@ -697,9 +716,9 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+     }
+ 
+     private suspend fun handleAlarmAction(enable: Boolean) {
+-        if (enable && AudioLeaseRuntime.inhibited) return
++        if (enable && (AudioLeaseRuntime.inhibited || AnnouncementGate.busy)) return
+         withContext(Dispatchers.Main) {
+-            if (enable && AudioLeaseRuntime.inhibited) return@withContext
++            if (enable && (AudioLeaseRuntime.inhibited || AnnouncementGate.busy)) return@withContext
+             if (enable) {
+                 val alarm = config.availableAlarms.find { it.id == config.alarmSound }
+                 val mediaUri = if (alarm != null) {
+diff --git a/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteAudioPipeline.kt b/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteAudioPipeline.kt
+index 1dc8e1a..96b3320 100644
 --- a/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteAudioPipeline.kt
 +++ b/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteAudioPipeline.kt
-@@ -378,24 +378,24 @@
+@@ -378,24 +378,24 @@ abstract class SatelliteAudioPipeline(
  
      internal fun handleAudioStop() {
          scope.launch {
@@ -471,17 +690,15 @@
 -                        while (mediaManager.voicePlayer.isPlaying()) {
 -                            delay(100.milliseconds)
 -                        }
--                    }
--                }
--                // Force stop audio as something is wrong
--                mediaManager.voicePlayer.forceStop()
 +                check(player != null && generation != null)
 +                withTimeout(player.drainTimeoutMs) {
 +                    while (!player.isDrained) {
 +                        check(player.playbackGeneration == generation)
 +                        delay(10.milliseconds)
-+                    }
-+                }
+                     }
+                 }
+-                // Force stop audio as something is wrong
+-                mediaManager.voicePlayer.forceStop()
 +                completed = player.playbackGeneration == generation
              } catch (_: Exception) {
 -                Timber.d("Audio stop timed out")
@@ -494,71 +711,75 @@
                      pipelineStage = PipelineStage.COMPLETED_TTS
                      handlePipelineEnded()
                  }
---- a/app/src/main/java/com/msp1974/vacompanion/players/SoundEffectsPlayer.kt
-+++ b/app/src/main/java/com/msp1974/vacompanion/players/SoundEffectsPlayer.kt
-@@ -1,6 +1,8 @@
- package com.msp1974.vacompanion.players
- 
- import android.content.Context
-+import com.msp1974.vacompanion.announce.AnnouncementGate
-+import com.msp1974.vacompanion.telephony.AudioLeaseRuntime
- import android.net.Uri
- import androidx.core.net.toUri
- import androidx.media3.common.AudioAttributes
-@@ -16,6 +18,7 @@
- import timber.log.Timber
- 
- class SoundEffectsPlayer(val context: Context) {
-+    @Volatile var playing = false; private set
-     private val players = mutableMapOf<Int, ExoPlayer>()
-     private val uriPlayers = mutableMapOf<Uri, ExoPlayer>()
-     private var activeAdhocPlayer: ExoPlayer? = null
-@@ -61,6 +64,7 @@
-             player.setAudioAttributes(audioAttributes, false)
-             player.setMediaItem(mediaItem)
-             player.addListener(object : Player.Listener {
-+                override fun onIsPlayingChanged(isPlaying: Boolean) { playing = isPlaying }
-                 override fun onPlaybackStateChanged(playbackState: Int) {
-                     _state.value = playbackState
-                 }
-@@ -86,9 +90,11 @@
- 
-     suspend fun play(uri: Uri) {
-         withContext(Dispatchers.Main) {
-+          synchronized(AnnouncementGate.monitor) {
-+            if (AnnouncementGate.busy || AudioLeaseRuntime.inhibited) return@withContext
-             try {
-                 // Ensure only one feedback sound plays at a time
--                stopAllInternal()
-+                stopAllOnMain()
- 
-                 val player = if (uri.scheme == "android.resource") {
-                     val resId = uri.lastPathSegment?.toInt() ?: -1
-@@ -133,6 +139,7 @@
-                 Timber.e("Error playing sound effect: ${ex.message}")
-                 ex.printStackTrace()
-             }
-+                  }
+diff --git a/app/src/main/java/com/msp1974/vacompanion/telephony/AudioLeaseCoordinator.kt b/app/src/main/java/com/msp1974/vacompanion/telephony/AudioLeaseCoordinator.kt
+index 12f8a2b..9e9a651 100644
+--- a/app/src/main/java/com/msp1974/vacompanion/telephony/AudioLeaseCoordinator.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/telephony/AudioLeaseCoordinator.kt
+@@ -12,6 +12,7 @@ internal class AudioLeaseCoordinator(
+     private val snapshotMuted: () -> Boolean,
+     private val prepare: suspend () -> Unit,
+     private val resume: suspend () -> Unit,
++    private val beforeAcquire: suspend () -> Unit = {},
+ ) {
+     data class Record(val uid: Int, val token: String, val priorMuted: Boolean,
+                       val deadline: Long, val boot: Int, val phase: String)
+@@ -32,7 +33,7 @@ internal class AudioLeaseCoordinator(
+         if (old != null) return@withLock Result(false, old.phase, if (old.uid == uid) old.token else "", "busy")
+         // Gate all creation/restart paths before checking current ownership and stopping capture.
+         inhibited = true
+-        val ready = try { canAcquire() } catch (e: Exception) {
++        val ready = try { beforeAcquire(); canAcquire() } catch (e: Exception) {
+             inhibited = false
+             throw e
          }
-     }
+diff --git a/app/src/main/java/com/msp1974/vacompanion/telephony/AudioLeaseRuntime.kt b/app/src/main/java/com/msp1974/vacompanion/telephony/AudioLeaseRuntime.kt
+index 0274b97..c8a019a 100644
+--- a/app/src/main/java/com/msp1974/vacompanion/telephony/AudioLeaseRuntime.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/telephony/AudioLeaseRuntime.kt
+@@ -22,6 +22,7 @@ object AudioLeaseRuntime {
+     internal var boot: Int = -1
+         private set
+     val inhibited: Boolean get() = invalidJournal || machine?.inhibited != false
++    val reserved: Boolean get() = inhibited || machine?.status(-1)?.state != "idle"
+     internal val coordinator: AudioLeaseCoordinator get() = checkNotNull(machine)
  
-@@ -141,8 +148,9 @@
-         release()
-     }
- 
--    private suspend fun stopAllInternal() {
--        withContext(Dispatchers.Main) {
-+    private suspend fun stopAllInternal() = withContext(Dispatchers.Main) { stopAllOnMain() }
-+
-+    private fun stopAllOnMain() {
-             players.values.forEach {
-                 if (it.isPlaying) {
-                     it.pause()
-@@ -160,7 +168,6 @@
-                 it.release()
-                 activeAdhocPlayer = null
+     @Synchronized fun initialize(context: Context) {
+@@ -48,6 +49,7 @@ object AudioLeaseRuntime {
              }
--        }
+         }
+         machine = AudioLeaseCoordinator(initial, SystemClock::elapsedRealtime,
++            beforeAcquire = { com.msp1974.vacompanion.announce.AnnouncementRuntime.preemptForSip() },
+             persist = { record ->
+                 check(!invalidJournal) { "Invalid audio ownership journal" }
+                 if (record == null) {
+@@ -64,7 +66,7 @@ object AudioLeaseRuntime {
+                     catch (e: Exception) { journal.failWrite(stream); throw e }
+                 }
+             },
+-            canAcquire = { !invalidJournal && satellites.none { it.isBusyForAudioLease() } },
++            canAcquire = { !invalidJournal && !com.msp1974.vacompanion.announce.AnnouncementGate.busy && satellites.none { it.isBusyForAudioLease() } },
+             snapshotMuted = { satellites.firstOrNull()?.config?.isMuted ?: true },
+             prepare = { satellites.forEach { it.pauseForAudioLease() } },
+             resume = {
+diff --git a/app/src/main/java/com/msp1974/vacompanion/wyoming/WyomingTCPServer.kt b/app/src/main/java/com/msp1974/vacompanion/wyoming/WyomingTCPServer.kt
+index 5525041..c966d6d 100644
+--- a/app/src/main/java/com/msp1974/vacompanion/wyoming/WyomingTCPServer.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/wyoming/WyomingTCPServer.kt
+@@ -252,7 +252,7 @@ abstract class WyomingTCPServer(private val context: Context, val deviceManager:
      }
  
-     suspend fun release() {
+     private suspend fun messageHandler(clientId: String, packet: WyomingPacket) {
+-        if (packet.type !in IGNORED_LOG_EVENTS) {
++        if (packet.type !in IGNORED_LOG_EVENTS && packet.type != "guarded-announce") {
+             Timber.d("Received <- ${clientId}: ${packet.toMap()}")
+         }
+ 
+@@ -271,7 +271,7 @@ abstract class WyomingTCPServer(private val context: Context, val deviceManager:
+                     var processed = false
+                     while (retryCount > 0) {
+                         if (satellite != null && satellite?.state != SatelliteState.STOPPED) {
+-                            satellite?.processMessage(packet)
++                            satellite?.processMessage(packet, clientId)
+                             processed = true
+                             break
+                         } else {

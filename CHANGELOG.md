@@ -11,6 +11,8 @@
 - Close the SIP claim/preemption race, preserve foreground evidence during long kiosk sessions, and bound native receipt retention with an atomic expiry fence.
 - Bind election audio to the winning pipeline and retain discovery across wake-listener pauses, preventing stale replay and unnecessary rediscovery gaps.
 - Verify certificates for HA native-HTTPS loopback audio without adding an insecure fallback.
+- Add an opt-in `duck_music` announcement policy for the owned VACA music player, with capability checks and unchanged default `skip` behavior. Keep the music queue and current user volume while releasing only the announcement's temporary gain on completion, cancellation, expiry or failure.
+- Keep calls, Assist, alarms, timers and unsupported players protected; document the distinction between built-in-player ducking and external Android audio.
 
 ### Mixed-device voice arbitration
 

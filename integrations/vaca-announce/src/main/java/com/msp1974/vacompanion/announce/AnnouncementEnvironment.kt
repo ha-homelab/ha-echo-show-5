@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioManager
+import android.media.AudioAttributes
 import android.os.Process
 
 /** External apps cannot join our mutex: observe conservatively, abort on change/focus loss. */
@@ -27,17 +28,28 @@ internal class AnnouncementEnvironment(private val context: Context) {
         context.getSystemService(AppOpsManager::class.java).checkOpNoThrow(
             AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName) == AppOpsManager.MODE_ALLOWED
     } catch (_: Exception) { false }
-    fun reason(ownPlayback: Boolean = false): String? = try {
+    fun reason(ownPlayback: Boolean = false, ownedMusic: Boolean = false, duckPolicy: Boolean = false): String? = try {
         when {
             !compatibleSip() -> "sip_guard_unavailable"
             !usageAccess() -> "usage_access_required"
             context.getSystemService(NotificationManager::class.java).currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL -> "do_not_disturb"
             audio.mode != AudioManager.MODE_NORMAL -> "communication_busy"
-            !ownPlayback && audio.isMusicActive -> "media_busy"
+            !ownPlayback && !ownedMusic && audio.isMusicActive -> "media_busy"
             !foregroundAllowed() -> "external_app_busy"
+            duckPolicy && !observedPlaybackAllowed(ownPlayback, ownedMusic) -> "ambiguous_playback"
             else -> null
         }
     } catch (_: Exception) { "external_state_unknown" }
+    private fun observedPlaybackAllowed(ownPlayback: Boolean, ownedMusic: Boolean): Boolean {
+        val kinds = audio.activePlaybackConfigurations.map {
+            when {
+                it.audioAttributes.usage == AudioAttributes.USAGE_MEDIA && it.audioAttributes.contentType == AudioAttributes.CONTENT_TYPE_MUSIC -> "music"
+                it.audioAttributes.usage == AudioAttributes.USAGE_ASSISTANT && it.audioAttributes.contentType == AudioAttributes.CONTENT_TYPE_SPEECH -> "announcement"
+                else -> "unknown"
+            }
+        }
+        return ownedPlaybackObserved(kinds, ownPlayback, ownedMusic)
+    }
     @Synchronized private fun foregroundAllowed(): Boolean {
         val now = System.currentTimeMillis()
         val from = foreground.queryStart(now)

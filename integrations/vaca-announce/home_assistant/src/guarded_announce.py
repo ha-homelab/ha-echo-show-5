@@ -16,9 +16,10 @@ from homeassistant.core import SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.storage import Store
+from homeassistant.helpers import entity_registry as er
 from .guarded_announce_core import (
     AnnouncementError, AnnouncementManager, CAPABILITIES, PROTOCOL, MAX_ENCODED_BYTES,
-    STATUSES, decode_pcm, validate_id,
+    STATUSES, BUSY_POLICIES, decode_pcm, validate_id,
 )
 
 KEY = 'vaca_guarded_announcements'
@@ -89,6 +90,7 @@ def validate_journal(data):
                 and re.fullmatch(r'[0-9a-f]{64}', record['fingerprint'])
                 and isinstance(record['claimed'], bool)
                 and isinstance(record['claim_sent'], bool)
+                and record.get('busy_policy', 'skip') in BUSY_POLICIES
             )
             if not valid:
                 raise ValueError('Invalid receipt')
@@ -192,19 +194,48 @@ class GuardedTransport:
             return 'guard_state_unavailable'
         return ''
 
-    def busy_reason(self):
+    def owns_mapped_music_player(self):
+        mapping = self.guard_mapping()
+        if not valid_guard_mapping(mapping):
+            return False
+        registry_entry = er.async_get(self.entity.hass).async_get(mapping['media'])
+        entry_id = self.entity.config_entry.entry_id
+        return bool(registry_entry
+            and mapping['media'].startswith('media_player.')
+            and registry_entry.platform == 'vaca'
+            and registry_entry.config_entry_id == entry_id
+            and registry_entry.unique_id == entry_id + '-media_player')
+
+    def busy_reason(self, policy='skip'):
+        if policy not in BUSY_POLICIES:
+            return 'unsupported_policy'
         if reason := self.backend_busy_reason():
             return reason
         states = self.guard_states()
         if states is None:
             return 'guard_state_unavailable'
-        for role, state in states.items():
-            if state not in GUARDS[role]:
-                return role + '_busy'
         mapping = self.guard_mapping()
+        owned_duck = policy == 'duck_music' and self.owns_mapped_music_player()
+        if policy == 'duck_music' and not owned_duck:
+            return 'duck_music_player_unavailable'
+        music_playing = owned_duck and states['media'] == 'playing'
+        managed_music = music_playing and states['room'] == 'music'
+        for role, state in states.items():
+            if state in GUARDS[role]:
+                continue
+            # Only the mapped native VACA player may use the music exception.
+            # The worker additionally requires native duck capability before claim.
+            if role == 'media' and music_playing:
+                continue
+            if role == 'room' and managed_music:
+                continue
+            if role == 'intercom' and managed_music and mapping['intercom'] == mapping['room'] and state == 'music':
+                continue
+            return role + '_busy'
         room = self.entity.hass.states.get(mapping['room'])
         sip = self.entity.hass.states.get(mapping['sip'])
-        if room.attributes.get('busy') is not False or room.attributes.get('owner') != 'idle':
+        expected_owner = 'music' if managed_music else 'idle'
+        if room.attributes.get('busy') is not managed_music or room.attributes.get('owner') != expected_owner:
             return 'room_busy'
         if sip.attributes.get('lease_held') is not False or sip.attributes.get('call_id') is not None:
             return 'sip_busy'
@@ -334,4 +365,12 @@ class GuardedTransport:
         for key in CAPABILITIES:
             result[key] = data.get(key) is True
         result['reason'] = 'ready' if all(result[key] for key in CAPABILITIES) else 'native_guard_unavailable'
+        # Old native versions keep their original capability response shape.
+        if 'duck_music' in data:
+            owned_scope = data.get('duck_music_player') == 'vaca' and data.get('duck_music_scope') == 'owned_player'
+            result['duck_music'] = (data.get('duck_music') is True and owned_scope
+                and all(result[key] for key in CAPABILITIES) and self.owns_mapped_music_player())
+            if owned_scope:
+                result['duck_music_player'] = 'vaca'
+                result['duck_music_scope'] = 'owned_player'
         return result

@@ -4,6 +4,7 @@ package com.msp1974.vacompanion.announce
 import android.content.Context
 import android.os.SystemClock
 import android.util.AtomicFile
+import com.msp1974.vacompanion.players.MusicPlayerService
 import com.msp1974.vacompanion.satellite.Satellite
 import com.msp1974.vacompanion.telephony.AudioLeaseRuntime
 import com.msp1974.vacompanion.wyoming.SatelliteState
@@ -33,6 +34,8 @@ object AnnouncementRuntime {
     private var audio: AnnouncementAudio? = null
     private var progress: PcmProgress? = null
     private var draining = false
+    private var ownerPolicy = "skip"
+    private var duckMusic: MusicPlayerService? = null
     @Volatile private var quarantined = false
     private var watchdog: Job? = null
     private var lastData = 0L
@@ -61,21 +64,22 @@ object AnnouncementRuntime {
                 for (index in 0 until items.length()) {
                     val row = items.getJSONObject(index)
                     records.add(AnnouncementLedger.Record(row.getString("request_id"), row.getString("fingerprint"),
-                        row.getLong("expires_at_ms"), row.getString("status"), row.optString("reason")))
+                        row.getLong("expires_at_ms"), row.getString("status"), row.optString("reason"),
+                        row.optString("busy_policy", "skip")))
                 }
             }
             AnnouncementLedger(records, System::currentTimeMillis, SystemClock::elapsedRealtime, { rows, fence ->
                 val array = JSONArray()
                 rows.forEach { row -> array.put(JSONObject().put("request_id", row.requestId)
                     .put("fingerprint", row.fingerprint).put("expires_at_ms", row.expiresAt)
-                    .put("status", row.status).put("reason", row.reason)) }
+                    .put("status", row.status).put("reason", row.reason).put("busy_policy", row.busyPolicy)) }
                 val bytes = JSONObject().put("version", 2).put("pruned_through_ms", fence)
                     .put("requests", array).toString().toByteArray(Charsets.UTF_8)
                 require(bytes.size <= 1024 * 1024)
                 val stream = file.startWrite()
                 try { stream.write(bytes); file.finishWrite(stream) }
                 catch (error: Exception) { file.failWrite(stream); throw error }
-            }, ::busyReason, initialPrunedThrough = prunedThrough)
+            }, { busyReason("skip") }, initialPrunedThrough = prunedThrough)
         }.getOrNull()
         scope.launch {
             for ((satellite, packet, client) in queue) {
@@ -112,12 +116,24 @@ object AnnouncementRuntime {
         abortRequest = expected to "local_stop"
         scope.launch { mutex.withLock { if (ownerId == expected && owner === satellite) finishLocked("stopped", "local_stop") } }
     }
-    private fun busyReason(): String? = when {
-        AudioLeaseRuntime.reserved -> "sip_busy"
-        satellites.none { it.state == SatelliteState.RUNNING } -> "satellite_unavailable"
-        satellites.any { it.config.isMuted || it.config.doNotDisturb } -> "muted_or_do_not_disturb"
-        satellites.any { it.isBusyForAudioLease() } -> "assist_or_media_busy"
-        else -> environment.reason()
+    private fun busyReason(policy: String): String? {
+        val managedMusic = policy == "duck_music" && MusicPlayerService.sInstance?.canDuckForAnnouncement() == true
+        return when {
+            AudioLeaseRuntime.reserved -> "sip_busy"
+            satellites.none { it.state == SatelliteState.RUNNING } -> "satellite_unavailable"
+            satellites.any { it.config.isMuted || it.config.doNotDisturb } -> "muted_or_do_not_disturb"
+            satellites.any { it.isBusyForAnnouncement(managedMusic) } -> "assist_or_media_busy"
+            else -> environment.reason(ownedMusic = managedMusic, duckPolicy = policy == "duck_music")
+        }
+    }
+    private fun activeEnvironmentReason(): String? {
+        if (duckMusic != null && duckMusic?.ownsAnnouncementDuck(ownerId ?: "") != true) return "music_ownership_lost"
+        return environment.reason(ownPlayback = audio != null, ownedMusic = duckMusic?.isPlayingForAnnouncement() == true, duckPolicy = ownerPolicy == "duck_music")
+    }
+    private fun musicInterrupted(id: String) {
+        if (ownerId != id) return
+        abortRequest = id to "music_ownership_lost"
+        scope.launch { mutex.withLock { if (ownerId == id) finishLocked("stopped", "music_ownership_lost") } }
     }
     private fun ready(): Boolean = !quarantined && ledger?.canAcceptNew == true && environment.compatibleSip() && environment.usageAccess()
     suspend fun handle(satellite: Satellite, packet: WyomingPacket, sourceClient: String) {
@@ -146,6 +162,7 @@ object AnnouncementRuntime {
                 put("owned_cancel", true); put("honest_completion", true); put("deadline_enforced", true)
                 put("guard_scope", "coordinated_vaca_sip"); put("external_busy_policy", "observe_and_abort")
                 put("global_android_exclusion", false)
+                put("duck_music", ready()); put("duck_music_player", "vaca"); put("duck_music_scope", "owned_player")
             })
             return@withLock
         }
@@ -157,10 +174,28 @@ object AnnouncementRuntime {
             if (seconds == null || seconds <= 0 || seconds > Long.MAX_VALUE / 1000) {
                 reply(satellite, sourceClient, id, op, "failed", "invalid_expiry"); return@withLock
             }
-            val result = book.claim(id, packet.getProp("payload_fingerprint"), seconds * 1000)
+            val policy = packet.data["busy_policy"]?.jsonPrimitive?.content ?: "skip"
+            val result = book.claim(id, packet.getProp("payload_fingerprint"), seconds * 1000, policy) { busyReason(policy) }
             if (result.fresh) {
                 owner = satellite; ownerId = id; ownerClient = sourceClient; lastData = SystemClock.elapsedRealtime(); abortRequest = null
-                progress = PcmProgress(); draining = false
+                progress = PcmProgress(); draining = false; ownerPolicy = policy
+                if (policy == "duck_music") {
+                    try {
+                        withContext(Dispatchers.Main) {
+                            check(!book.deadlineExpired(id)) { "expired" }
+                            check(busyReason(policy) == null) { "busy_changed" }
+                            val music = MusicPlayerService.sInstance
+                            if (music != null) {
+                                duckMusic = music
+                                check(music.beginAnnouncementDuck(id) { musicInterrupted(id) }) { "music_changed" }
+                            }
+                        }
+                    } catch (_: Exception) {
+                        if (book.deadlineExpired(id)) finishLocked("stopped", "expired", "claim")
+                        else finishLocked("failed", "duck_acquire_failed", "claim")
+                        return@withLock
+                    }
+                }
                 watchdog = scope.launch {
                     while (isActive) {
                         delay(100)
@@ -171,7 +206,7 @@ object AnnouncementRuntime {
                                 abortReason(id) != null -> abortReason(id)
                                 SystemClock.elapsedRealtime() - lastData > 15000 && !draining -> "input_timeout"
                                 satellite.config.isMuted || satellite.config.doNotDisturb -> "muted_or_do_not_disturb"
-                                else -> environment.reason(ownPlayback = audio != null)
+                                else -> activeEnvironmentReason()
                             }
                             if (reason != null) { finishLocked("stopped", reason); return@launch }
                         }
@@ -192,9 +227,9 @@ object AnnouncementRuntime {
                 "audio-start" -> {
                     require(audio == null && !draining) { "duplicate_start" }
                     require(packet.getProp("rate") == "22050" && packet.getProp("width") == "2" && packet.getProp("channels") == "1") { "audio_format" }
-                    environment.reason()?.let { throw IllegalStateException(it) }
-                    val player = AnnouncementAudio(context) {
-                        abortRequest = id to "audio_focus_lost"
+                    activeEnvironmentReason()?.let { throw IllegalStateException(it) }
+                    val player = AnnouncementAudio(context, sharedMusicFocus = duckMusic != null) {
+                        if (ownerId == id) abortRequest = id to "audio_focus_lost"
                         scope.launch { mutex.withLock { if (AnnouncementGate.owns(id)) finishLocked("stopped", "audio_focus_lost") } }
                     }
                     audio = player
@@ -249,19 +284,21 @@ object AnnouncementRuntime {
         } catch (_: Exception) { finishLocked("failed", "audio_failed", op) }
     }
 
-    private fun finishLocked(status: String, reason: String, op: String = "event") {
-        val id = ownerId ?: return
-        if (quarantined) return
+    private suspend fun finishLocked(status: String, reason: String, op: String = "event") = finishAnnouncementGuarded(watchdog) {
+        val id = ownerId ?: return@finishAnnouncementGuarded
+        if (quarantined) return@finishAnnouncementGuarded
         val target = owner
         val source = ownerClient
-        watchdog?.cancel(); watchdog = null
-        var finalStatus = status
-        var finalReason = reason
-        try { audio?.close() } catch (_: Exception) {
-            finalStatus = "unknown"; finalReason = "release_failed"; quarantined = true
+        watchdog = null
+        val teardown = teardownAnnouncement(status, reason,
+            closeAudio = { audio?.close() },
+            releaseMusic = { withContext(Dispatchers.Main) { duckMusic?.endAnnouncementDuck(id) } })
+        quarantined = teardown.quarantined
+        if (!quarantined) {
+            duckMusic = null; ownerPolicy = "skip"
+            audio = null; progress = null; draining = false; owner = null; ownerId = null; ownerClient = ""
         }
-        if (!quarantined) { audio = null; progress = null; draining = false; owner = null; ownerId = null; ownerClient = "" }
-        val result = ledger!!.finish(id, finalStatus, finalReason, releaseOwnership = !quarantined)
+        val result = ledger!!.finish(id, teardown.status, teardown.reason, releaseOwnership = !quarantined)
         if (target != null) reply(target, source, result, op)
     }
     private fun reply(satellite: Satellite, source: String, result: AnnouncementLedger.Reply, op: String) {
@@ -269,12 +306,14 @@ object AnnouncementRuntime {
             satellite.sendSatelliteMessage(source, "guarded-announce-result", buildJsonObject {
                 put("request_id", result.requestId); put("op", op); put("status", result.status)
                 put("reason", result.reason); put("deduplicated", !result.fresh)
+                if (ledger?.policy(result.requestId) == "duck_music") put("busy_policy", "duck_music")
             })
         } else reply(satellite, source, result.requestId, op, result.status, result.reason)
     }
     private fun reply(satellite: Satellite, source: String, id: String, op: String, status: String, reason: String) {
         satellite.sendSatelliteMessage(source, "guarded-announce-result", buildJsonObject {
             put("request_id", id); put("op", op); put("status", status); put("reason", reason)
+            if (ledger?.policy(id) == "duck_music") put("busy_policy", "duck_music")
         })
     }
 }

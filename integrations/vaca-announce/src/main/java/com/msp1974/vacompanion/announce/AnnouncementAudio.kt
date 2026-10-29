@@ -11,7 +11,7 @@ import android.os.Handler
 import android.os.Looper
 
 /** Owns exactly one AudioTrack. It never changes system volume or stops another player. */
-internal class AnnouncementAudio(context: Context, onFocusLost: () -> Unit) {
+internal class AnnouncementAudio(context: Context, private val sharedMusicFocus: Boolean = false, onFocusLost: () -> Unit) {
     private val manager = context.getSystemService(AudioManager::class.java)
     private val attributes = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANT)
         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build()
@@ -22,7 +22,7 @@ internal class AnnouncementAudio(context: Context, onFocusLost: () -> Unit) {
     @Volatile var closed = false; private set
     private var closeFailed = false
     fun start() {
-        check(manager.requestAudioFocus(focus) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) { "focus_denied" }
+        check(sharedMusicFocus || manager.requestAudioFocus(focus) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) { "focus_denied" }
         try {
             val minimum = AudioTrack.getMinBufferSize(22050, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT)
             check(minimum > 0)
@@ -52,7 +52,7 @@ internal class AnnouncementAudio(context: Context, onFocusLost: () -> Unit) {
         track = null
         try {
             try { value?.pause(); value?.flush() } finally {
-                try { value?.release() } finally { manager.abandonAudioFocusRequest(focus) }
+                try { value?.release() } finally { if (!sharedMusicFocus) manager.abandonAudioFocusRequest(focus) }
             }
         } catch (error: Exception) {
             closeFailed = true
