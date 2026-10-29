@@ -1,26 +1,30 @@
 # Capabilities and expansion
 
-[Wiki home](Home.md) · [Installed audit](../installed-capabilities.md)
+[Wiki home](Home.md) · [Current delivery](../room-capability-delivery.md) · [Original audit](../installed-capabilities.md)
 
-The October 29, 2026 audit inspected both installed Shows, their real sensor
-HALs, current Android permissions and Home Assistant entities. Read the
-[measured baseline and priority plan](../installed-capabilities.md) before
-choosing another app or enabling another service.
+Start with the [current capability delivery register](../room-capability-delivery.md)
+for the deployed r15 interface, current media clients, physical results and remaining
+limits. The [room endpoint](Room-endpoint.md) links to its configuration and control
+contracts; the [runtime diagram](../assets/room-runtime.svg) summarizes those paths.
 
-![Observed hardware and proposed room-session coordination](../assets/room-capabilities.svg)
+The original October 29, 2026 audit inspected both Shows, their real sensor HALs,
+Android permissions and Home Assistant entities **before** the subsequent room
+implementation and media rollout. Its app differences and untested candidates
+remain preserved as historical evidence, not current status:
 
-- [Room use cases](../room-endpoint-capabilities.md): alerts, doorbell, calls,
-  media, Bluetooth speaker, BLE, presence, offline timers and resource ownership.
-- [Remote access](../android-remote-access.md): existing ADB, bundled OpenSSH,
-  optional Termux, SFTP, scrcpy and local automation.
-- [Permissions and limits](../android-permissions-and-limits.md): actual grants,
-  optional access, kiosk/owner distinctions and reversible feature acceptance.
-- [Sanitized inventory](../data/capabilities-2026-10-29.json): selected measured
-  facts without device identifiers, credentials or household readings.
+- [Measured baseline and original priorities](../installed-capabilities.md).
+- [Original room-use-case list](../room-endpoint-capabilities.md): alerts,
+  doorbell, calls, media, Bluetooth, BLE, presence, timers and resource ownership.
+- [Original access assessment](../android-remote-access.md) and the
+  [implemented administration tools](../remote-admin-tools.md).
+- [Permission checkpoint and Android limits](../android-permissions-and-limits.md).
+- [Sanitized original inventory](../data/capabilities-2026-10-29.json): selected
+  measurements without device identifiers, credentials or household readings.
 
-The diagram distinguishes observed capabilities from proposed coordination
-work. Lux is real and already exposed in HA. Bluetooth sink playback and SSH
-login are candidates requiring tests. Missing sensor hardware cannot be
-created by granting more permissions. Heavy computation stays on the home
-server; each room activity should release its resources and restore the clock
-and voice listener when it ends.
+![Original inventory and then-proposed room coordination](../assets/room-capabilities.svg)
+
+This retained diagram shows the original observations and proposed work. Later
+implementation and Bluetooth results belong to the delivery register above.
+Missing sensor hardware still cannot be created by granting permissions. Keep
+physical acceptance separate from an installed package, and keep heavy computation
+on the existing server infrastructure.

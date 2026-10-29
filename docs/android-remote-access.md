@@ -1,8 +1,15 @@
 # Remote access and local automation on the installed Android build
 
+**Original access assessment.** The inventory and candidate labels below record
+the research checkpoint before the October 29 tool rollout. The implemented
+scrcpy, health, APK and file-transfer paths, including the observed NAS forwarding
+restriction, are documented in [remote administration tools](remote-admin-tools.md).
+See the [delivery register](room-capability-delivery.md) for per-device acceptance;
+this assessment does not supersede those later results.
+
 Research checked **2026-10-29**. Scope: the already converted **Echo Show 5 Gen2 / cronos**, running the project's **LineageOS 18.1 / Android 11** port. This is an expansion plan, not a record of enabling new services. The [Android runbook](android-and-home-assistant.md#persistent-wi-fi-adb-on-the-tested-rom) records the existing ADB installation and its recovery limits; a candidate below is not installed or accepted merely because upstream supports Android 11.
 
-The most useful combination is the existing HA control path, host-side screen control when needed, and a carefully selected SSH route. The live inventory found **`/system/bin/ssh` and `/system/bin/sshd` on both Shows**: assess those existing binaries before installing a second server. No Termux or Termux:API package was installed at this checkpoint. Opening more ports does not add sensor drivers, grant Android system privileges or solve microphone ownership.
+The most useful combination is the existing HA control path, host-side screen control when needed, and a carefully selected SSH route. The original inventory found **`/system/bin/ssh` and `/system/bin/sshd` on both Shows**: assess those existing binaries before installing a second server. No Termux or Termux:API package was installed at this checkpoint. Opening more ports does not add sensor drivers, grant Android system privileges or solve microphone ownership.
 
 ## Choose the interface for the job
 

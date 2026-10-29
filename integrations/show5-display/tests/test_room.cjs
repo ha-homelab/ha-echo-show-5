@@ -66,12 +66,15 @@ test("timer uses absolute deadlines, reconciles overdue state and never invents 
 
 function workerHarness() {
   const handlers = {}, stores = new Map(), requests = [], removed = [];
-  let offline = false, failPath = null;
+  let offline = false, failPath = null, rejectWrites = false, cacheUnavailable = false, liveContent = "synthetic static content";
   function cacheFor(name) {
     if (!stores.has(name)) stores.set(name, new Map());
     const stored = stores.get(name);
     return {
-      async put(key, response) { stored.set(typeof key === "string" ? key : key.url, response.clone()); },
+      async put(key, response) {
+        if (rejectWrites) { throw new Error("Cache storage quota exceeded"); }
+        stored.set(typeof key === "string" ? key : key.url, response.clone());
+      },
       async match(key) { const value = stored.get(typeof key === "string" ? key : key.url); return value && value.clone(); },
       async keys() { return [...stored.keys()].map(url => ({ url })); },
       async delete(key) { removed.push(typeof key === "string" ? key : key.url); return stored.delete(typeof key === "string" ? key : key.url); }
@@ -82,17 +85,20 @@ function workerHarness() {
     self: { registration: { scope: "https://ha.example.invalid/local/room/" },
       location: { href: "https://ha.example.invalid/local/room/offline-worker.js?shell=index-r12.html" },
       addEventListener(type, callback) { handlers[type] = callback; }, async skipWaiting() {}, clients: { async claim() {} } },
-    caches: { async open(name) { return cacheFor(name); }, async keys() { return [...stores.keys()]; }, async delete(name) { return stores.delete(name); } },
+    caches: { async open(name) { if (cacheUnavailable) { throw new Error("Cache storage unavailable"); } return cacheFor(name); },
+      async keys() { return [...stores.keys()]; }, async delete(name) { return stores.delete(name); } },
     async fetch(input) {
       const url = typeof input === "string" ? input : input.url; requests.push(url);
       if (offline || failPath && url.endsWith(failPath)) { throw new Error("offline"); }
-      return new Response("synthetic static content", { headers: { "Content-Type": url.endsWith(".jpg") ? "image/jpeg" : "text/javascript" } });
+      return new Response(liveContent, { headers: { "Content-Type": url.endsWith(".jpg") ? "image/jpeg" : "text/javascript" } });
     }
   };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, "../offline-worker.js"), "utf8"), context);
   async function event(type, value = {}) { let result; handlers[type]({ ...value, waitUntil(promise) { result = promise; }, respondWith(promise) { result = promise; } }); return result; }
   return { event, get stored() { return [...stores.entries()].find(([name]) => name.includes(":content:"))[1]; },
-    stores, requests, removed, offline(value) { offline = value; }, fail(path) { failPath = path; } };
+    stores, requests, removed, offline(value) { offline = value; }, fail(path) { failPath = path; },
+    rejectWrites(value) { rejectWrites = value; }, failCacheOpen(value) { cacheUnavailable = value; },
+    liveContent(value) { liveContent = value; } };
 }
 
 test("offline cache restores only its own shell and never intercepts API, media, auth or foreign paths", async () => {
@@ -116,6 +122,48 @@ test("only configured photos enter offline cache and removed photos are purged",
   const before = h.requests.length;
   await h.event("message", { data: { type: "CACHE_PHOTOS", photos: ["https://foreign.invalid/private.jpg"] } });
   assert.equal(h.requests.length, before);
+});
+
+test("a cache write failure cannot replace a successful live response with stale content", async () => {
+  const h = workerHarness(); await h.event("install");
+  const url = "https://ha.example.invalid/local/room/config.js";
+  h.liveContent("new live configuration"); h.rejectWrites(true);
+  const response = await h.event("fetch", { request: new Request(url) });
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "new live configuration");
+  assert.equal(await h.stored.get(url).clone().text(), "synthetic static content");
+});
+
+test("a cache write failure still serves a successful live response when no cached entry exists", async () => {
+  const h = workerHarness(); await h.event("install");
+  const url = "https://ha.example.invalid/local/room/config.js";
+  h.stored.delete(url); h.liveContent("live uncached configuration"); h.rejectWrites(true);
+  const response = await h.event("fetch", { request: new Request(url) });
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "live uncached configuration");
+  assert.equal(h.stored.has(url), false);
+});
+
+test("unavailable active-cache storage does not block a successful live response or cache generic photos", async () => {
+  const h = workerHarness(); await h.event("install");
+  h.failCacheOpen(true); h.liveContent("fresh response without cache storage");
+  const url = "https://ha.example.invalid/local/room/config.js";
+  const response = await h.event("fetch", { request: new Request(url) });
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "fresh response without cache storage");
+  const photoURL = "https://ha.example.invalid/local/room/photos/uncached.jpg";
+  const photo = await h.event("fetch", { request: new Request(photoURL) });
+  assert.equal(photo.status, 200);
+  assert.equal(await photo.text(), "fresh response without cache storage");
+  assert.equal(h.stored.has(photoURL), false);
+});
+
+test("an evicted active-cache manifest still permits live static requests", async () => {
+  const h = workerHarness(); await h.event("install");
+  for (const name of h.stores.keys()) { if (name.endsWith(":manifest")) { h.stores.delete(name); } }
+  h.liveContent("fresh response after cache eviction");
+  const response = await h.event("fetch", { request: new Request("https://ha.example.invalid/local/room/config.js") });
+  assert.equal(await response.text(), "fresh response after cache eviction");
 });
 
 

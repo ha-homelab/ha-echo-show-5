@@ -4,12 +4,22 @@
 
 This wiki is versioned with the code under `docs/wiki/`. It describes the **Echo Show 5 Gen2 / 2021 / `cronos`** route. It is readable in a local checkout and on GitHub without enabling the separate GitHub Wiki feature. Detailed instructions and evidence remain linked at their source rather than copied into conflicting procedures.
 
-## October 29: installed capability audit
+## October 29: room endpoint delivery
 
-Both Shows are available and run VACA `0.13.4+myshka.10-sip.1` / 7010.
+The **r15** room display and HA policy are deployed on both Shows. Use the
+[capability delivery register](../room-capability-delivery.md) for per-device
+camera, timer, media and Bluetooth results, including remaining physical limits.
+[Room controls](Room-endpoint.md) · [Administration tools](../remote-admin-tools.md) ·
+[Runtime diagram](../assets/room-runtime.svg).
+
+## October 29: original installed capability audit
+
+At this earlier inventory checkpoint, both Shows were available and ran VACA
+`0.13.4+myshka.10-sip.1` / 7010.
 The audit confirms one real light sensor per device, existing HA lux entities,
 bundled SSH binaries, an Android Bluetooth sink profile, and different installed
-media players. It separates observed functions from untested expansion options.
+media players. Those app differences and untested candidates describe the
+pre-rollout checkpoint; the delivery register above records subsequent changes.
 The earlier SIP pilot verified HA-controlled pair calls and microphone return.
 
 [Measured baseline, priorities and limitations](../installed-capabilities.md) ·

@@ -10,6 +10,13 @@ the entire screen without a title or clock header. `object-fit: cover` preserves
 proportions and crops the excess at the edges instead of stretching or adding
 borders; timestamps embedded by a camera remain part of its video.
 
+Revision **`20261029-r15`** keeps a successful live static response even if
+the offline cache is unavailable or its refresh fails, for example because
+storage was evicted or its quota is exhausted. A cache-write failure no longer substitutes old content or a network
+error for a response that was already fetched successfully. Network failures
+still use the existing cached fallback. Dated r14 device acceptance remains
+separate from this source correction.
+
 Revision **`20261029-r14`** prepares camera playback behind the current clock or
 Room menu. Nothing switches until the first image has decoded, or WebRTC has
 both started playback and delivered a decoded/presented frame. There is no
@@ -188,16 +195,16 @@ do not add external scripts, frames or navigation to this authenticated page.
 1. Keep a private backup of the selected device's existing complete display
    release outside `/config/www`.
 2. Create a new versioned directory, for example
-   `/config/www/show5-display-20261029-r14/`. Copy these **nine assets**:
+   `/config/www/show5-display-20261029-r15/`. Copy these **nine assets**:
    `display.css`, `i18n.js`, `room.js`, `stream.js`, `auth.js`, `display.js`,
    `blank-video.svg`, `offline-worker.js`, and the filled `config.js`.
-   Copy the source `index.html` as **`index-20261029-r14.html`**. That makes
+   Copy the source `index.html` as **`index-20261029-r15.html`**. That makes
    **ten files**, including the HTML entry and deployment-specific configuration.
-   Keep every versioned asset URL in the HTML at **`?v=20261029-r14`** for this
+   Keep every versioned asset URL in the HTML at **`?v=20261029-r15`** for this
    release. Preserve the deferred script order: configuration, i18n, room,
    stream, auth, then display. Do not copy tests, private data or backup files.
 3. Open
-   `/local/show5-display-20261029-r14/index-20261029-r14.html?external_auth=1`
+   `/local/show5-display-20261029-r15/index-20261029-r15.html?external_auth=1`
    in the selected VACA WebView. Verify the clock and the sanitized
    `Show5Auth.status()` result. The directory prefix may identify the endpoint;
    keep each endpoint's configuration and service-worker scope separate.

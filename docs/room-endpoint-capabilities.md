@@ -1,4 +1,12 @@
-# Expanding an Android Show into a room endpoint
+# Original plan: expanding an Android Show into a room endpoint
+
+**Historical planning checkpoint.** This document preserves the expansion list
+and evidence available before the October 29 implementation. Its “Build”,
+“Configure”, app-parity and untested-function statements describe that checkpoint.
+Use the [current capability delivery register](room-capability-delivery.md) for
+what is now deployed, physically checked or still pending; use the
+[room panel](room-panel.md) and [session policy](room-session-policy.md) for the
+implemented behavior. The original list remains intact for traceability.
 
 This is a capability plan for the already converted **Echo Show 5 Gen2 / cronos
 running Android 11**, reviewed on **2026-10-29**. It does not install apps, grant

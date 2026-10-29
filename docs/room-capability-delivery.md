@@ -6,7 +6,7 @@ installed application and a working physical feature are different results.
 
 The room packages passed HA configuration validation and were activated by one
 coordinated restart. Both VACA options now point to the new room display with
-`20261029-r14` assets. Both displays now show the new clock, and both HA room-health sensors report
+`20261029-r15` assets. Both displays now show the new clock, and both HA room-health sensors report
 ready. Camera acceptance passed on both; timer acceptance was performed on Show two. Show one recovered
 from the Bluetooth-related Wi-Fi outage after the phone disconnected; the radio
 coexistence limitation remains open. Existing voice and call acceptance stays
@@ -30,8 +30,10 @@ separately scoped.
   human listening and synchronized multiroom acceptance remain pending.
 - The administration tool adds a checked scrcpy route, scoped file transfers,
   APK compatibility checks and sanitized health snapshots. Direct-LAN health
-  snapshots succeeded on both devices. An eight-second Show-one scrcpy capture
-  verified H.264 screen transport at 960 × 480. The NAS refused SSH forwarding;
+  snapshots succeeded on both devices. Bounded scrcpy captures
+  verified H.264 screen transport at 960 × 480 on both Shows. A disposable
+  Show-two shared-storage round trip preserved its exact SHA-256; only that
+  created remote file was removed afterward. The NAS refused SSH forwarding;
   its policy was not changed.
 
 The source suites and a synthetic Chrome session verify display logic, layout,
@@ -57,7 +59,7 @@ audible playback, radio reception or an Android cold start.
 
 | Capability from the expansion list | Delivered state at this checkpoint | Remaining acceptance or boundary |
 | --- | --- | --- |
-| Room clock and status | **Implemented / deployed.** Large default clock; optional room panel, four readings, transport freshness and a current timer. | r14 clocks are visible on both; the room layout is verified on Show two. Long-term brightness checks remain. |
+| Room clock and status | **Implemented / deployed.** Large default clock; optional room panel, four readings, transport freshness and a current timer. | r15 clocks are visible on both; the room layout is verified on Show two. Long-term brightness checks remain. |
 | Front-door camera and doorbell | **Existing + implemented / deployed.** Existing Front/Porch stream path; fixed manual actions; fresh idle-owner and menu guards for automatic motion; expiring visual messages can accompany an event. | Real streams passed the silent-transition check on both Shows; a browser-scoped network failure was also checked on Show two. A dedicated doorbell binding is still required where no existing event maps to it. |
 | Room actions | **Implemented / deployed.** Six configured buttons, with fixed endpoint, light, climate, scene, script or timer actions. Requests carry no arbitrary shell or service input. | Confirm each selected household binding affects the intended room. |
 | Voice control | **Existing / scoped.** Existing VACA wake-word and Assist configuration is retained. Typed room scripts provide deterministic targets for HA. | New voice exposure and actual spoken requests require their own mapping and attended test; new scripts alone do not make an LLM call them correctly. |
@@ -65,7 +67,7 @@ audible playback, radio reception or an Android cold start.
 | Announcements | **Implemented / deployed.** Bounded TTS request, expiry at execution, quiet hours, idle-player checks and no automatic volume/mute changes. | TTS is bound to the existing provider. Verify one short audible message, busy rejection and cleanup. No emergency-delivery guarantee. |
 | Timers and reminders | **Implemented / deployed.** Serialized HA set/cancel/expiry, absolute deadlines, startup overdue reconciliation and dismissible messages; local browser timer journal. | Live HA set → expiry → visual reminder → dismiss passed on Show two; restart reconciliation is covered by template tests. Browser chimes require a live page, usable audio and idle ownership; a native OS alarm is not implemented. |
 | Lux-based context | **Existing sensor + implemented display binding.** Reuse the numeric VACA illuminance entities already present on both Shows. | No duplicate collector or automatic dimming is enabled. Choose room automation thresholds only after a controlled light/dark test. |
-| Device health | **Implemented; both direct-LAN device receipts.** Sanitized Android health command; HA entity/session health and display freshness are implemented. | Interactive navigation was checked through Android input and UI readback; scrcpy screen transport was checked on Show one. Reachability and entity availability do not prove voice or media quality. |
+| Device health | **Implemented; both direct-LAN device receipts.** Sanitized Android health command; HA entity/session health and display freshness are implemented. | Interactive navigation was checked through Android input and UI readback; scrcpy screen transport was checked on both Shows. Reachability and entity availability do not prove voice or media quality. |
 | Heating/energy glance | **Implemented / deployed.** Selected HA states, climate current temperature/setpoint and weather attributes fit four compact readings. | Confirm room/unit bindings; energy/tariff/solar views use existing HA data, not a new Show sensor. |
 | Presence fusion | **Implemented / optional configuration.** OR-combined existing binary sensors, vacancy hold and conservative unknown availability. | Bind the correct room sensors. Lux, stale motion timestamps and a paired phone are not occupancy proof. |
 | BLE beacon scanner | **Physical test pending; not configured.** No selected iBeacon or other opt-in beacon has been supplied. | Select a real target, verify the installed scanner path, required permissions, reception and expiry. No broad background scanner is enabled. |
@@ -89,7 +91,7 @@ audible playback, radio reception or an Android cold start.
 | AirPlay into the home audio system | **Enabled for Show two only.** Music Assistant on the NUC hosts one AirPlay Receiver mapped to the verified Sendspin player. | One healthy receiver daemon and its target mapping were verified. iPhone playback remains a physical test; expected buffering is about five seconds. This does not create a native Android AirPlay receiver. |
 | NAS music/video | **Client installed; launch implemented.** VLC is available on both and a fixed Library action opens its browser. | Configure the intended SMB/UPnP/DLNA source inside VLC and test credentials, throughput, codec and Stop/Home. No share credentials are published or automatically imported. |
 | MQTT telemetry / commands | **No new Android agent.** Existing VACA/HA entities supply current telemetry; typed room scripts supply commands. | Add a broker client only for an unmet integration need, with topic authorization, expiry and acknowledgements. No retained start/call command is introduced. |
-| Remote screen control | **Implemented; screen transport verified on Show one.** Checked, bounded scrcpy session, 960-pixel size limit, 15 fps and no audio capture by default. | Use a permitted direct-LAN route or an explicitly allowed SSH tunnel. A health read does not establish screen/input acceptance. |
+| Remote screen control | **Implemented; screen transport verified on both Shows.** Checked, bounded scrcpy session, 960-pixel size limit, 15 fps and no audio capture by default. | Use a permitted direct-LAN route or an explicitly allowed SSH tunnel. A health read does not establish screen/input acceptance. |
 | SSH and SFTP on Android | **No new daemon.** Existing authenticated host administration plus scoped ADB file transfer handles current tasks. | Bundled SSH binaries do not imply a configured or running SSH server. The NAS currently prohibits the attempted forwarding route; direct LAN mode is explicit, not a silent fallback. |
 | Telnet | **Not enabled.** No working Telnet service was established by the inventory. | It adds no needed function beyond the existing administration path. There is no claim that a missing PATH entry proves every possible binary is absent. |
 | VNC / RDP | **Not installed.** scrcpy is the implemented Android screen route. | A separate client/server role would need a concrete destination, authentication and screen-size acceptance. SSH installation alone supplies neither protocol. |
@@ -114,12 +116,12 @@ does not bypass the user's Android debugging approval.
 ## How to finish acceptance
 
 1. Verify every selected room action against its intended household target. Both
-   r14 clocks and the HA packages are live; no further Core restart is needed.
+   r15 clocks and the HA packages are live; no further Core restart is needed.
 2. Extend the completed Show-two timer check to Show one, then test one audible
    announcement, native-call rejection and recovery. Keep the
    current voice configuration and manual brightness baseline.
-3. Complete the remaining administration cases: a bounded Show-two scrcpy
-   session and one disposable scoped shared-storage round trip.
+3. Administration health, bounded screen transport and a disposable shared
+   file round trip passed. Validate any new APK or file destination separately.
 4. Both Sendspin players are connected and the Show-two transport test passed.
    Test human-rated sound, synchronization and call handoff separately. The
    Show-two AirPlay receiver is enabled but iPhone playback remains unverified.
@@ -170,3 +172,21 @@ Bluetooth connection; they do not establish a particular driver defect. No
 router, DHCP or firmware changes were made. Avoid relying on simultaneous
 Bluetooth reception and network functions until a controlled repeat test passes.
 The existing network music route remains available; its radio path is different.
+
+
+## r15 cache resilience and Bluetooth mitigation
+
+The r15 update preserves the camera behavior accepted above and makes offline
+storage optional during normal page loads. If cache opening, lookup or writing
+fails, a valid live response is still used; a full cache cannot replace it with
+stale content or an artificial network error. Four regression tests cover stale
+and missing entries, unavailable storage and an evicted generation manifest.
+The complete display suite passes 133 tests. Atomic offline installation and
+configured-photo restrictions remain intact.
+
+After the Bluetooth recovery diagnosis, the Show-one Bluetooth adapter was
+turned off through Android settings while keeping its pairing. This prevents
+that phone connection from automatically recreating the outage and allows the
+phone's Bluetooth to be enabled for other uses. Show two was not changed. This
+is a reversible mitigation, not a repaired Bluetooth/Wi-Fi driver. Re-enable the
+Show-one adapter only for a controlled coexistence test.

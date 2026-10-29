@@ -3,7 +3,7 @@
 var scopeURL = new URL(self.registration.scope);
 var shell = new URL(self.location.href).searchParams.get("shell");
 if (!/^[A-Za-z0-9_.-]+\.html$/.test(shell || "")) { shell = "index.html"; }
-var cacheName = "show5-room-r14:" + scopeURL.pathname;
+var cacheName = "show5-room-r15:" + scopeURL.pathname;
 var pointerKey = new URL(".offline-generation", scopeURL).href;
 var staticNames = [shell, "display.css", "i18n.js", "room.js", "stream.js", "auth.js", "display.js", "blank-video.svg", "config.js"];
 var photoUpdate = Promise.resolve();
@@ -82,11 +82,21 @@ self.addEventListener("fetch", function (event) {
   var request = event.request, url = new URL(request.url), name = cachePath(url);
   if (request.method !== "GET" || request.headers.has("Authorization") || !name) { return; }
   event.respondWith((async function () {
-    var cache = await activeCache(), key = new URL(name, scopeURL).href;
+    var cache = null, key = new URL(name, scopeURL).href;
+    try { cache = await activeCache(); } catch (_) { /* Live requests do not require offline storage. */ }
+    async function cachedResponse() {
+      if (!cache) { return null; }
+      try { return await cache.match(key); } catch (_) { return null; }
+    }
     // Photos are cached only after explicit configuration, never on generic GET.
-    if (name.startsWith("photos/")) { return (await cache.match(key)) || fetch(request); }
-    try { var response = await network(name); await cache.put(key, response.clone()); return response; }
-    catch (_) { var cached = await cache.match(key); if (cached) { return cached; } return Response.error(); }
+    if (name.startsWith("photos/")) { return (await cachedResponse()) || fetch(request); }
+    var response;
+    try { response = await network(name); }
+    catch (_) { return (await cachedResponse()) || Response.error(); }
+    // A quota/storage failure must not replace a successful live response with
+    // stale cache data (or a network error). Offline refresh is best effort.
+    if (cache) { try { await cache.put(key, response.clone()); } catch (_) { /* Keep the live response. */ } }
+    return response;
   })());
 });
 

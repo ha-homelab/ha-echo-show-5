@@ -1,6 +1,6 @@
 # Room panel and offline clock
 
-Display revision `20261029-r14` adds an optional room panel to the existing
+Display revision `20261029-r15` adds an optional room panel to the existing
 960 × 480 clock. The clock remains the default view. **Room** opens six large
 action buttons, up to four readings, and local timer controls. **Clock** closes
 the panel. Camera playback still occupies the whole screen without room controls,
@@ -91,6 +91,9 @@ have a different scope and cache. The worker never intercepts HA API calls,
 camera streams, bearer-authenticated requests or external origins.
 Each installation stages a complete cache generation before publishing its
 pointer. An interrupted upgrade preserves the previous complete offline shell.
+During normal online requests, cache reads and writes are optional: an unavailable
+cache or failed refresh never replaces a successful network response with old
+content or an error. Generic photo requests still do not populate the cache.
 
 The first navigation normally starts from the network. Subsequent offline
 navigation can render the cached clock, room UI and local timer journal. HA

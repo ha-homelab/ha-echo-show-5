@@ -1,7 +1,7 @@
 # Echo Show 5 Gen2 → Android → Home Assistant
 
 
-[Current installed capabilities and expansion plan (English)](docs/installed-capabilities.md).
+[Current delivery, acceptance results and limitations (English)](docs/room-capability-delivery.md).
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15595/badge)](https://www.bestpractices.dev/projects/15595)
 
 [English](README.md) · [Русский](README.ru.md) · **Deutsch** · [Español](README.es.md) · [Français](README.fr.md)

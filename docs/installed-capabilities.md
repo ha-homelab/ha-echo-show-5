@@ -1,6 +1,14 @@
-# Installed capabilities and expansion plan
+# Installed capability audit and original expansion plan
 
 [Wiki](wiki/Home.md) · [Room use cases](room-endpoint-capabilities.md) · [Remote access](android-remote-access.md) · [Permissions](android-permissions-and-limits.md)
+
+**Original inventory checkpoint, before the October 29 room implementation and
+media-player rollout.** The observations, app differences and proposed priorities
+below are retained as audit history. They are not the current deployment status.
+For the deployed **r15** interface, media parity, Bluetooth trial and remaining
+physical checks, use the [capability delivery register](room-capability-delivery.md).
+The [current administration tools](remote-admin-tools.md) implement the selected
+management routes from this assessment.
 
 **Audit: October 29, 2026, America/Los_Angeles.** Both already-converted Echo
 Show 5 Gen2 devices were inspected through their existing authorized ADB
@@ -8,7 +16,7 @@ connections. Home Assistant's registry and states were read separately. This
 is an installed-system audit, not a new firmware or application release. No
 permissions, listeners, display policies or recording sessions were enabled.
 
-The most useful next steps are remote screen assistance, a consistent room
+The audit identified these next steps: remote screen assistance, a consistent room
 interface, explicit ownership of microphone/camera/media sessions, actionable
 household alerts, and a tested Bluetooth-speaker mode. SSH is another useful
 administration route. Telnet adds no capability beyond the existing access and
