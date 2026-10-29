@@ -1,0 +1,204 @@
+{
+  "schema": 1,
+  "audit_date": "2026-10-29",
+  "timezone": "America/Los_Angeles",
+  "initial_observed_at_utc": "2026-10-29T18:38:33.020748+00:00",
+  "method": "Read-only authenticated ADB inventory and Home Assistant metadata; no new capture or permission grants.",
+  "limits": [
+    "Package features do not establish hardware presence.",
+    "Free resource values are point samples.",
+    "Bluetooth playback, SSH login and USB host peripherals were not tested."
+  ],
+  "devices": {
+    "show1": {
+      "build": {
+        "ro.build.version.release": "11",
+        "ro.build.version.sdk": "30",
+        "ro.build.version.security_patch": "2024-02-05",
+        "ro.lineage.version": "18.1-20260905-UNOFFICIAL-cronos",
+        "ro.product.cpu.abilist": "armeabi-v7a,armeabi",
+        "ro.product.cpu.abilist32": "armeabi-v7a,armeabi",
+        "ro.product.cpu.abilist64": "",
+        "ro.build.type": "userdebug",
+        "ro.debuggable": "1",
+        "ro.adb.secure": "1",
+        "service.adb.tcp.port": "5555",
+        "persist.adb.tcp.port": "5555",
+        "init.svc.adbd": "running"
+      },
+      "memory_kib": {
+        "MemTotal": 996840,
+        "MemAvailable": 254096,
+        "SwapTotal": 494832
+      },
+      "data_partition_kib": {
+        "total": 3903724,
+        "available": 2538540
+      },
+      "display": {
+        "width": 960,
+        "height": 480,
+        "density": 195
+      },
+      "sensor_hal": [
+        {
+          "type": "android.sensor.light",
+          "name": "Light Sensor",
+          "vendor": "amazon-oss",
+          "vaca_listener_active": true
+        }
+      ],
+      "ha_light": {
+        "numeric": true,
+        "unit": "lx",
+        "device_class": "illuminance"
+      },
+      "ha_motion_mode": "none",
+      "brightness": {
+        "mode": "manual",
+        "android_value": 255
+      },
+      "bluetooth": {
+        "enabled": true,
+        "a2dp_sink_service_present": true,
+        "playback_tested": false
+      },
+      "thermal_hal_ready": false,
+      "administration": {
+        "adb_uid": 2000,
+        "legacy_adb_tcp_port": 5555,
+        "paired_wireless_debugging_enabled": false,
+        "ssh_client_version": "OpenSSH_8.3p1, BoringSSL",
+        "sshd_binary_present": true,
+        "sshd_process_observed": false,
+        "tcp_22_listener_observed": false,
+        "ssh_login_tested": false,
+        "telnet_binary_on_path": false,
+        "termux_installed": false
+      },
+      "apps": {
+        "com.msp1974.vacompanion": {
+          "version_name": "0.13.4+myshka.10-sip.1",
+          "version_code": 7010
+        },
+        "org.hahomelab.show5sip": {
+          "version_name": "0.1.0",
+          "version_code": 1
+        },
+        "io.homeassistant.companion.android.minimal": {
+          "version_name": "2026.8.4-minimal",
+          "version_code": 24228
+        },
+        "org.jitsi.meet": {
+          "version_name": "26.0.0",
+          "version_code": 26000001
+        },
+        "com.github.digitallyrefined.androidipcamera": {
+          "version_name": "0.14.0",
+          "version_code": 140
+        }
+      }
+    },
+    "show2": {
+      "build": {
+        "ro.build.version.release": "11",
+        "ro.build.version.sdk": "30",
+        "ro.build.version.security_patch": "2024-02-05",
+        "ro.lineage.version": "18.1-20260905-UNOFFICIAL-cronos",
+        "ro.product.cpu.abilist": "armeabi-v7a,armeabi",
+        "ro.product.cpu.abilist32": "armeabi-v7a,armeabi",
+        "ro.product.cpu.abilist64": "",
+        "ro.build.type": "userdebug",
+        "ro.debuggable": "1",
+        "ro.adb.secure": "1",
+        "service.adb.tcp.port": "5555",
+        "persist.adb.tcp.port": "5555",
+        "init.svc.adbd": "running"
+      },
+      "memory_kib": {
+        "MemTotal": 996836,
+        "MemAvailable": 269684,
+        "SwapTotal": 494828
+      },
+      "data_partition_kib": {
+        "total": 3903724,
+        "available": 2574340
+      },
+      "display": {
+        "width": 960,
+        "height": 480,
+        "density": 195
+      },
+      "sensor_hal": [
+        {
+          "type": "android.sensor.light",
+          "name": "Light Sensor",
+          "vendor": "amazon-oss",
+          "vaca_listener_active": true
+        }
+      ],
+      "ha_light": {
+        "numeric": true,
+        "unit": "lx",
+        "device_class": "illuminance"
+      },
+      "ha_motion_mode": "none",
+      "brightness": {
+        "mode": "manual",
+        "android_value": 255
+      },
+      "bluetooth": {
+        "enabled": true,
+        "a2dp_sink_service_present": true,
+        "playback_tested": false
+      },
+      "thermal_hal_ready": false,
+      "administration": {
+        "adb_uid": 2000,
+        "legacy_adb_tcp_port": 5555,
+        "paired_wireless_debugging_enabled": false,
+        "ssh_client_version": "OpenSSH_8.3p1, BoringSSL",
+        "sshd_binary_present": true,
+        "sshd_process_observed": false,
+        "tcp_22_listener_observed": false,
+        "ssh_login_tested": false,
+        "telnet_binary_on_path": false,
+        "termux_installed": false
+      },
+      "apps": {
+        "com.msp1974.vacompanion": {
+          "version_name": "0.13.4+myshka.10-sip.1",
+          "version_code": 7010
+        },
+        "org.hahomelab.show5sip": {
+          "version_name": "0.1.0",
+          "version_code": 1
+        },
+        "io.homeassistant.companion.android.minimal": {
+          "version_name": "2026.8.4-minimal",
+          "version_code": 24228
+        },
+        "org.jitsi.meet": {
+          "version_name": "26.0.0",
+          "version_code": 26000001
+        },
+        "play.ott.foss": {
+          "version_name": "1.1.42-show5.2",
+          "version_code": 10144
+        },
+        "play.ott.foss.nativeapp.preview": {
+          "version_name": "0.2.1-preview",
+          "version_code": 3
+        },
+        "org.videolan.vlc": {
+          "version_name": "3.7.1",
+          "version_code": 13070105
+        },
+        "com.github.digitallyrefined.androidipcamera": {
+          "version_name": "0.14.0",
+          "version_code": 140
+        }
+      }
+    }
+  }
+}

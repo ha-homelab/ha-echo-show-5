@@ -1,5 +1,9 @@
 # Documentation diagrams
 
+- [Room capabilities and shared-resource plan](room-capabilities.svg): the
+  October 29 observed hardware/software, proposed activity coordinator and
+  server boundary. [Text equivalent and evidence](../installed-capabilities.md).
+
 These SVGs are editable repository source, not screenshots or automatically updated measurements. They use native SVG shapes and text, include accessible titles/descriptions, and require no external images, fonts or scripts. English labels are the canonical diagram text; translated entry READMEs link to the same diagrams.
 
 ## Service and installation diagrams

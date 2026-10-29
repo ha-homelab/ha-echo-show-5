@@ -4,6 +4,20 @@
 
 This wiki is versioned with the code under `docs/wiki/`. It describes the **Echo Show 5 Gen2 / 2021 / `cronos`** route. It is readable in a local checkout and on GitHub without enabling the separate GitHub Wiki feature. Detailed instructions and evidence remain linked at their source rather than copied into conflicting procedures.
 
+## October 29: installed capability audit
+
+Both Shows are available and run VACA `0.13.4+myshka.10-sip.1` / 7010.
+The audit confirms one real light sensor per device, existing HA lux entities,
+bundled SSH binaries, an Android Bluetooth sink profile, and different installed
+media players. It separates observed functions from untested expansion options.
+The earlier SIP pilot verified HA-controlled pair calls and microphone return.
+
+[Measured baseline, priorities and limitations](../installed-capabilities.md) ·
+[Remote access](../android-remote-access.md) · [Permissions](../android-permissions-and-limits.md).
+
+The October 20 section below is a historical checkpoint; its Show 2 availability
+and application version do not describe the October 29 installation.
+
 ## October 20: listener lifecycle verified on Show 1
 
 Show 1 runs **`myshka.9` / `7009`** with **“Привет, мышка” at 0.50** and optional
