@@ -8,6 +8,7 @@ import time
 PROTOCOL = 'cisco-announcement-v1'
 REQUEST_ID = re.compile(r'announce-[0-9a-f]{32}-[0-9]{3}\Z')
 CAPABILITIES = ('atomic_idle_guard', 'dedup', 'owned_cancel', 'honest_completion', 'deadline_enforced')
+BUSY_POLICIES = frozenset({'skip', 'duck_music'})
 STATUSES = frozenset({'accepted', 'playing', 'completed', 'skipped', 'failed', 'stopped', 'unknown'})
 TERMINAL = frozenset({'completed', 'skipped', 'failed', 'stopped'})
 MAX_SECONDS = 300
@@ -23,6 +24,11 @@ def validate_id(value):
         raise AnnouncementError('invalid_request_id')
     return value
 
+def busy_policy(value='skip'):
+    if not isinstance(value, str) or value not in BUSY_POLICIES:
+        raise AnnouncementError('unsupported_policy')
+    return value
+
 def validate_submission(data, now):
     if set(data) - {'request_id', 'media_id', 'expires_at', 'preannounce', 'busy_policy'}:
         raise AnnouncementError('unexpected_fields')
@@ -33,18 +39,30 @@ def validate_submission(data, now):
     expiry = data.get('expires_at')
     if isinstance(expiry, bool) or not isinstance(expiry, (int, float)) or not now < expiry <= now + MAX_SECONDS:
         raise AnnouncementError('expired_or_invalid_deadline')
-    if data.get('preannounce', False) is not False or data.get('busy_policy', 'skip') != 'skip':
+    busy_policy(data.get('busy_policy', 'skip'))
+    if data.get('preannounce', False) is not False:
         raise AnnouncementError('unsupported_policy')
     return request_id, media, float(expiry)
 
-def capable(data):
-    return data.get('protocol') == PROTOCOL and all(data.get(key) is True for key in CAPABILITIES)
+def capable(data, policy='skip'):
+    if not isinstance(data, dict) or data.get('protocol') != PROTOCOL or not all(data.get(key) is True for key in CAPABILITIES):
+        return False
+    return policy == 'skip' or (policy == 'duck_music' and data.get('duck_music') is True
+        and data.get('duck_music_player') == 'vaca' and data.get('duck_music_scope') == 'owned_player')
 
 def public(record):
     return {key: record[key] for key in ('request_id', 'status', 'reason') if key in record}
 
-def digest(media, expiry):
-    return hashlib.sha256((media + '\n' + repr(expiry)).encode()).hexdigest()
+def digest(media, expiry, policy='skip'):
+    policy = busy_policy(policy)
+    original = media + '\n' + repr(expiry)
+    value = original if policy == 'skip' else 'duck_music\n' + original
+    return hashlib.sha256(value.encode()).hexdigest()
+
+def media_fingerprint(media, policy='skip'):
+    policy = busy_policy(policy)
+    value = media if policy == 'skip' else 'duck_music\n' + media
+    return hashlib.sha256(value.encode()).hexdigest()
 
 def safe_reason(value):
     return value if isinstance(value, str) and re.fullmatch(r'[a-z0-9_]{1,80}', value) else 'device_receipt'
@@ -129,9 +147,10 @@ class AnnouncementManager:
         if not isinstance(media, str) or isinstance(raw_expiry, bool) or not isinstance(raw_expiry, (float, int)):
             raise AnnouncementError('invalid_submission')
         # Validate all policy fields even when this is a duplicate.
-        if set(data) - {'request_id', 'media_id', 'expires_at', 'preannounce', 'busy_policy'} or data.get('preannounce', False) is not False or data.get('busy_policy', 'skip') != 'skip':
+        policy = busy_policy(data.get('busy_policy', 'skip'))
+        if set(data) - {'request_id', 'media_id', 'expires_at', 'preannounce', 'busy_policy'} or data.get('preannounce', False) is not False:
             raise AnnouncementError('unsupported_policy')
-        fingerprint = digest(media, float(raw_expiry))
+        fingerprint = digest(media, float(raw_expiry), policy)
         key = self.key(entity, request_id)
         async with self.lock:
             existing = self.records.get(key)
@@ -152,12 +171,12 @@ class AnnouncementManager:
                 raise AnnouncementError('receipt_capacity_reached')
             if any(r['entity_id'] == entity and r['status'] in {'accepted', 'playing'} for r in self.records.values()):
                 status, reason = 'skipped', 'announcement_busy'
-            elif reason := adapter.busy_reason():
+            elif reason := adapter.busy_reason(policy):
                 status = 'skipped'
             else:
                 status, reason = 'accepted', 'queued'
             record = dict(entity_id=entity, request_id=request_id, owner=owner, fingerprint=fingerprint,
-                          expires_at=expiry, status=status, reason=reason, claimed=False, claim_sent=False)
+                          expires_at=expiry, status=status, reason=reason, claimed=False, claim_sent=False, busy_policy=policy)
             self.records[key] = record
             try:
                 await self.persist()
@@ -179,10 +198,11 @@ class AnnouncementManager:
     async def run(self, key, media, adapter, generation):
         record = self.records[key]
         request_id = record['request_id']
+        policy = record.get('busy_policy', 'skip')
         try:
             async with asyncio.timeout(max(0.001, record['expires_at'] - self.clock())):
-                if not capable(await adapter.capabilities()):
-                    await self.set_status(key, 'skipped', 'guarded_protocol_unavailable')
+                if not capable(await adapter.capabilities(), policy):
+                    await self.set_status(key, 'skipped', 'duck_music_unavailable' if policy == 'duck_music' else 'guarded_protocol_unavailable')
                     return
                 pcm = await adapter.decode(media)
                 if not pcm or len(pcm) > MAX_PCM_BYTES or len(pcm) % 2:
@@ -192,15 +212,21 @@ class AnnouncementManager:
                     return
                 if getattr(adapter, 'generation', 0) != generation:
                     raise AnnouncementError('satellite_reconnected')
-                if reason := adapter.busy_reason():
+                if reason := adapter.busy_reason(policy):
                     await self.set_status(key, 'skipped', reason)
                     return
                 async with self.lock:
                     record['claim_sent'] = True
                     await self.persist()
                 reply = await adapter.rpc('claim', request_id, expires_at=int(record['expires_at']),
-                                          payload_fingerprint=hashlib.sha256(media.encode()).hexdigest(), _generation=generation)
+                                          payload_fingerprint=media_fingerprint(media, policy), _generation=generation,
+                                          **({'busy_policy': policy} if policy != 'skip' else {}))
                 status = reply.get('status')
+                if (policy == 'duck_music' and status in {'accepted', 'playing', 'completed', 'stopped'}
+                        and reply.get('busy_policy') != policy):
+                    await self.set_status(key, 'unknown', 'invalid_policy_receipt')
+                    await self.cancel_native(adapter, request_id)
+                    return
                 if status not in {'accepted', 'playing'}:
                     await self.set_status(key, status if status in STATUSES else 'unknown', safe_reason(reply.get('reason')))
                     return
@@ -216,7 +242,7 @@ class AnnouncementManager:
                 if deduplicated:
                     await self.set_status(key, status, 'existing_native_request')
                     while record['status'] not in TERMINAL:
-                        if reason := adapter.busy_reason():
+                        if reason := adapter.busy_reason(policy):
                             raise AnnouncementError(reason)
                         await self.status(record['entity_id'], request_id)
                         await asyncio.sleep(0.35)
@@ -225,12 +251,12 @@ class AnnouncementManager:
                 for sequence, offset in enumerate(range(0, len(pcm), 16384)):
                     if record['status'] in TERMINAL:
                         return
-                    if reason := adapter.busy_reason():
+                    if reason := adapter.busy_reason(policy):
                         raise AnnouncementError(reason)
                     await adapter.send('audio-chunk', request_id, payload=pcm[offset:offset + 16384], sequence=sequence, _generation=generation)
                 await adapter.send('audio-stop', request_id, _generation=generation)
                 while record['status'] not in TERMINAL:
-                    if reason := adapter.busy_reason():
+                    if reason := adapter.busy_reason(policy):
                         raise AnnouncementError(reason)
                     await asyncio.sleep(0.1)
         except asyncio.CancelledError:
@@ -263,6 +289,8 @@ class AnnouncementManager:
         if data.get('op') not in {'event', 'audio-start', 'audio-chunk', 'audio-stop'}:
             return
         record = self.records[key]
+        if record.get('busy_policy', 'skip') == 'duck_music' and data.get('busy_policy') != 'duck_music':
+            return
         if not record.get('claim_sent') or status == 'accepted':
             return
         if status == 'playing' and record['status'] == 'unknown':
@@ -278,7 +306,8 @@ class AnnouncementManager:
         if record['status'] not in TERMINAL and record.get('claim_sent') and entity in self.adapters:
             try:
                 reply = await self.adapters[entity].rpc('status', request_id)
-                if reply.get('status') in TERMINAL | {'unknown', 'playing'}:
+                matching_policy = record.get('busy_policy', 'skip') != 'duck_music' or reply.get('busy_policy') == 'duck_music'
+                if matching_policy and reply.get('status') in TERMINAL | {'unknown', 'playing'}:
                     await self.set_status(key, reply['status'], safe_reason(reply.get('reason')))
             except Exception:
                 pass
@@ -306,6 +335,8 @@ class AnnouncementManager:
         try:
             reply = await adapter.rpc('cancel', request_id)
             status = reply.get('status')
+            if record.get('busy_policy', 'skip') == 'duck_music' and reply.get('busy_policy') != 'duck_music':
+                return await self.set_status(key, 'unknown', 'invalid_policy_receipt')
             return await self.set_status(key, status if status in TERMINAL else 'unknown', safe_reason(reply.get('reason')))
         except Exception:
             return await self.set_status(key, 'unknown', 'cancel_unconfirmed')

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply guarded announcements only to the exact composed VACA .11 source."""
+"""Apply guarded announcements and optional owned-player music ducking to the verified nearest base."""
 import argparse
 import hashlib
 import json

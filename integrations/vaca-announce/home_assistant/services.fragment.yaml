@@ -1,6 +1,6 @@
 announcement_submit:
   name: Submit guarded announcement
-  description: Queue previously synthesized Home Assistant TTS audio. Accepted does not mean played. Busy devices are skipped; no conversation is started.
+  description: Queue previously synthesized Home Assistant TTS audio. Accepted does not mean played. Busy devices are skipped by default; opt-in duck_music requires the native owned-player capability. No conversation is started.
   fields:
     entity_id:
       required: true
@@ -36,6 +36,7 @@ announcement_submit:
         select:
           options:
             - skip
+            - duck_music
 announcement_status:
   name: Read guarded announcement status
   description: Read or reconcile one request receipt. This action never initiates playback.

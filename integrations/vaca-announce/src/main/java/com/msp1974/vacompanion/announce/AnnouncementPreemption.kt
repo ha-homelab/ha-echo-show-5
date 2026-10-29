@@ -9,7 +9,7 @@ internal suspend fun preemptAnnouncementOwner(
     mutex: Mutex,
     owner: () -> String?,
     signal: (String) -> Unit,
-    finish: (String) -> Unit,
+    finish: suspend (String) -> Unit,
 ) {
     owner()?.let(signal)
     mutex.withLock {

@@ -12,7 +12,7 @@ internal class AnnouncementLedger(
     initialPrunedThrough: Long = 0,
 ) {
     data class Record(val requestId: String, val fingerprint: String, val expiresAt: Long,
-                      val status: String, val reason: String = "")
+                      val status: String, val reason: String = "", val busyPolicy: String = "skip")
     data class Reply(val requestId: String, val status: String, val reason: String = "", val fresh: Boolean = false)
     private val records = LinkedHashMap<String, Record>()
     private var deadline: Long = 0
@@ -30,16 +30,19 @@ internal class AnnouncementLedger(
         initial.forEach { record ->
             require(validId(record.requestId) && record.fingerprint.matches(Regex("[0-9a-f]{64}")))
             require(record.status in TERMINAL || record.status in ACTIVE)
+            require(record.busyPolicy in POLICIES)
             require(!records.containsKey(record.requestId))
             records[record.requestId] = if (record.status in ACTIVE)
                 record.copy(status = "unknown", reason = "process_restarted") else record
         }
         if (initial.any { it.status in ACTIVE }) write(records.values.toList())
     }
-    fun claim(id: String, fingerprint: String, expiresAt: Long): Reply = synchronized(AnnouncementGate.monitor) {
+    fun claim(id: String, fingerprint: String, expiresAt: Long, busyPolicy: String = "skip",
+              checkBusy: () -> String? = busyReason): Reply = synchronized(AnnouncementGate.monitor) {
+        if (busyPolicy !in POLICIES) return@synchronized Reply(id, "failed", "invalid_policy")
         if (!validId(id) || !fingerprint.matches(Regex("[0-9a-f]{64}"))) return@synchronized Reply(id, "failed", "invalid_request")
         records[id]?.let { old ->
-            if (old.fingerprint != fingerprint || old.expiresAt != expiresAt)
+            if (old.fingerprint != fingerprint || old.expiresAt != expiresAt || old.busyPolicy != busyPolicy)
                 return@synchronized Reply(id, "failed", "request_conflict")
             return@synchronized Reply(id, old.status, old.reason)
         }
@@ -50,15 +53,16 @@ internal class AnnouncementLedger(
         val reason = when {
             remaining <= 0 || expiresAt <= prunedThrough -> "expired"
             remaining > MAX_TTL_MS -> "invalid_expiry"
-            else -> AnnouncementGate.claim(id, busyReason)
+            else -> AnnouncementGate.claim(id, checkBusy)
         }
-        val record = Record(id, fingerprint, expiresAt, if (reason == null) "accepted" else "skipped", reason ?: "")
+        val record = Record(id, fingerprint, expiresAt, if (reason == null) "accepted" else "skipped", reason ?: "", busyPolicy)
         val next = records.values.toMutableList().apply { add(record) }
         if (!write(next)) { AnnouncementGate.release(id); return@synchronized Reply(id, "failed", "journal_unavailable") }
         records[id] = record
         if (reason == null) deadline = monotonicNow() + remaining
         Reply(id, record.status, record.reason, reason == null)
     }
+    fun policy(id: String): String? = synchronized(AnnouncementGate.monitor) { records[id]?.busyPolicy }
     fun status(id: String): Reply = synchronized(AnnouncementGate.monitor) {
         records[id]?.let { Reply(id, it.status, it.reason) } ?: Reply(id, "unknown", "not_found")
     }
@@ -110,6 +114,7 @@ internal class AnnouncementLedger(
     companion object {
         const val MAX_TTL_MS = 300_000L
         const val RETENTION_MS = 86_400_000L
+        val POLICIES = setOf("skip", "duck_music")
         val ACTIVE = setOf("accepted", "playing")
         val TERMINAL = setOf("completed", "skipped", "failed", "stopped", "unknown")
         fun validId(id: String) = id.matches(Regex("announce-[0-9a-f]{32}-[0-9]{3}"))

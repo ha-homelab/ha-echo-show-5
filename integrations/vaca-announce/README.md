@@ -1,14 +1,17 @@
 # Guarded announcements for VACA
 
 This additive candidate layers over the pinned dual-wake, SIP and nearest-device
-sources. VACA identifies the build as `0.13.4+myshka.13-announce.2` / `7013`.
+sources. The checked baseline is `0.13.4+myshka.13-announce.2` / `7013`.
 The companion SIP application is `0.1.1` / `2`. Each Show retains one SIP account.
 
 See the [operator guide](../../docs/guarded-announcements.md) and the
 [HA service contract and staging procedure](home_assistant/README.md).
 
 [October 29 post-review validation](build-validation-2026-10-29-r2.md) records the exact
-current APK hashes, passed tests, quiet rollout evidence and remaining acoustic acceptance.
+baseline APK hashes, passed tests, quiet rollout evidence and remaining acoustic acceptance.
+The optional `duck_music` extension is the `7014` follow-on candidate. Its separate
+[build and rollout record](build-validation-2026-10-29-duck.md) distinguishes
+software checks and quiet installation from pending acoustic acceptance.
 
 ## Build without devices
 
@@ -67,3 +70,22 @@ Coordinated VACA/SIP operations share an admission boundary. External Android
 applications are observed conservatively and cause owned playback to abort;
 they do not participate in an Android-wide mutex. Unknown external state fails
 closed. Offline tests and a successful build do not establish acoustic acceptance.
+
+## Optional VACA music ducking
+
+`busy_policy: "skip"` remains the default and preserves its stored request
+fingerprints. `duck_music` requires explicit endpoint capability support and
+permits only music owned by VACA's `MusicPlayerService`. A request ID cannot be
+reused to switch between these policies.
+
+The player keeps its current user-volume target and applies a temporary,
+announcement-owned gain. Cleanup removes that gain instead of writing an old
+volume snapshot. User-volume changes survive, tracks on the same owned player
+inherit the gain, and replacement players cannot receive a stale restoration.
+No system stream-volume change or generic media-stop is used for ducking.
+
+Admission and continued playback still enforce SIP, Assist, alarms, DND,
+foreground and observed-playback guards. Unknown or additional audio activity
+fails closed. The Android focus system remains outside VACA's ownership;
+`global_android_exclusion` stays false. See the operator guide for the scope and
+the separate attended tests required before promoting music ducking.

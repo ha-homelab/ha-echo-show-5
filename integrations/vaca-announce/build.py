@@ -12,8 +12,8 @@ import xml.etree.ElementTree as ET
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
-VERSION = '0.13.4+myshka.13-announce.2'
-CODE = 7013
+VERSION = '0.13.4+myshka.14-announce.3'
+CODE = 7014
 
 
 def load(name, path):
@@ -125,6 +125,9 @@ def main():
         admission_suite = source / 'app/build/test-results/testDebugUnitTest/TEST-com.msp1974.vacompanion.announce.AnnouncementAdmissionTest.xml'
         if not admission_suite.exists() or int(ET.parse(admission_suite).getroot().get('tests', '0')) < 18:
             raise ValueError('Announcement preemption and foreground tests did not run')
+        duck_suite = source / 'app/build/test-results/testDebugUnitTest/TEST-com.msp1974.vacompanion.announce.AnnouncementDuckingTest.xml'
+        if not duck_suite.exists() or int(ET.parse(duck_suite).getroot().get('tests', '0')) < 37:
+            raise ValueError('Owned music ducking tests did not run')
         if not b.source_matches(source, index_env):
             raise ValueError('Source changed during VACA build')
         if any(b.sha256(path) != checksum for path, checksum in frozen_inputs.items()):

@@ -28,7 +28,7 @@ def load():
     names = ('homeassistant', 'homeassistant.auth', 'homeassistant.auth.permissions',
              'homeassistant.auth.permissions.const', 'homeassistant.components',
              'homeassistant.core', 'homeassistant.exceptions', 'homeassistant.helpers',
-             'homeassistant.helpers.aiohttp_client', 'homeassistant.helpers.storage',
+             'homeassistant.helpers.aiohttp_client', 'homeassistant.helpers.storage', 'homeassistant.helpers.entity_registry',
              'wyoming', 'wyoming.event', 'guarded_fixture', 'aiohttp')
     modules = {name: types.ModuleType(name) for name in names}
     modules['guarded_fixture'].__path__ = [str(ROOT / 'src')]
@@ -38,6 +38,8 @@ def load():
     modules['homeassistant.exceptions'].HomeAssistantError = HomeAssistantError
     modules['homeassistant.helpers.aiohttp_client'].async_get_clientsession = lambda hass, **kwargs: hass.session
     modules['homeassistant.helpers.storage'].Store = Store
+    modules['homeassistant.helpers.entity_registry'].async_get = lambda hass: types.SimpleNamespace(async_get=hass.registry.get)
+    modules['homeassistant.helpers'].entity_registry = modules['homeassistant.helpers.entity_registry']
     modules['wyoming.event'].Event = Event
     modules['aiohttp'].ClientTimeout = lambda **kw: kw
     with patch.dict(sys.modules, modules):
@@ -55,6 +57,7 @@ class HA:
         self.data = {}
         self.config = types.SimpleNamespace(internal_url='http://ha.local:8123', external_url='https://ha.example.test', api=types.SimpleNamespace(port=8123, use_ssl=False), path=lambda name: '/not-present-guard-fixture/' + name)
         self.values = {}
+        self.registry = {}
         self.states = types.SimpleNamespace(get=lambda key: self.values.get(key))
         self.registered = {}
         self.services = types.SimpleNamespace(async_register=lambda domain, name, fn, **kw: self.registered.update({name: (fn, kw)}))
@@ -70,8 +73,10 @@ class AdapterTests(unittest.IsolatedAsyncioTestCase):
         self.ha = HA()
         await adapter.async_setup_guarded(self.ha)
         self.entity = types.SimpleNamespace(entity_id='assist_satellite.test', hass=self.ha, state='idle', _client=None,
-                                            config_entry=types.SimpleNamespace(options={}))
+                                            config_entry=types.SimpleNamespace(options={}, entry_id='entry-test'))
         mapping = {role: 'test.' + role for role in adapter.GUARDS}
+        mapping['media'] = 'media_player.test'
+        self.ha.registry[mapping['media']] = types.SimpleNamespace(platform='vaca', config_entry_id='entry-test', unique_id='entry-test-media_player')
         self.entity.config_entry.options[adapter.OPTIONS_KEY] = mapping
         for role, entity_id in mapping.items():
             state = 'off' if role == 'dnd' else 'idle'
@@ -301,5 +306,84 @@ class AdapterTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(calls[0][0].startswith('https://127.0.0.1:'))
         self.assertEqual(calls[0][1]['server_hostname'], 'ha.example.test')
         self.assertEqual(self.sent, [])
+
+    def owned_music(self):
+        mapping = self.entity.config_entry.options[adapter.OPTIONS_KEY]
+        mapping['intercom'] = mapping['room']
+        self.ha.values[mapping['room']].state = 'music'
+        self.ha.values[mapping['room']].attributes.update(owner='music', busy=True)
+        self.ha.values[mapping['media']].state = 'playing'
+
+    def test_duck_only_allows_consistent_owned_vaca_music(self):
+        self.owned_music()
+        self.assertEqual(self.transport.busy_reason(), 'room_busy')
+        self.assertEqual(self.transport.busy_reason('duck_music'), '')
+        self.ha.values['test.room'].attributes['owner'] = 'ottplay'
+        self.assertEqual(self.transport.busy_reason('duck_music'), 'room_busy')
+        self.ha.values['test.room'].attributes['owner'] = 'music'
+        self.ha.values['test.room'].attributes['busy'] = False
+        self.assertEqual(self.transport.busy_reason('duck_music'), 'room_busy')
+
+    def test_duck_rejects_foreign_registry_owner(self):
+        self.owned_music()
+        original = self.ha.registry['media_player.test']
+        for changes in [{'platform': 'sendspin'}, {'config_entry_id': 'other-show'}, {'unique_id': 'other-media-player'}]:
+            changed = dict(platform=original.platform, config_entry_id=original.config_entry_id, unique_id=original.unique_id)
+            changed.update(changes)
+            self.ha.registry['media_player.test'] = types.SimpleNamespace(**changed)
+            with self.subTest(changes=changes):
+                self.assertEqual(self.transport.busy_reason('duck_music'), 'duck_music_player_unavailable')
+        self.ha.registry.pop('media_player.test')
+        self.assertEqual(self.transport.busy_reason('duck_music'), 'duck_music_player_unavailable')
+
+    def test_duck_never_bypasses_calls_dnd_assist_or_other_room_modes(self):
+        self.owned_music()
+        for state in ['jitsi', 'phone', 'alarm', 'timer', 'ottplay']:
+            self.ha.values['test.room'].state = state
+            with self.subTest(state=state): self.assertEqual(self.transport.busy_reason('duck_music'), 'room_busy')
+        self.ha.values['test.room'].state = 'music'
+        self.ha.values['test.dnd'].state = 'on'
+        self.assertEqual(self.transport.busy_reason('duck_music'), 'dnd_busy')
+        self.ha.values['test.dnd'].state = 'off'
+        self.ha.values['test.sip'].state = 'ringing'
+        self.assertEqual(self.transport.busy_reason('duck_music'), 'sip_busy')
+        self.ha.values['test.sip'].state = 'idle'
+        self.ha.values['test.sip'].attributes['lease_held'] = True
+        self.assertEqual(self.transport.busy_reason('duck_music'), 'sip_busy')
+        self.ha.values['test.sip'].attributes['lease_held'] = False
+        self.entity.state = 'responding'
+        self.assertEqual(self.transport.busy_reason('duck_music'), 'assist_busy')
+
+    def test_independent_intercom_music_state_cannot_use_room_exception(self):
+        self.owned_music()
+        self.entity.config_entry.options[adapter.OPTIONS_KEY]['intercom'] = 'test.intercom'
+        self.ha.values['test.intercom'].state = 'music'
+        self.assertEqual(self.transport.busy_reason('duck_music'), 'intercom_busy')
+
+    async def test_duck_capability_validates_native_scope_and_registry_binding(self):
+        self.owned_music()
+        values = {'duck_music': True, 'duck_music_player': 'vaca', 'duck_music_scope': 'owned_player'}
+        async def send(event):
+            self.transport.receive(Event('guarded-announce-result', dict(event.data, protocol=core.PROTOCOL,
+                status='accepted', **{key: True for key in core.CAPABILITIES}, **values)))
+        self.entity._client.write_event = send
+        self.assertTrue((await self.transport.capabilities())['duck_music'])
+        values['duck_music_scope'] = 'global_volume'
+        self.assertFalse((await self.transport.capabilities())['duck_music'])
+        values['duck_music_scope'] = 'owned_player'; values['duck_music'] = 'true'
+        self.assertFalse((await self.transport.capabilities())['duck_music'])
+        values['duck_music'] = True
+        self.ha.registry['media_player.test'].config_entry_id = 'different-device'
+        self.assertFalse((await self.transport.capabilities())['duck_music'])
+
+    def test_journal_accepts_legacy_skip_and_new_duck_but_not_unknown_policy(self):
+        record = dict(request_id=ID, entity_id=self.entity.entity_id, status='unknown', expires_at=1180.0,
+                      owner='a'*64, fingerprint='b'*64, claimed=False, claim_sent=False)
+        key = core.AnnouncementManager.key(self.entity.entity_id, ID)
+        self.assertIs(adapter.validate_journal({key: record})[key], record)
+        record['busy_policy'] = 'duck_music'
+        self.assertIs(adapter.validate_journal({key: record})[key], record)
+        record['busy_policy'] = 'force'
+        with self.assertRaises(HomeAssistantError): adapter.validate_journal({key: record})
 
 if __name__ == '__main__': unittest.main()

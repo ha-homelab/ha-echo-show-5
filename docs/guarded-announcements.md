@@ -5,10 +5,13 @@ ordinary calls. Each physical Show retains **one** SIP account. An announcement
 does not create another extension, dial a number, start a conversation, or upload
 microphone audio for speech recognition.
 
-This is a candidate integration. The [October 29 validation record](../integrations/vaca-announce/build-validation-2026-10-29-r2.md)
-identifies the checked artifacts and quiet installation on two endpoints;
-the linked PR records final live activation checks. Audible playback and room-level acoustic acceptance remain pending.
-Do not enable a dispatcher until the installed endpoint reports the required
+This is a candidate integration. The [baseline validation record](../integrations/vaca-announce/build-validation-2026-10-29-r2.md)
+identifies the checked baseline artifacts and quiet installation on two endpoints;
+the linked PR records final live activation checks. The optional `duck_music`
+extension is a separate candidate and is not validated by that baseline record.
+Audible playback and room-level acoustic acceptance remain pending.
+The [7014 ducking record](../integrations/vaca-announce/build-validation-2026-10-29-duck.md)
+separately tracks the optional music policy. Do not enable a dispatcher until the installed endpoint reports the required
 capabilities. There is no automatic fallback to an unguarded announcement.
 
 ![The announcement request is checked, decoded once, admitted by the device, and acknowledged with its original request ID. Calls keep their separate SIP route.](assets/guarded-announcements.svg)
@@ -38,10 +41,16 @@ Check HTTP and Home Assistant errors before inspecting that response.
 - `announcement_capabilities`: `{entity_id}`. This is read-only and never starts
   playback. Require protocol `cisco-announcement-v1` and all of
   `atomic_idle_guard`, `dedup`, `owned_cancel`, `honest_completion`, and
-  `deadline_enforced` before enabling a dispatcher.
+  `deadline_enforced` before enabling a dispatcher. For `duck_music`, also require
+  `duck_music: true`, `duck_music_player: "vaca"`, and
+  `duck_music_scope: "owned_player"`. Missing support skips that request; it does
+  not silently select a different policy or unguarded route.
 - `announcement_submit`: `{entity_id, request_id, media_id, expires_at,
   preannounce: false, busy_policy: "skip"}`. `expires_at` is a Unix UTC timestamp
-  in seconds. Submission is asynchronous; acceptance is not completion.
+  in seconds. `skip` remains the default. The optional `duck_music` policy allows
+  supported VACA music to continue at reduced gain; it does not relax the call,
+  Assist, DND, foreground or deadline checks. Submission is asynchronous;
+  acceptance is not completion.
 - `announcement_status`: `{entity_id, request_id}`. This is read-only and must
   never retry or create a request.
 - `announcement_stop`: `{entity_id, request_id}`. This stops only the matching
@@ -50,7 +59,10 @@ Check HTTP and Home Assistant errors before inspecting that response.
 Receipt services return `{request_id, status, reason?}` with the exact original
 ID. Dispatcher-generated IDs have the shape `announce-<32 lowercase hex>-<three
 digit endpoint>`. Preserve the same ID while reconciling an uncertain response.
-Submitting the same ID with changed content must not replace the original job.
+Submitting the same ID with changed content or a different busy policy must not
+replace the original job. An omitted policy means `skip`, including receipts
+written before `duck_music` existed. The original `skip` fingerprints remain
+compatible; changing an old request to `duck_music` is a conflict, not a retry.
 
 Statuses are `accepted`, `playing`, `completed`, `skipped`, `failed`, `stopped`,
 and `unknown`. `completed` describes successful device-side playback drain, not
@@ -79,11 +91,60 @@ describe the guard scope separately: `guard_scope: "coordinated_vaca_sip"`,
 available; missing permissions or unknown activity are not evidence of idleness.
 The HA room/call and do-not-disturb policy adds another admission check.
 
-The first version skips busy playback rather than interrupting music. In
-particular, do not substitute `media_player.play_media(announce=true)`: the
-upstream VACA media route replaces its current item and does not guarantee
-restoration. A stop request must retain the announcement's ownership and cannot
-stop a newer call, alarm or media session.
+The default `skip` policy keeps its original behavior: busy music is a reason
+to skip. Do not substitute `media_player.play_media(announce=true)`: the upstream
+VACA media route replaces its current item and does not guarantee restoration.
+A stop request retains the announcement's ownership and cannot stop a newer
+call, alarm or media session.
+
+## Optional music ducking
+
+Request `busy_policy: "duck_music"` only after the endpoint explicitly advertises
+support for that policy. This permits a temporary gain change on the existing
+**VACA MusicPlayerService** player. It is not a general Android media controller:
+OTTPlay, a browser, a Bluetooth source and other applications are not eligible
+music owners. Their volume is never deliberately changed through the system
+volume controls.
+
+The native device checks the exact music owner and active playback observations
+before admission. HA may allow a consistent local-music state through its
+preliminary room check, but that does not grant native ownership. Calls, Assist,
+alarms, DND, unknown activity and unsupported music still prevent admission. The
+device repeats its checks during playback; additional or ambiguous activity
+stops the owned announcement.
+
+Music gain is calculated from the current user volume and an announcement-owned
+attenuation token. The current candidate multiplies the player's gain by `0.2`
+(20% of its requested gain, not a system-volume setting). Cleanup removes that token instead of restoring a saved
+volume snapshot. Consequently, a volume change during an announcement remains
+the user's chosen volume afterward. A new track on the same owned player uses
+the current gain policy; destroying or replacing the player invalidates its
+token. Cleanup cannot revive a stopped track or apply an old volume to a new
+player. Old asynchronous volume ramps must not override this ownership.
+A track change can end the announcement if playback observations become
+ambiguous; the selected track and the user's current volume target are retained.
+
+An idle endpoint can accept `duck_music`, but it does not reserve permission to
+start music later. Only the player already admitted with the announcement may
+continue or change tracks. A later attempt to start an unrelated music session
+remains blocked until the announcement releases its gate.
+
+Completion, explicit stop, deadline expiry, transport loss and playback failure
+all attempt to release only the matching announcement's gain token. If cleanup
+cannot be confirmed, the receipt stays uncertain and ownership remains
+quarantined; attenuation can remain in place and further guarded work fails closed.
+An incoming SIP call still preempts the announcement; music ownership must also
+satisfy the SIP audio-lease rules before a call can take over.
+
+The Android [active playback API](https://developer.android.com/reference/android/media/AudioManager#getActivePlaybackConfigurations())
+provides observations, not a global application lock. The guard rejects observed
+ambiguity but cannot prohibit an arbitrary application from starting later.
+An announcement over owned music shares that player's existing focus instead
+of issuing another focus request to attenuate other applications. Losing the
+music owner's focus stops the announcement. System audio policy and arbitrary
+applications still remain outside VACA's ownership. The declared scope remains `coordinated_vaca_sip` with
+`global_android_exclusion: false`; this policy does not promise uninterrupted
+foreign audio.
 
 ## Completion and recovery
 
@@ -121,6 +182,11 @@ Attended acceptance remains separate: intelligible playback, volume, actual
 completion, expiry, duplicate submission, concurrent calls/media/DND, owned
 stop, connection loss and restart recovery. Record those outcomes against the
 installed versions before promoting a candidate to a stable release.
+
+For `duck_music`, also check audible continuity, user-volume changes, track
+changes, pause/stop during the announcement, restoration after every exit path,
+incoming SIP priority, and a second application starting audio. Confirm that
+system volume is unchanged and that `skip` still skips the same busy player.
 
 After restarting HA, allow AndroidTV and SIP setup retries to finish before
 interpreting `guard_state_unavailable` as a permanent configuration fault.

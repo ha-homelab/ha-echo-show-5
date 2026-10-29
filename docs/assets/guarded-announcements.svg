@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="490" viewBox="0 0 1100 490" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="635" viewBox="0 0 1100 635" role="img" aria-labelledby="title desc">
   <title id="title">Guarded Echo Show announcements</title>
-  <desc id="desc">One explicitly selected voice creates audio. Home Assistant validates the request and sends PCM only after the device admission gate accepts it. A correlated playback receipt returns to the caller. SIP calls retain one separate account per physical device. Offline validation does not prove acoustic acceptance.</desc>
+  <desc id="desc">One explicitly selected voice creates audio. Home Assistant validates the request and sends PCM only after the device admission gate accepts it. A correlated playback receipt returns to the caller. SIP calls retain one separate account per physical device. Default skip leaves busy music alone. Optional duck_music lowers only eligible VACA music and removes its own attenuation token at completion. User volume changes remain current. External activity remains observed, not globally locked. Offline validation does not prove acoustic acceptance.</desc>
   <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8Z" fill="#83a6ce"/></marker></defs>
-  <rect width="1100" height="490" rx="24" fill="#101d31"/>
+  <rect width="1100" height="635" rx="24" fill="#101d31"/>
   <g font-family="sans-serif" fill="#f3f7fd">
     <text x="42" y="55" font-size="29" font-weight="700">One voice. One request. An honest result.</text>
     <text x="42" y="88" font-size="16" fill="#becde0">Direct announcements use HA audio; ordinary calls keep SIP.</text>
@@ -20,7 +20,7 @@
     <text x="590" y="160" font-size="20" font-weight="700">Native gate</text>
     <text x="590" y="193" font-size="16">Shared VACA / SIP owner</text>
     <text x="590" y="220" font-size="16">External activity checks</text>
-    <text x="590" y="247" font-size="16">Busy or uncertain: skip</text>
+    <text x="590" y="247" font-size="16">Policy + ownership checks</text>
     <rect x="834" y="127" width="225" height="142" rx="16" fill="#235e4a"/>
     <text x="854" y="160" font-size="20" font-weight="700">Play + acknowledge</text>
     <text x="854" y="193" font-size="16">Validated PCM writes</text>
@@ -32,8 +32,18 @@
     </g>
     <rect x="347" y="294" width="410" height="41" rx="12" fill="#101d31"/>
     <text x="552" y="321" text-anchor="middle" font-size="17" fill="#c8dcf4">Same request ID · no blind retry after uncertainty</text>
-    <rect x="42" y="365" width="1017" height="83" rx="15" fill="#1a2c44"/>
-    <text x="62" y="395" font-size="17" font-weight="700">Quiet candidate rollout</text>
-    <text x="62" y="423" font-size="16" fill="#becde0">Offline tests + build + read-only health checks. Acoustic acceptance remains a separate attended step.</text>
+    <rect x="42" y="361" width="489" height="125" rx="15" fill="#203c5e"/>
+    <text x="62" y="391" font-size="20" font-weight="700">Default: skip</text>
+    <text x="62" y="421" font-size="16">Busy music keeps playing. The request is skipped.</text>
+    <text x="62" y="448" font-size="16">Existing request IDs and fingerprints stay compatible.</text>
+    <text x="62" y="472" font-size="14" fill="#becde0">No automatic retry with a different policy.</text>
+    <rect x="570" y="361" width="489" height="125" rx="15" fill="#594822"/>
+    <text x="590" y="391" font-size="20" font-weight="700">Optional: duck_music</text>
+    <text x="590" y="421" font-size="16">Eligible VACA player keeps its current volume target.</text>
+    <text x="590" y="448" font-size="16">Apply owned gain → announce → remove owned gain.</text>
+    <text x="590" y="472" font-size="14" fill="#f0d89d">Calls, Assist, DND and ambiguous activity still block.</text>
+    <rect x="42" y="517" width="1017" height="83" rx="15" fill="#1a2c44"/>
+    <text x="62" y="547" font-size="17" font-weight="700">Quiet candidate rollout · no global Android audio lock</text>
+    <text x="62" y="575" font-size="16" fill="#becde0">Offline tests + build + read-only health checks. Acoustic acceptance remains a separate attended step.</text>
   </g>
 </svg>
