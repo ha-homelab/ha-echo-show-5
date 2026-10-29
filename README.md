@@ -10,6 +10,8 @@ Reuse an **Amazon Echo Show 5, second generation (2021), codename `cronos`**, as
 
 **Documentation:** [topic index](docs/README.md) · [translation policy](docs/i18n.md).
 
+[Guarded announcement candidate](docs/guarded-announcements.md): direct HA audio with request identity, expiry and owned cancellation; ordinary calls keep one SIP account per device. Acoustic acceptance is separate from offline validation.
+
 **Start with the [project wiki](docs/wiki/Home.md), or the [conversion runbook](docs/runbook.md) for an untouched device.** Already running Android? Use the [installation and update guide](docs/wiki/Installation-and-recovery.md); do not repeat the unlock.
 
 ![Architecture: the Show connects to Home Assistant; voice, cameras, media and calls have separate data paths.](docs/assets/architecture.svg)

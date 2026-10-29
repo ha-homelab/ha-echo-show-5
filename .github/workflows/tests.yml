@@ -70,6 +70,8 @@ jobs:
           node-version: '22'
       - name: Check SIP call control and stale-call protection offline
         run: python -m unittest discover -s integrations/show5-sip/home_assistant/tests -v
+      - name: Check guarded announcement receipts and ownership offline
+        run: python -m unittest discover -s integrations/vaca-announce/home_assistant/tests -v
       - name: Check intercom without HA, network or real media
         run: 'python -m unittest discover -s integrations/show5-intercom/tests -v
 

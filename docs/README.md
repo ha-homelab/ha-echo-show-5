@@ -75,6 +75,7 @@ limits. They do not establish a new build or current availability of either devi
 
 ## Speech services and diagnostics
 
+- [Guarded announcements](guarded-announcements.md): direct audio, request ownership, honest completion and quiet rollout alongside ordinary SIP calls.
 - [FCC voice backup](fcc-voice-backup.md): separate speech paths and controlled switching; the selected Russian path still uses cloud speech recognition.
 - [Assist behavior](fcc-assist-behavior.md), [audio model capabilities](fcc-audio-models.md), [cloud audio](fcc-cloud-audio.md) and [local speech experiment](fcc-local-speech-experiment.md).
 - Speech recognition, TTS voice, conversation-agent language, display language and wake-word models are independent settings. Translating documentation changes none of them.

@@ -58,6 +58,15 @@ jobs:
             --signing-dir "$RUNNER_TEMP/vaca-test-signing" \
             --expected-signer-sha256 "$fingerprint" \
             --source-cache "$RUNNER_TEMP/vaca-build/source"
+      - name: Build guarded announcements with SIP and nearest-device support
+        if: matrix.patch == 'vaca'
+        run: |
+          fingerprint=$(cat "$RUNNER_TEMP/vaca-test-signing/signer.sha256")
+          python3 integrations/vaca-announce/build.py \
+            --work-dir "$RUNNER_TEMP/announce-vaca-build" \
+            --signing-dir "$RUNNER_TEMP/vaca-test-signing" \
+            --expected-signer-sha256 "$fingerprint" \
+            --source-cache "$RUNNER_TEMP/vaca-build/source"
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         if: matrix.patch == 'vaca'
         with:
@@ -103,6 +112,7 @@ jobs:
             ${{ runner.temp }}/vaca-build/*.json
             ${{ runner.temp }}/sip-vaca-build/*.json
             ${{ runner.temp }}/nearest-vaca-build/*.json
+            ${{ runner.temp }}/announce-vaca-build/*.json
           if-no-files-found: error
           retention-days: 30
       - name: Remove ephemeral test signing identity

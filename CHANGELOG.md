@@ -2,6 +2,12 @@
 
 ## [0.1.6] - Unreleased
 
+### Guarded announcement candidate
+
+- Add a direct HA/VACA announcement protocol with correlated requests, deadlines, deduplication and owner-specific cancellation, while retaining one SIP account per physical Show.
+- Keep speech synthesis independent of the conversational pipeline and do not treat a service return or an uncorrelated `played` event as proof of playback completion.
+- Document the distinction between coordinated native audio ownership and external Android activity checks. Quiet builds and automated tests do not establish acoustic acceptance.
+
 ### Mixed-device voice arbitration
 
 - Add an opt-in VACA overlay compatible with TECHO5's authenticated nearest-device protocol, preserving the private wake frontend and SIP microphone lease bridge.

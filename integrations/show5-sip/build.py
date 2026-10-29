@@ -157,9 +157,9 @@ def main():
     if any("name='" + name + "'" in permissions for name in
            ('android.permission.CAMERA', 'android.permission.FOREGROUND_SERVICE_CAMERA')):
         raise ValueError('Audio-only SIP release must not request camera access')
-    target = work / 'show5-sip-0.1.0.apk'
+    target = work / 'show5-sip-0.1.1.apk'
     shutil.copy2(apk, target)
-    receipt = {'schema': 1, 'package': 'org.hahomelab.show5sip', 'version': '0.1.0',
+    receipt = {'schema': 1, 'package': 'org.hahomelab.show5sip', 'version': '0.1.1',
                'apk_sha256': digest(target), 'apk_bytes': target.stat().st_size,
                'signer_sha256': signer, 'sdk_sha256': PIN['sha256'], 'source_files': expected,
                'unit_tests': totals, 'deployed': False}
