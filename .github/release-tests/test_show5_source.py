@@ -132,6 +132,20 @@ class SourceDistributionTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("clock-screenshot.jpg", result.stdout)
 
+    def test_native_overlay_inputs_are_in_distribution(self):
+        names = set(package_source.inventory(ROOT))
+        required = set()
+        for relative in (
+            "integrations/vaca-announce/src",
+            "integrations/vaca-nearest/src",
+            "integrations/show5-sip/vaca-bridge/src",
+        ):
+            for path in (ROOT / relative).rglob("*"):
+                if path.is_file() and path.suffix in {".kt", ".java", ".py", ".txt", ".go"}:
+                    required.add(path.relative_to(ROOT).as_posix())
+        self.assertTrue(required)
+        self.assertFalse(required - names, f"Missing native overlay inputs: {sorted(required - names)}")
+
     def test_archive_is_reproducible_and_excludes_local_state(self):
         self.freeze("beta")
         (self.root / "private").mkdir()
