@@ -96,3 +96,5 @@ Guarde descargas en `downloads/`, fuentes externas en `vendor/`, copias en `back
 ### Room endpoint expansion
 
 [Room controls and timers](docs/room-panel.md) · [Session policy](docs/room-session-policy.md) · [Remote administration](docs/remote-admin-tools.md) · [Capability delivery and limits](docs/room-capability-delivery.md)
+
+[Selección del dispositivo que responde: VACA y TECHO5 (inglés)](docs/nearest-device-arbitration.md).

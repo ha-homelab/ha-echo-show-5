@@ -2,6 +2,14 @@
 
 ## [0.1.6] - Unreleased
 
+### Mixed-device voice arbitration
+
+- Add an opt-in VACA overlay compatible with TECHO5's authenticated nearest-device protocol, preserving the private wake frontend and SIP microphone lease bridge.
+- Keep microphone capture running during election and replay bounded history without duplicating queued live frames.
+- Distinguish manual starts, auxiliary model detections and follow-up turns; cancel pending starts on mute, shutdown, reconnect and SIP preemption.
+- Add local settings, private configuration, bounded diagnostics, independent Go protocol/DSP fixtures, four-peer scenarios and Android adapter regression tests.
+- Document source licensing, deployment verification, HA fallback behavior and the limits of software-only acceptance.
+
 ### Room endpoint expansion
 
 - Add optional six-button room controls, compact live readings, reminders, local timer journals and a scoped offline static cache.

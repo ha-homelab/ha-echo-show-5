@@ -1,0 +1,366 @@
+diff --git a/app/build.gradle.kts b/app/build.gradle.kts
+index b9d4002..a5bb6ff 100644
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -1,3 +1,4 @@
++// Modified by ha-homelab for the local nearest-device arbitration overlay (2026).
+ import java.io.FileInputStream
+ import java.util.Properties
+ import kotlin.toString
+@@ -26,8 +27,8 @@ android {
+         applicationId = "com.msp1974.vacompanion"
+         minSdk = 26
+         targetSdk = 36
+-        versionName = "0.13.4+myshka.10-sip.1"
+-        versionCode = 7010
++        versionName = "0.13.4+myshka.11-nearest.1"
++        versionCode = 7011
+         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+     }
+ 
+diff --git a/app/src/main/java/com/msp1974/vacompanion/audio/MicrophoneInput.kt b/app/src/main/java/com/msp1974/vacompanion/audio/MicrophoneInput.kt
+index 8683564..a78a41d 100644
+--- a/app/src/main/java/com/msp1974/vacompanion/audio/MicrophoneInput.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/audio/MicrophoneInput.kt
+@@ -1,5 +1,7 @@
++// Modified by ha-homelab for the local nearest-device arbitration overlay (2026).
+ package com.msp1974.vacompanion.audio
+ 
++import com.msp1974.vacompanion.nearest.NearestAudioTap
+ import android.Manifest
+ import android.annotation.SuppressLint
+ import android.content.Context
+@@ -168,6 +170,9 @@ class MicrophoneInput (
+         return buffer
+     }
+ 
++    var captureSequence: Long = 0
++        private set
++
+     fun readShort(bufferSize: Int = VACAAudioFormat.DEFAULT_BUFFER_SIZE_IN_SHORTS, applyEnhancement: Boolean = true): ShortArray {
+         val audioBuffer = ShortArray(bufferSize)
+         val audioRecord = this.audioRecord ?: error("Microphone not started")
+@@ -175,14 +180,16 @@ class MicrophoneInput (
+         if (readCount > 0) {
+             totalFramesRead += readCount
+             val frame = audioBuffer.copyOfRange(0, readCount)
++            NearestAudioTap.raw(frame, isMicSuppressed())
+             val micGain = if (isMicSuppressed()) -10 else config.micGain
+             if (applyEnhancement) {
+                 // processFrame() internally no-ops on AGC/noise suppression when the
+                 // device covers them in hardware - so it's always safe/cheap to route
+                 // through here rather than tracking which sub-feature(s) are actually active.
+                 audioEnhancer.setMicGainDb(micGain.toFloat())
+-                return audioEnhancer.processFrame(frame)
++                return audioEnhancer.processFrame(frame).also { captureSequence = NearestAudioTap.processed(it) }
+             }
++            captureSequence = NearestAudioTap.processed(frame)
+             return frame
+         }
+         return ShortArray(0)
+diff --git a/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt b/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
+index fa8c1a9..5ffad78 100644
+--- a/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
+@@ -1,5 +1,8 @@
++// Modified by ha-homelab for the local nearest-device arbitration overlay (2026).
+ package com.msp1974.vacompanion.satellite
+ 
++import com.msp1974.vacompanion.nearest.NearestRuntime
++
+ import android.annotation.SuppressLint
+ import android.content.Context
+ import com.msp1974.vacompanion.telephony.AudioLeaseRuntime
+@@ -91,6 +94,11 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+     private val wakeWordLifecycle = Mutex()
+     private var audioPipeline: SatelliteAudioPipeline? = null
+     private var audioPipelineLastStateChange = System.currentTimeMillis()
++    private val nearest = NearestRuntime(context, scope,
++        canAnswer = { state == SatelliteState.RUNNING && clientId.isNotEmpty() && !config.isMuted &&
++            !AudioLeaseRuntime.inhibited && (audioPipeline == null || audioPipeline?.pipelineStage == PipelineStage.ENDED) },
++        captureAllowed = { state == SatelliteState.RUNNING && !config.isMuted && !AudioLeaseRuntime.inhibited },
++        open = { detection -> handleWakeWordDetection(detection) })
+ 
+     private var soundEffectFinishTime: Long = 0
+     private var currentWakeWordSoundUri: android.net.Uri? = null
+@@ -260,6 +268,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+     }
+ 
+     fun prepareSatelliteTakeover(clientId: String) {
++        nearest.cancel()
+         // This must run before WyomingTCPServer resumes reading the new connection.
+         // Otherwise its settings event can arrive before initSettings is reset.
+         this.clientId = clientId
+@@ -347,6 +356,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+         stopWakeWordDetectionLocked()
+         if (AudioLeaseRuntime.inhibited) return
+ 
++        nearest.start()
+         Timber.d("Starting Wake Word Detection")
+         sendDiagnostics(0f, 0f)
+         withContext(Dispatchers.Default) {
+@@ -357,6 +367,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+ 
+                 override suspend fun onAudio(audio: WakeWordEngineProvider.AudioResult.Audio, streamAudio: Boolean) {
+                     if (streamAudio) {
++                        nearest.takeReplay(audio.captureSequence).forEach { sendAudio(it) }
+                         sendAudio(audio)
+                     }
+                     audioLogManager.onAudio(AudioDSP().byteArrayToShortArray(audio.audio))
+@@ -369,7 +380,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+                     } else if (mediaManager.alarmPlayer.isSounding()) {
+                         onStopWordDetected(detection)
+                     } else {
+-                        handleWakeWordDetection(detection)
++                        nearest.wake(detection)
+                     }
+                 }
+ 
+@@ -401,6 +412,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+     }
+ 
+     private suspend fun stopWakeWordDetectionLocked() {
++        nearest.stop()
+         wakeWordHandler?.stop()
+         wakeWordHandler = null
+     }
+@@ -412,7 +424,8 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+     }
+ 
+     suspend fun handleWakeWordDetection(detection: WakeWordEngineProvider.WakeWordDetection) {
+-        if (AudioLeaseRuntime.inhibited) return
++        if (AudioLeaseRuntime.inhibited || config.isMuted || state != SatelliteState.RUNNING) return
++        if (detection.wakeWordId == "manual_wake") nearest.cancel()
+         if (clientId.isEmpty()) {
+             Timber.e("Unable to run audio pipeline. Satellite not connected to HA")
+             return
+@@ -446,7 +459,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+                 config.screenSaver = false
+             }
+             audioLogManager.onWakeWordDetected(detection.timestamp, detection.wakeWord, detection.score)
+-            startAudioPipeline(PipelineStartMode.WAKE_WORD_DETECTED, detection.timestamp)
++            startAudioPipeline(if (detection.wakeWordId == "manual_wake") PipelineStartMode.MANUAL else PipelineStartMode.WAKE_WORD_DETECTED, detection.timestamp, detection.wakeWordId)
+             playWakeWordDetectionSound()
+         }
+     }
+@@ -520,6 +533,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+ 
+ 
+     fun muteMicrophone(muted: Boolean) {
++        if (muted) nearest.cancel()
+         if (AudioLeaseRuntime.inhibited) return
+         runCatching {
+             wakeWordHandler?.engine?.setMuted(muted)
+@@ -538,7 +552,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+     }
+ 
+     @OptIn(ExperimentalAtomicApi::class)
+-    fun startAudioPipeline(startStage: PipelineStartMode, eventId: Long = System.currentTimeMillis()) {
++    fun startAudioPipeline(startStage: PipelineStartMode, eventId: Long = System.currentTimeMillis(), wakeWordId: String = config.wakeWord) {
+         if (AudioLeaseRuntime.inhibited) return
+         if (audioPipeline != null) {
+             audioPipeline?.stop()
+@@ -601,6 +615,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+             }
+ 
+         }.also {
++            it.detectedWakeWordId = wakeWordId
+             it.run(startStage)
+         }
+     }
+diff --git a/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteAudioPipeline.kt b/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteAudioPipeline.kt
+index cea734e..1dc8e1a 100644
+--- a/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteAudioPipeline.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteAudioPipeline.kt
+@@ -1,3 +1,4 @@
++// Modified by ha-homelab for the local nearest-device arbitration overlay (2026).
+ package com.msp1974.vacompanion.satellite
+ 
+ import android.content.Context
+@@ -47,6 +48,7 @@ enum class PipelineStage {
+ 
+ enum class PipelineStartMode {
+     WAKE_WORD_DETECTED,
++    MANUAL,
+     REQUESTED_BY_SERVER,
+     CONTINUE_CONVERSATION,
+     START_STREAM_TTS
+@@ -105,6 +107,7 @@ abstract class SatelliteAudioPipeline(
+             }
+         }
+ 
++    var detectedWakeWordId: String = config.wakeWord
+     var silenceAudioBefore: Long = 0L
+ 
+     private val isContinuation
+@@ -165,6 +168,9 @@ abstract class SatelliteAudioPipeline(
+                         sendMessage(buildDetectionMessage())
+                         sendMessage(buildRunPipelineMessage(pipelineStartMode))
+                     }
++                    PipelineStartMode.MANUAL -> {
++                        sendMessage(buildRunPipelineMessage(pipelineStartMode))
++                    }
+                     PipelineStartMode.CONTINUE_CONVERSATION -> {
+                         silenceAudioBefore = 1L
+                         sendMessage(buildRunPipelineMessage(pipelineStartMode))
+@@ -261,7 +267,7 @@ abstract class SatelliteAudioPipeline(
+                     if (silenceAudioBefore > 0L) {
+                         val audio = audioOutQueue.receive()
+                         var audioByteArray = audio.audio
+-                        if (audio.timestamp < silenceAudioBefore - 100) {
++                        if (!audio.preserveElectionAudio && audio.timestamp < silenceAudioBefore - 100) {
+                             audioByteArray = AudioDSP().reduceVolume(audioByteArray, 0.1F)
+                         }
+                         val packet = buildAudioPacketMessage(audioByteArray)
+@@ -436,7 +442,7 @@ abstract class SatelliteAudioPipeline(
+         val detectionPacket = WyomingPacket(
+             "detection",
+             buildJsonObject {
+-                put("name", config.wakeWord)
++                put("name", detectedWakeWordId)
+                 put("timestamp", isoNow())
+                 put("speaker", "")
+             },
+@@ -452,7 +458,7 @@ abstract class SatelliteAudioPipeline(
+             WyomingEvent.RUN_PIPELINE,
+             buildJsonObject {
+                 put("name", "VACA ${config.uuid}")
+-                put("start_stage", if (startStage == PipelineStartMode.WAKE_WORD_DETECTED || startStage == PipelineStartMode.CONTINUE_CONVERSATION) "asr" else "tts")
++                put("start_stage", if (startStage == PipelineStartMode.WAKE_WORD_DETECTED || startStage == PipelineStartMode.MANUAL || startStage == PipelineStartMode.CONTINUE_CONVERSATION) "asr" else "tts")
+                 put("end_stage", "tts")
+                 put("restart_on_end", false)
+                 putJsonObject("snd_format") {
+diff --git a/app/src/main/java/com/msp1974/vacompanion/ui/layouts/SettingsLayout.kt b/app/src/main/java/com/msp1974/vacompanion/ui/layouts/SettingsLayout.kt
+index 05b1c6d..5bab308 100644
+--- a/app/src/main/java/com/msp1974/vacompanion/ui/layouts/SettingsLayout.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/ui/layouts/SettingsLayout.kt
+@@ -1,5 +1,7 @@
++// Modified by ha-homelab for the local nearest-device arbitration overlay (2026).
+ package com.msp1974.vacompanion.ui.layouts
+ 
++import com.msp1974.vacompanion.nearest.NearestSettingsPane
+ import androidx.compose.animation.AnimatedContent
+ import androidx.compose.animation.slideInHorizontally
+ import androidx.compose.animation.slideOutHorizontally
+@@ -33,6 +35,7 @@ import com.msp1974.vacompanion.ui.components.VADialog
+ enum class SettingsScreen {
+     MAIN,
+     CUSTOM_FILES,
++    NEAREST,
+     PERMISSIONS_INFO,
+     CAMERA_STREAM,
+     DEVICE_INFO
+@@ -77,6 +80,9 @@ fun SettingsLayout(
+             when (screen) {
+                 SettingsScreen.MAIN -> {
+                     val menuOptions = mutableListOf<MenuOption>()
++                    menuOptions.add(MenuOption(title = "Nearest voice device",
++                        subtitle = "Choose one answering device in the room", icon = Icons.Default.Security,
++                        onClick = { currentScreen = SettingsScreen.NEAREST }))
+ 
+                     if (!vaUiState.menuOpenedByAction) {
+                         menuOptions.add(
+@@ -137,6 +143,7 @@ fun SettingsLayout(
+                         options = menuOptions
+                     )
+                 }
++                SettingsScreen.NEAREST -> { NearestSettingsPane(onBack = { currentScreen = SettingsScreen.MAIN }) }
+                 SettingsScreen.CUSTOM_FILES -> {
+                     CustomFilesLayout(
+                         viewModel = viewModel,
+diff --git a/app/src/main/java/com/msp1974/vacompanion/wakeword/WakeWordEngineProvider.kt b/app/src/main/java/com/msp1974/vacompanion/wakeword/WakeWordEngineProvider.kt
+index 05d871a..1e4f81d 100644
+--- a/app/src/main/java/com/msp1974/vacompanion/wakeword/WakeWordEngineProvider.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/wakeword/WakeWordEngineProvider.kt
+@@ -1,3 +1,4 @@
++// Modified by ha-homelab for the local nearest-device arbitration overlay (2026).
+ package com.msp1974.vacompanion.wakeword
+ 
+ import kotlinx.coroutines.flow.Flow
+@@ -7,7 +8,7 @@ abstract class WakeWordEngineProvider {
+ 
+     sealed class AudioResult {
+         data class EngineStatus(val status: String): AudioResult()
+-        data class Audio(val audio: ByteArray, val timestamp: Long = System.currentTimeMillis()) : AudioResult()
++        data class Audio(val audio: ByteArray, val timestamp: Long = System.currentTimeMillis(), val preserveElectionAudio: Boolean = false, val captureSequence: Long = 0) : AudioResult()
+         data class AudioLevel(val level: Float): AudioResult()
+         data class WakeDetected(val detection: WakeWordDetection) : AudioResult()
+         data class StopDetected(val detection: WakeWordDetection) : AudioResult()
+diff --git a/app/src/main/java/com/msp1974/vacompanion/wakeword/microwakeword/MicroWakeWordEngine.kt b/app/src/main/java/com/msp1974/vacompanion/wakeword/microwakeword/MicroWakeWordEngine.kt
+index 996233e..b840c49 100644
+--- a/app/src/main/java/com/msp1974/vacompanion/wakeword/microwakeword/MicroWakeWordEngine.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/wakeword/microwakeword/MicroWakeWordEngine.kt
+@@ -1,3 +1,4 @@
++// Modified by ha-homelab for the local nearest-device arbitration overlay (2026).
+ package com.msp1974.vacompanion.wakeword.microwakeword
+ 
+ import android.Manifest
+@@ -83,6 +84,7 @@ open class MicroWakeWordEngine (
+                     }
+ 
+                     val audio = microphoneInput.readBytes()
++                                    val captureSequence = microphoneInput.captureSequence
+                     val frameTimestamp = System.currentTimeMillis()
+ 
+                     if (config.diagnosticsEnabled) {
+@@ -99,7 +101,7 @@ open class MicroWakeWordEngine (
+                         emit(
+                             AudioResult.Audio(
+                                 audioBytes,
+-                                timestamp = frameTimestamp
++                                timestamp = frameTimestamp, captureSequence = captureSequence
+                             )
+                         )
+                         audio.rewind()
+diff --git a/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/ExactOnnxWakeEngine.kt b/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/ExactOnnxWakeEngine.kt
+index 1fb3640..91e38c0 100644
+--- a/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/ExactOnnxWakeEngine.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/ExactOnnxWakeEngine.kt
+@@ -1,3 +1,4 @@
++// Modified by ha-homelab for the local nearest-device arbitration overlay (2026).
+ package com.msp1974.vacompanion.wakeword.openwakeword
+ 
+ import android.Manifest
+@@ -64,6 +65,7 @@ internal class ExactOnnxWakeEngine(
+                                 while (true) {
+                                     currentCoroutineContext().ensureActive()
+                                     val audio = microphone.readShort()
++                                    val captureSequence = microphone.captureSequence
+                                     if (audio.isEmpty()) {
+                                         check(++emptyReads < 50) { "Microphone returned no audio repeatedly" }
+                                         delay(20)
+@@ -76,7 +78,7 @@ internal class ExactOnnxWakeEngine(
+                                         emit(AudioResult.AudioLevel(dsp.audioLevel(dsp.normaliseAudioBuffer(audio))))
+                                     }
+                                     if (isStreaming || deviceManager.config.recordingWakewordEnabled) {
+-                                        emit(AudioResult.Audio(dsp.shortArrayToByteBuffer(audio), timestamp))
++                                        emit(AudioResult.Audio(dsp.shortArrayToByteBuffer(audio), timestamp, captureSequence = captureSequence))
+                                     }
+                                     val begin = System.nanoTime()
+                                     val localDetections = stopDetector.process(audio)
+diff --git a/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/OpenWakeWordEngine.kt b/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/OpenWakeWordEngine.kt
+index f43f616..688ca36 100644
+--- a/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/OpenWakeWordEngine.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/wakeword/openwakeword/OpenWakeWordEngine.kt
+@@ -1,3 +1,4 @@
++// Modified by ha-homelab for the local nearest-device arbitration overlay (2026).
+ package com.msp1974.vacompanion.wakeword.openwakeword
+ 
+ import android.Manifest
+@@ -163,6 +164,7 @@ class OpenWakeWordEngine(
+                 emit(AudioResult.EngineStatus("Started"))
+                 while (true) {
+                     val audio = microphoneInput.readShort()
++                                    val captureSequence = microphoneInput.captureSequence
+                     val frameTimestamp = System.currentTimeMillis()
+ 
+                     if (audio.isNotEmpty()) {
+@@ -177,7 +179,7 @@ class OpenWakeWordEngine(
+                             emit(
+                                 AudioResult.Audio(
+                                     audioBytes,
+-                                    timestamp = frameTimestamp
++                                    timestamp = frameTimestamp, captureSequence = captureSequence
+                                 )
+                             )
+                         }

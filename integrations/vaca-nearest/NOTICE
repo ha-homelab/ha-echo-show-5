@@ -1,0 +1,9 @@
+Local nearest-device arbitration modifications (2026), ha-homelab.
+
+This overlay modifies the Apache-2.0-licensed View Assist Companion source.
+Each modified upstream file carries a prominent local-modification notice.
+Original copyright and license notices remain intact.
+
+The TECHO5-compatible wire protocol, election and score implementation refers
+to TECHO5 source distributed under the MIT License. Required upstream notices
+and licenses are retained in ../../THIRD_PARTY_NOTICES.md and ../../licenses/.
