@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">Observed Show capabilities and proposed room-session coordination</title>
+  <desc id="desc">Light sensing, a small Android screen, voice and SIP are present. A Bluetooth sink profile is present but needs a playback trial. Proposed calls, media, alerts and automation share a room-session coordinator that releases resources and restores clock and voice. Administration uses ADB, screen assistance or assessed SSH; heavy computation stays on a server.</desc>
+  <defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#0e1830"/><stop offset="1" stop-color="#162941"/></linearGradient><marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 9 4.5 0 9Z" fill="#8faac7"/></marker></defs>
+  <rect width="1200" height="760" rx="24" fill="url(#bg)"/>
+  <g font-family="system-ui, sans-serif">
+    <text x="48" y="60" font-size="29" font-weight="700" fill="#f6faff">A useful room endpoint, with clear ownership</text>
+    <text x="48" y="91" font-size="16" fill="#b5c8dc">Echo Show 5 Gen2 · Android 11 · 960 × 480 · ARMv7 · about 974 MiB RAM</text>
+    <text x="48" y="135" font-size="13" font-weight="700" letter-spacing="1.6" fill="#57d4b6">OBSERVED ON OCTOBER 29, 2026</text>
+    <g fill="#183a42" stroke="#3f9b90"><rect x="48" y="151" width="252" height="103" rx="14"/><rect x="332" y="151" width="252" height="103" rx="14"/><rect x="616" y="151" width="252" height="103" rx="14"/><rect x="900" y="151" width="252" height="103" rx="14"/></g>
+    <g fill="#f5fffb" font-size="20" font-weight="650"><text x="69" y="185">Light sensing</text><text x="353" y="185">Readable display</text><text x="637" y="185">Voice + SIP</text><text x="921" y="185">Bluetooth stack</text></g>
+    <g fill="#bfdad8" font-size="15"><text x="69" y="215">One actual sensor HAL</text><text x="69" y="237">Lux already reaches HA</text><text x="353" y="215">Clock / camera UI present</text><text x="353" y="237">Manual brightness retained</text><text x="637" y="215">VACA capture / SIP lease</text><text x="637" y="237">Pair-call RTP verified</text><text x="921" y="215">A2DP sink profile present</text><text x="921" y="237">Speaker trial still needed</text></g>
+    <path d="M174 261V295H1026V261M600 295V320" fill="none" stroke="#8faac7" stroke-width="2" marker-end="url(#arrow)"/>
+    <rect x="185" y="331" width="830" height="116" rx="18" fill="#29335e" stroke="#929bea" stroke-width="2"/>
+    <text x="215" y="362" font-size="13" font-weight="700" letter-spacing="1.4" fill="#c9ccff">PROPOSED INTEGRATION WORK</text><text x="215" y="395" font-size="25" font-weight="700" fill="#fff">One room session coordinator</text><text x="215" y="424" font-size="16" fill="#d4dcfa">Acquire → named action → timeout or stop → release → restore clock and voice</text>
+    <path d="M600 450V481M174 481H1026M174 481V501M458 481V501M742 481V501M1026 481V501" fill="none" stroke="#8faac7" stroke-width="2"/>
+    <g fill="#253d55" stroke="#698aab"><rect x="48" y="503" width="252" height="104" rx="14"/><rect x="332" y="503" width="252" height="104" rx="14"/><rect x="616" y="503" width="252" height="104" rx="14"/><rect x="900" y="503" width="252" height="104" rx="14"/></g>
+    <g fill="#fff" font-size="20" font-weight="650"><text x="69" y="538">Calls and doorbell</text><text x="353" y="538">Music and TV</text><text x="637" y="538">Household alerts</text><text x="921" y="538">Room automation</text></g>
+    <g fill="#c4d3e5" font-size="15"><text x="69" y="566">Camera and mic ownership</text><text x="69" y="588">Explicit entry and cleanup</text><text x="353" y="566">OTT, stations, Bluetooth</text><text x="353" y="588">Volume and focus priority</text><text x="637" y="566">Timers, energy, messages</text><text x="637" y="588">Expiry and acknowledgement</text><text x="921" y="566">HA motion + lux context</text><text x="921" y="588">BLE experiments separately</text></g>
+    <rect x="48" y="640" width="536" height="74" rx="12" fill="#3b3424" stroke="#a89157"/><text x="69" y="670" font-size="17" font-weight="650" fill="#ffe0a0">Administration: ADB → screen assistance / SSH</text><text x="69" y="695" font-size="15" fill="#decea9">Bundled sshd exists; login service still needs acceptance</text>
+    <rect x="616" y="640" width="536" height="74" rx="12" fill="#253947" stroke="#608597"/><text x="637" y="670" font-size="17" font-weight="650" fill="#c1edff">Home server: large models, transcoding, analytics</text><text x="637" y="695" font-size="15" fill="#b9d0dc">Keep the Show responsive as the room's interface</text>
+  </g>
+</svg>

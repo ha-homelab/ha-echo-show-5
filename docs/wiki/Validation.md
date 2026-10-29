@@ -4,6 +4,18 @@
 
 Each result needs a dated target, exact artifact or revision, method and limitation. Avoid a single “everything works” claim that mixes an automated test with an earlier physical observation on another build.
 
+## October 29: installed capability inventory
+
+Both devices were inspected read-only. The [installed capability report](../installed-capabilities.md)
+and [sanitized JSON](../data/capabilities-2026-10-29.json) record Android 11/API30,
+ARMv7-only userspace, approximately 974 MiB RAM, LIGHT as the sole exposed sensor,
+current app/permission differences, existing HA lux entities and candidate SSH
+and Bluetooth receiver functions. No new daemon, grant or capture was enabled.
+
+The report also distinguishes earlier same-day SIP acceptance (real G722 pair
+calls and VACA restoration) from this read-only audit. Those facts do not prove
+SSH login, Bluetooth playback, physical speech quality or long-duration uptime.
+
 <a id="october-20-shutdown-checkpoint"></a>
 
 ## October 20: myshka.9 shutdown checkpoint
