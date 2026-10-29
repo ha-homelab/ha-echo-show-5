@@ -100,4 +100,106 @@ class NearestAdapterTest {
         }
     }
 
+    @Test fun abortedOpenCannotLeakItsHistoryToAContinuation() {
+        val replay = NearestReplay()
+        replay.arm(1, 100, 400)
+        replay.finishOpen(1, completed = true) // Local handler returned before creating a pipeline.
+        val continuation = Any()
+        replay.bind(null, continuation)
+        assertNull(replay.take(continuation))
+    }
+    @Test fun thrownOpenClearsEvenAProvisionalPipelineBinding() {
+        val replay = NearestReplay(); val pipeline = Any()
+        replay.arm(1, 100, 400); replay.bind(1, pipeline)
+        replay.finishOpen(1, completed = false)
+        assertNull(replay.take(pipeline))
+    }
+    @Test fun onlyTheWinningPipelineCanDrainItsReplayOnce() {
+        val replay = NearestReplay(); val winner = Any()
+        replay.arm(1, 100, 400); replay.bind(1, winner)
+        replay.finishOpen(1, completed = true)
+        assertNull(replay.take(Any()))
+        assertEquals(NearestReplay.Window(100, 400), replay.take(winner))
+        assertNull(replay.take(winner))
+    }
+    @Test fun uncoordinatedWakeOrFollowupDropsPreviousReplay() {
+        val replay = NearestReplay(); val previous = Any(); val next = Any()
+        replay.arm(1, 100, 400); replay.bind(1, previous)
+        replay.bind(2, next) // A new local wake without an election replay window.
+        assertNull(replay.take(previous)); assertNull(replay.take(next))
+        replay.arm(3, 500, 800); replay.bind(3, previous)
+        replay.bind(null, next) // CONTINUE_CONVERSATION, manual, or server-initiated turn.
+        assertNull(replay.take(previous)); assertNull(replay.take(next))
+    }
+    @Test fun staleOpenCompletionCannotClearANewerTurn() {
+        val replay = NearestReplay(); val current = Any()
+        replay.arm(1, 100, 400)
+        replay.arm(2, 500, 800); replay.bind(2, current)
+        replay.finishOpen(1, completed = false)
+        assertEquals(NearestReplay.Window(500, 800), replay.take(current))
+    }
+    @Test fun oldPipelineFinishCannotDiscardTheCurrentPipelineHistory() {
+        val replay = NearestReplay(); val previous = Any(); val current = Any()
+        replay.arm(2, 500, 800); replay.bind(2, current)
+        replay.release(previous)
+        assertEquals(NearestReplay.Window(500, 800), replay.take(current))
+    }
+    @Test fun pipelineFinishAndCancellationDiscardUndrainedAudio() {
+        val replay = NearestReplay(); val pipeline = Any()
+        replay.arm(1, 100, 400); replay.bind(1, pipeline); replay.release(pipeline)
+        assertNull(replay.take(pipeline))
+        replay.arm(2, 500, 800); replay.bind(2, pipeline); replay.clear()
+        assertNull(replay.take(pipeline))
+    }
+    @Test fun stoppedAndInitializingRuntimeRejectsWakesAndClaims() {
+        val lifecycle = NearestLifecycle()
+        assertFalse(lifecycle.active)
+        val request = lifecycle.start(); val transport = lifecycle.replaceTransport()
+        assertFalse(lifecycle.active); assertFalse(lifecycle.acceptsClaim(transport))
+        assertTrue(lifecycle.activate(request))
+        assertTrue(lifecycle.active); assertTrue(lifecycle.acceptsClaim(transport))
+        lifecycle.pause()
+        assertFalse(lifecycle.active); assertFalse(lifecycle.acceptsClaim(transport))
+    }
+    @Test fun listenerPauseAndResumePreserveTransportGeneration() {
+        val lifecycle = NearestLifecycle()
+        val first = lifecycle.start(); val retainedTransport = lifecycle.replaceTransport()
+        lifecycle.activate(first); lifecycle.pause()
+        val resumed = lifecycle.start()
+        assertFalse(lifecycle.acceptsClaim(retainedTransport))
+        lifecycle.activate(resumed)
+        assertTrue(lifecycle.acceptsClaim(retainedTransport))
+    }
+    @Test fun stopInvalidatesInflightInitializationAndQueuedReload() {
+        val lifecycle = NearestLifecycle(); val pending = lifecycle.start()
+        lifecycle.pause()
+        assertFalse(lifecycle.activate(pending)); assertNull(lifecycle.reload(pending))
+        assertFalse(lifecycle.active)
+        val current = lifecycle.start()
+        assertFalse(lifecycle.activate(pending)); assertNull(lifecycle.reload(pending))
+        assertTrue(lifecycle.activate(current))
+    }
+    @Test fun changedConfigurationRejectsOldTransportCallbacks() {
+        val lifecycle = NearestLifecycle(); val first = lifecycle.start()
+        val previous = lifecycle.replaceTransport(); lifecycle.activate(first)
+        val reloaded = lifecycle.reload(first)!!
+        assertFalse(lifecycle.active)
+        val replacement = lifecycle.replaceTransport(); lifecycle.activate(reloaded)
+        assertFalse(lifecycle.acceptsClaim(previous)); assertTrue(lifecycle.acceptsClaim(replacement))
+    }
+    @Test fun identicalSettingsReuseTransportWithoutCredentialDisclosure() {
+        val first = NearestConfig(true, "fixture", "fictional-house-word", 300, 1.0, 18127)
+        val second = NearestConfig(true, "fixture", "fictional-house-word", 300, 1.0, 18127)
+        assertTrue(first.sameConfiguration(second))
+        assertFalse(first.toString().contains("fictional-house-word"))
+        listOf(
+            NearestConfig(false, "fixture", "fictional-house-word", 300, 1.0, 18127),
+            NearestConfig(true, "renamed", "fictional-house-word", 300, 1.0, 18127),
+            NearestConfig(true, "fixture", "changed-fictional-word", 300, 1.0, 18127),
+            NearestConfig(true, "fixture", "fictional-house-word", 200, 1.0, 18127),
+            NearestConfig(true, "fixture", "fictional-house-word", 300, 2.0, 18127),
+            NearestConfig(true, "fixture", "fictional-house-word", 300, 1.0, 18128),
+        ).forEach { assertFalse(first.sameConfiguration(it)) }
+    }
+
 }

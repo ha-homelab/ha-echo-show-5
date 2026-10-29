@@ -212,7 +212,26 @@ class GuardedTransport:
             return 'assist_busy'
         return ''
 
+    def local_media_transport(self):
+        """Connect locally, verifying native TLS against an operator-configured name."""
+        config = self.entity.hass.config
+        api = config.api
+        port = api.port if api else 8123
+        if not api or not getattr(api, 'use_ssl', False):
+            return 'http', port, None
+        for reference in (config.internal_url, config.external_url):
+            if not reference:
+                continue
+            try:
+                parsed = urlsplit(reference)
+                if parsed.scheme == 'https' and parsed.hostname and not parsed.username and not parsed.password:
+                    return 'https', port, parsed.hostname
+            except ValueError:
+                continue
+        raise AnnouncementError('native_tls_hostname_unavailable')
+
     def validate_media(self, media):
+        scheme, local_port, _ = self.local_media_transport()
         try:
             parsed = urlsplit(media)
             parsed.port  # Validate malformed ports before any request is accepted.
@@ -227,19 +246,18 @@ class GuardedTransport:
                 if url:
                     part = urlsplit(url)
                     origins.add((part.scheme, part.hostname, part.port or (443 if part.scheme == 'https' else 80)))
-            port = config.api.port if config.api else 8123
-            origins.add(('http', '127.0.0.1', port))
+            origins.add((scheme, '127.0.0.1', local_port))
             if parsed.scheme not in {'http', 'https'} or (parsed.scheme, parsed.hostname, parsed.port or (443 if parsed.scheme == 'https' else 80)) not in origins:
                 raise AnnouncementError('unapproved_media_origin')
         return parsed.path
 
     async def decode(self, media):
         path = self.validate_media(media)
-        config = self.entity.hass.config
-        port = config.api.port if config.api else 8123
-        url = f'http://127.0.0.1:{port}' + path
-        session = async_get_clientsession(self.entity.hass)
-        async with session.get(url, allow_redirects=False, timeout=aiohttp.ClientTimeout(total=20)) as response:
+        scheme, port, server_hostname = self.local_media_transport()
+        url = f'{scheme}://127.0.0.1:{port}' + path
+        session = async_get_clientsession(self.entity.hass, verify_ssl=True)
+        tls_options = {'server_hostname': server_hostname} if scheme == 'https' else {}
+        async with session.get(url, allow_redirects=False, timeout=aiohttp.ClientTimeout(total=20), **tls_options) as response:
             if response.status != 200:
                 raise AnnouncementError('audio_fetch_failed')
             if response.content_length is not None and response.content_length > MAX_ENCODED_BYTES:
@@ -254,6 +272,7 @@ class GuardedTransport:
     async def send(self, op, request_id, *, payload=None, _generation=None, **data):
         if _generation is not None and _generation != self.generation:
             raise ConnectionError('satellite_reconnected')
+        # VACA uses its pinned VAAsyncTcpClient subclass, which defines this check.
         client = self.entity._client
         if client is None or not client.can_write_event():
             raise ConnectionError('satellite_disconnected')
@@ -298,6 +317,10 @@ class GuardedTransport:
         return True
 
     async def capabilities(self):
+        try:
+            self.local_media_transport()
+        except AnnouncementError as exc:
+            return unsupported(str(exc))
         if self.guard_states() is None:
             return unsupported('guard_state_unavailable')
         request_id = 'announce-' + uuid.uuid4().hex + '-000'

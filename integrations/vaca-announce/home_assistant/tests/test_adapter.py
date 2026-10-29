@@ -5,9 +5,10 @@ import json
 import tempfile
 from pathlib import Path
 import sys
+import ssl
 import types
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 
 ROOT = Path(__file__).resolve().parents[1]
 ID = 'announce-' + 'a' * 32 + '-225'
@@ -35,7 +36,7 @@ def load():
     modules['homeassistant.components'].ffmpeg = types.SimpleNamespace()
     modules['homeassistant.core'].SupportsResponse = types.SimpleNamespace(ONLY='only')
     modules['homeassistant.exceptions'].HomeAssistantError = HomeAssistantError
-    modules['homeassistant.helpers.aiohttp_client'].async_get_clientsession = lambda hass: hass.session
+    modules['homeassistant.helpers.aiohttp_client'].async_get_clientsession = lambda hass, **kwargs: hass.session
     modules['homeassistant.helpers.storage'].Store = Store
     modules['wyoming.event'].Event = Event
     modules['aiohttp'].ClientTimeout = lambda **kw: kw
@@ -52,7 +53,7 @@ adapter, core = load()
 class HA:
     def __init__(self):
         self.data = {}
-        self.config = types.SimpleNamespace(internal_url='http://ha.local:8123', external_url='https://ha.example.test', api=types.SimpleNamespace(port=8123), path=lambda name: '/not-present-guard-fixture/' + name)
+        self.config = types.SimpleNamespace(internal_url='http://ha.local:8123', external_url='https://ha.example.test', api=types.SimpleNamespace(port=8123, use_ssl=False), path=lambda name: '/not-present-guard-fixture/' + name)
         self.values = {}
         self.states = types.SimpleNamespace(get=lambda key: self.values.get(key))
         self.registered = {}
@@ -248,5 +249,57 @@ class AdapterTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.transport.pending, {})
         self.assertFalse(self.transport.rpc_lock.locked())
         self.assertEqual([event.data['op'] for event in self.sent], ['status'])
+
+    async def test_native_tls_uses_verified_session_and_configured_hostname(self):
+        self.ha.config.api.use_ssl = True
+        self.ha.config.internal_url = 'https://ha.internal.test:8123'
+        self.assertEqual(self.transport.validate_media('https://127.0.0.1:8123/api/tts_proxy/test.wav'), '/api/tts_proxy/test.wav')
+        with self.assertRaises(core.AnnouncementError):
+            self.transport.validate_media('http://127.0.0.1:8123/api/tts_proxy/test.wav')
+        calls = []
+        class Content:
+            async def iter_chunked(self, size): yield b'encoded-fixture'
+        class Response:
+            status, content_length, content = 200, 15, Content()
+            async def __aenter__(self): return self
+            async def __aexit__(self, *args): return False
+        class Session:
+            def get(self, url, **kwargs):
+                calls.append((url, kwargs)); return Response()
+        session = Session()
+        adapter.ffmpeg.get_ffmpeg_manager = lambda hass: types.SimpleNamespace(binary='fake-decoder')
+        with patch.object(adapter, 'async_get_clientsession', return_value=session) as factory, patch.object(adapter, 'decode_pcm', AsyncMock(return_value=b'00')):
+            self.assertEqual(await self.transport.decode('/api/tts_proxy/test.wav'), b'00')
+        factory.assert_called_once_with(self.ha, verify_ssl=True)
+        self.assertEqual(calls[0][0], 'https://127.0.0.1:8123/api/tts_proxy/test.wav')
+        self.assertEqual(calls[0][1]['server_hostname'], 'ha.internal.test')
+        self.assertFalse(calls[0][1]['allow_redirects'])
+        self.assertNotIn('ssl', calls[0][1])
+
+    async def test_native_tls_without_https_identity_reports_unsupported(self):
+        self.ha.config.api.use_ssl = True
+        self.ha.config.external_url = None
+        result = await self.transport.capabilities()
+        self.assertEqual(result['reason'], 'native_tls_hostname_unavailable')
+        self.assertFalse(any(result[key] for key in core.CAPABILITIES))
+        self.assertEqual(self.sent, [])
+
+    async def test_untrusted_certificate_never_falls_back_to_insecure_http(self):
+        self.ha.config.api.use_ssl = True
+        calls = []
+        class Response:
+            async def __aenter__(self): raise ssl.SSLCertVerificationError('untrusted certificate')
+            async def __aexit__(self, *args): return False
+        class Session:
+            def get(self, url, **kwargs):
+                calls.append((url, kwargs)); return Response()
+        with patch.object(adapter, 'async_get_clientsession', return_value=Session()) as factory:
+            with self.assertRaises(ssl.SSLCertVerificationError):
+                await self.transport.decode('/api/tts_proxy/test.wav')
+        factory.assert_called_once_with(self.ha, verify_ssl=True)
+        self.assertEqual(len(calls), 1)
+        self.assertTrue(calls[0][0].startswith('https://127.0.0.1:'))
+        self.assertEqual(calls[0][1]['server_hostname'], 'ha.example.test')
+        self.assertEqual(self.sent, [])
 
 if __name__ == '__main__': unittest.main()

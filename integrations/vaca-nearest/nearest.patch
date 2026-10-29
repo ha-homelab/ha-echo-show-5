@@ -1,5 +1,5 @@
 diff --git a/app/build.gradle.kts b/app/build.gradle.kts
-index b9d4002..a5bb6ff 100644
+index b9d4002..4ff9852 100644
 --- a/app/build.gradle.kts
 +++ b/app/build.gradle.kts
 @@ -1,3 +1,4 @@
@@ -59,7 +59,7 @@ index 8683564..a78a41d 100644
          }
          return ShortArray(0)
 diff --git a/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt b/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
-index fa8c1a9..5ffad78 100644
+index fa8c1a9..b8d1d48 100644
 --- a/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
 +++ b/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
 @@ -1,5 +1,8 @@
@@ -79,7 +79,7 @@ index fa8c1a9..5ffad78 100644
 +        canAnswer = { state == SatelliteState.RUNNING && clientId.isNotEmpty() && !config.isMuted &&
 +            !AudioLeaseRuntime.inhibited && (audioPipeline == null || audioPipeline?.pipelineStage == PipelineStage.ENDED) },
 +        captureAllowed = { state == SatelliteState.RUNNING && !config.isMuted && !AudioLeaseRuntime.inhibited },
-+        open = { detection -> handleWakeWordDetection(detection) })
++        open = { detection, turn -> handleWakeWordDetection(detection, turn) })
  
      private var soundEffectFinishTime: Long = 0
      private var currentWakeWordSoundUri: android.net.Uri? = null
@@ -91,23 +91,15 @@ index fa8c1a9..5ffad78 100644
          // This must run before WyomingTCPServer resumes reading the new connection.
          // Otherwise its settings event can arrive before initSettings is reset.
          this.clientId = clientId
-@@ -347,6 +356,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
-         stopWakeWordDetectionLocked()
-         if (AudioLeaseRuntime.inhibited) return
- 
-+        nearest.start()
-         Timber.d("Starting Wake Word Detection")
-         sendDiagnostics(0f, 0f)
-         withContext(Dispatchers.Default) {
-@@ -357,6 +367,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
- 
-                 override suspend fun onAudio(audio: WakeWordEngineProvider.AudioResult.Audio, streamAudio: Boolean) {
-                     if (streamAudio) {
-+                        nearest.takeReplay(audio.captureSequence).forEach { sendAudio(it) }
-                         sendAudio(audio)
-                     }
-                     audioLogManager.onAudio(AudioDSP().byteArrayToShortArray(audio.audio))
-@@ -369,7 +380,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+@@ -306,6 +315,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+             { volumeObserver?.unregister() },
+             { eventHandler.stop() },
+             { stopWakeWordDetection() },
++            { nearest.stop() },
+             { stopSensors() },
+             { motionTask.release() },
+         )
+@@ -369,7 +379,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
                      } else if (mediaManager.alarmPlayer.isSounding()) {
                          onStopWordDetected(detection)
                      } else {
@@ -116,19 +108,29 @@ index fa8c1a9..5ffad78 100644
                      }
                  }
  
+@@ -394,6 +404,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+                 it.run()
+             }
+         }
++        nearest.start()
+     }
+ 
+     suspend fun stopWakeWordDetection() = wakeWordLifecycle.withLock {
 @@ -401,6 +412,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
      }
  
      private suspend fun stopWakeWordDetectionLocked() {
-+        nearest.stop()
++        nearest.pause()
          wakeWordHandler?.stop()
          wakeWordHandler = null
      }
-@@ -412,7 +424,8 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+@@ -411,8 +423,9 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+         startWakeWordDetectionLocked()
      }
  
-     suspend fun handleWakeWordDetection(detection: WakeWordEngineProvider.WakeWordDetection) {
+-    suspend fun handleWakeWordDetection(detection: WakeWordEngineProvider.WakeWordDetection) {
 -        if (AudioLeaseRuntime.inhibited) return
++    suspend fun handleWakeWordDetection(detection: WakeWordEngineProvider.WakeWordDetection, nearestTurn: Long? = null) {
 +        if (AudioLeaseRuntime.inhibited || config.isMuted || state != SatelliteState.RUNNING) return
 +        if (detection.wakeWordId == "manual_wake") nearest.cancel()
          if (clientId.isEmpty()) {
@@ -139,7 +141,7 @@ index fa8c1a9..5ffad78 100644
              }
              audioLogManager.onWakeWordDetected(detection.timestamp, detection.wakeWord, detection.score)
 -            startAudioPipeline(PipelineStartMode.WAKE_WORD_DETECTED, detection.timestamp)
-+            startAudioPipeline(if (detection.wakeWordId == "manual_wake") PipelineStartMode.MANUAL else PipelineStartMode.WAKE_WORD_DETECTED, detection.timestamp, detection.wakeWordId)
++            startAudioPipeline(if (detection.wakeWordId == "manual_wake") PipelineStartMode.MANUAL else PipelineStartMode.WAKE_WORD_DETECTED, detection.timestamp, detection.wakeWordId, nearestTurn)
              playWakeWordDetectionSound()
          }
      }
@@ -156,18 +158,38 @@ index fa8c1a9..5ffad78 100644
  
      @OptIn(ExperimentalAtomicApi::class)
 -    fun startAudioPipeline(startStage: PipelineStartMode, eventId: Long = System.currentTimeMillis()) {
-+    fun startAudioPipeline(startStage: PipelineStartMode, eventId: Long = System.currentTimeMillis(), wakeWordId: String = config.wakeWord) {
++    fun startAudioPipeline(startStage: PipelineStartMode, eventId: Long = System.currentTimeMillis(), wakeWordId: String = config.wakeWord, nearestTurn: Long? = null) {
          if (AudioLeaseRuntime.inhibited) return
          if (audioPipeline != null) {
              audioPipeline?.stop()
-@@ -601,6 +615,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+@@ -579,6 +593,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+             }
+ 
+             override fun onFinish(reason: PipelineEndReason, continueConversation: Boolean) {
++                nearest.releaseReplay(this)
+                 if (reason == PipelineEndReason.END_OF_PIPELINE) {
+                     Timber.i("Pipeline ended.  Restarting: $continueConversation")
+                     if (continueConversation) {
+@@ -601,14 +616,16 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
              }
  
          }.also {
 +            it.detectedWakeWordId = wakeWordId
++            nearest.bindReplay(nearestTurn, it)
              it.run(startStage)
          }
      }
+ 
+     suspend fun sendAudio(audio: WakeWordEngineProvider.AudioResult.Audio) {
+-        if (audioPipeline != null) {
+-            audioPipeline?.sendMicAudio(audio)
+-        }
++        val pipeline = audioPipeline ?: return
++        nearest.takeReplay(pipeline, audio.captureSequence).forEach { pipeline.sendMicAudio(it) }
++        pipeline.sendMicAudio(audio)
+     }
+ 
+     fun stopAudioPipeline() {
 diff --git a/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteAudioPipeline.kt b/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteAudioPipeline.kt
 index cea734e..1dc8e1a 100644
 --- a/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteAudioPipeline.kt

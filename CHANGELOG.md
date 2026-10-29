@@ -8,6 +8,10 @@
 - Keep speech synthesis independent of the conversational pipeline and do not treat a service return or an uncorrelated `played` event as proof of playback completion.
 - Document the distinction between coordinated native audio ownership and external Android activity checks. Quiet builds and automated tests do not establish acoustic acceptance.
 
+- Close the SIP claim/preemption race, preserve foreground evidence during long kiosk sessions, and bound native receipt retention with an atomic expiry fence.
+- Bind election audio to the winning pipeline and retain discovery across wake-listener pauses, preventing stale replay and unnecessary rediscovery gaps.
+- Verify certificates for HA native-HTTPS loopback audio without adding an insecure fallback.
+
 ### Mixed-device voice arbitration
 
 - Add an opt-in VACA overlay compatible with TECHO5's authenticated nearest-device protocol, preserving the private wake frontend and SIP microphone lease bridge.

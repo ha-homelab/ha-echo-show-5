@@ -12,8 +12,8 @@ import xml.etree.ElementTree as ET
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
-VERSION = '0.13.4+myshka.12-announce.1'
-CODE = 7012
+VERSION = '0.13.4+myshka.13-announce.2'
+CODE = 7013
 
 
 def load(name, path):
@@ -117,11 +117,14 @@ def main():
                 nearest_suites[suite.get('name')] = int(suite.get('tests', '0'))
         if nearest_suites.get('com.msp1974.vacompanion.nearest.NearestCoreJUnitTest', 0) < 36:
             raise ValueError('Nearest protocol, DSP and four-device tests did not run')
-        if nearest_suites.get('com.msp1974.vacompanion.nearest.NearestAdapterTest', 0) < 14:
+        if nearest_suites.get('com.msp1974.vacompanion.nearest.NearestAdapterTest', 0) < 26:
             raise ValueError('Nearest adapter regression tests did not run')
         announce_suite = source / 'app/build/test-results/testDebugUnitTest/TEST-com.msp1974.vacompanion.announce.AnnouncementCoreTest.xml'
-        if not announce_suite.exists() or int(ET.parse(announce_suite).getroot().get('tests', '0')) < 41:
+        if not announce_suite.exists() or int(ET.parse(announce_suite).getroot().get('tests', '0')) < 46:
             raise ValueError('Guarded announcement core tests did not run')
+        admission_suite = source / 'app/build/test-results/testDebugUnitTest/TEST-com.msp1974.vacompanion.announce.AnnouncementAdmissionTest.xml'
+        if not admission_suite.exists() or int(ET.parse(admission_suite).getroot().get('tests', '0')) < 18:
+            raise ValueError('Announcement preemption and foreground tests did not run')
         if not b.source_matches(source, index_env):
             raise ValueError('Source changed during VACA build')
         if any(b.sha256(path) != checksum for path, checksum in frozen_inputs.items()):

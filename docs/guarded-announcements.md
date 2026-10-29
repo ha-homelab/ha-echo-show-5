@@ -5,9 +5,9 @@ ordinary calls. Each physical Show retains **one** SIP account. An announcement
 does not create another extension, dial a number, start a conversation, or upload
 microphone audio for speech recognition.
 
-This is a candidate integration. The [October 29 validation record](../integrations/vaca-announce/build-validation-2026-10-29.md)
-confirms quiet installation on two endpoints and successful live capability
-checks. Audible playback and room-level acoustic acceptance remain pending.
+This is a candidate integration. The [October 29 validation record](../integrations/vaca-announce/build-validation-2026-10-29-r2.md)
+identifies the checked artifacts and quiet installation on two endpoints;
+the linked PR records final live activation checks. Audible playback and room-level acoustic acceptance remain pending.
 Do not enable a dispatcher until the installed endpoint reports the required
 capabilities. There is no automatic fallback to an unguarded announcement.
 
@@ -97,7 +97,12 @@ Decode failures, empty audio, expiry, interrupted transport and playback errors
 must remain visible in the receipt. A lost response does not prove silence:
 the device may have received part or all of the audio. Query the original ID and
 do not mint another ID to replay it automatically. Retained deduplication records
-and restart recovery protect against repeating a previously accepted request.
+and restart recovery protect against repeating a previously accepted request. Native terminal receipts are
+retained for at least 24 hours after expiry, while active receipts are never
+pruned. Atomic cleanup retains an expiry fence so clock rollback cannot revive
+an original expired request. This is bounded idempotency: after retention an old
+status can be unknown, and a caller must never recycle an ID with a new deadline.
+When the retained journal is full, new-work capability is unavailable.
 
 ## Quiet rollout and acceptance
 

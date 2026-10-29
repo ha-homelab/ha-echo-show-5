@@ -2,7 +2,7 @@
   "app/build.gradle.kts": "10434d68fd1bdab915c90f8eb7b47d7967c1d67eec67d3a66efe264193994253",
   "app/src/main/AndroidManifest.xml": "766cba6f56b529daaab99ea07d92c2fab1afcd94b28e1339e75c93fb3b755e00",
   "app/src/main/java/com/msp1974/vacompanion/VACAApplication.kt": "ae91d079a391834f174d8780396275144e461351a7fe9e8b8a9990a1d2e3605f",
-  "app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt": "64b7602b12c5dc77b54041a9f80fb9bd00dd71572d8d90f349c112442e3c5336",
+  "app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt": "e9979b2ea5c427b47ffe32d1fa6176206dc952cae4985524a244c41f47338010",
   "app/src/main/java/com/msp1974/vacompanion/wyoming/WyomingTCPServer.kt": "c49fb11cefa35aa7df02c1c46663864ae8ddaa9d3ae304239df5a0abe4cda127",
   "app/src/main/java/com/msp1974/vacompanion/telephony/AudioLeaseCoordinator.kt": "11a254dc1db307aeb7e31a1ea9e5dc56d4891f2608088abce02ffb8ac742d76e",
   "app/src/main/java/com/msp1974/vacompanion/telephony/AudioLeaseRuntime.kt": "b54608770c1457806db1e77c8228950114385aff8cb785f4144e526d6cc0ffca",
@@ -10,7 +10,10 @@
   "app/src/main/java/com/msp1974/vacompanion/players/AlarmService.kt": "0537e7fb34fb5be7c45c4e64b6605b278ecd0046d80d53a414ec03c58d588221",
   "app/src/main/java/com/msp1974/vacompanion/players/VoicePlayerService.kt": "3f3fb734de3d0b78cbad84f7b1f850827e5ef9b8f1f611bc720cb2750714c50b",
   "app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteAudioPipeline.kt": "dbf7af49b384232a827cc4072683e915f9bb270563d98f3f800fe0c2cccbfffe",
-  "app/src/main/java/com/msp1974/vacompanion/nearest/NearestRuntime.kt": "126b0751e686ccde082913d8a1a54b41a09827349585d0b303d465bc9f8c2ccd",
+  "app/src/main/java/com/msp1974/vacompanion/nearest/NearestRuntime.kt": "cbbaf7ec94addb363bd06267518de664801ad47ff9450b884351c8db92e41f5b",
   "app/src/main/java/com/msp1974/vacompanion/players/SoundEffectsPlayer.kt": "63ef0063e4980288074ba8e13012b2cd81765bdaff6fc098df520a21cccad8cf",
-  "app/src/main/java/com/msp1974/vacompanion/nearest/NearestWakeAdmission.kt": "4236119057c1613695d742ff1c0ba59bf7ad0a1a25c5600ab3bb58793d518217"
+  "app/src/main/java/com/msp1974/vacompanion/nearest/NearestWakeAdmission.kt": "4236119057c1613695d742ff1c0ba59bf7ad0a1a25c5600ab3bb58793d518217",
+  "app/src/main/java/com/msp1974/vacompanion/nearest/NearestLifecycle.kt": "bf833887edb14959201aa24351e3c9aaaa324316c006cbfac0a25045487aea9a",
+  "app/src/main/java/com/msp1974/vacompanion/nearest/NearestReplay.kt": "5dd63eb0109daf1ab37fc305b67eb1a73d9b3b1ab795dda597b03d4821f81049",
+  "app/src/main/java/com/msp1974/vacompanion/nearest/NearestSettings.kt": "0ee4737b784fa4981a4db34795f6881682d049e86890837a2e51487ac988aaef"
 }

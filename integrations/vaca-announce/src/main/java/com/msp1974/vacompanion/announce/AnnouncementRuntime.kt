@@ -48,11 +48,14 @@ object AnnouncementRuntime {
         val file = AtomicFile(File(context.filesDir, "announcement-ledger.json"))
         ledger = runCatching {
             val records = mutableListOf<AnnouncementLedger.Record>()
+            var prunedThrough = 0L
             if (file.baseFile.exists() || File(file.baseFile.path + ".bak").exists()) {
                 val raw = file.openRead().use { it.readBytes() }
                 require(raw.size <= 1024 * 1024)
                 val root = JSONObject(String(raw, Charsets.UTF_8))
-                require(root.getInt("version") == 1)
+                val version = root.getInt("version")
+                require(version in 1..2)
+                if (version == 2) prunedThrough = root.getLong("pruned_through_ms").also { require(it >= 0) }
                 val items = root.getJSONArray("requests")
                 require(items.length() <= 2048)
                 for (index in 0 until items.length()) {
@@ -61,17 +64,18 @@ object AnnouncementRuntime {
                         row.getLong("expires_at_ms"), row.getString("status"), row.optString("reason")))
                 }
             }
-            AnnouncementLedger(records, System::currentTimeMillis, SystemClock::elapsedRealtime, { rows ->
+            AnnouncementLedger(records, System::currentTimeMillis, SystemClock::elapsedRealtime, { rows, fence ->
                 val array = JSONArray()
                 rows.forEach { row -> array.put(JSONObject().put("request_id", row.requestId)
                     .put("fingerprint", row.fingerprint).put("expires_at_ms", row.expiresAt)
                     .put("status", row.status).put("reason", row.reason)) }
-                val bytes = JSONObject().put("version", 1).put("requests", array).toString().toByteArray(Charsets.UTF_8)
+                val bytes = JSONObject().put("version", 2).put("pruned_through_ms", fence)
+                    .put("requests", array).toString().toByteArray(Charsets.UTF_8)
                 require(bytes.size <= 1024 * 1024)
                 val stream = file.startWrite()
                 try { stream.write(bytes); file.finishWrite(stream) }
                 catch (error: Exception) { file.failWrite(stream); throw error }
-            }, ::busyReason)
+            }, ::busyReason, initialPrunedThrough = prunedThrough)
         }.getOrNull()
         scope.launch {
             for ((satellite, packet, client) in queue) {
@@ -98,9 +102,9 @@ object AnnouncementRuntime {
     }
     /** Called before SIP acquisition; only the currently owned announcement is stopped. */
     suspend fun preemptForSip() {
-        val expected = ownerId ?: return
-        abortRequest = expected to "sip_preempted"
-        mutex.withLock { if (ownerId == expected) finishLocked("stopped", "sip_preempted") }
+        preemptAnnouncementOwner(mutex, { ownerId },
+            { current -> abortRequest = current to "sip_preempted" },
+            { finishLocked("stopped", "sip_preempted") })
     }
     fun stopByWakeWord(satellite: Satellite) {
         val expected = ownerId ?: return
@@ -115,7 +119,7 @@ object AnnouncementRuntime {
         satellites.any { it.isBusyForAudioLease() } -> "assist_or_media_busy"
         else -> environment.reason()
     }
-    private fun ready(): Boolean = !quarantined && ledger?.healthy == true && environment.compatibleSip() && environment.usageAccess()
+    private fun ready(): Boolean = !quarantined && ledger?.canAcceptNew == true && environment.compatibleSip() && environment.usageAccess()
     suspend fun handle(satellite: Satellite, packet: WyomingPacket, sourceClient: String) {
         if (packet.payload.size > 16384) return
         // Control operations bypass bounded PCM queue. A full queue fails rather than blocking cancellation.

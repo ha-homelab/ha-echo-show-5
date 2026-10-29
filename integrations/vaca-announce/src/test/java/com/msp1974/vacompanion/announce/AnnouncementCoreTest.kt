@@ -18,8 +18,9 @@ class AnnouncementCoreTest {
     private var wall = 1_000_000L
     private var elapsed = 50L
     private var stored = emptyList<AnnouncementLedger.Record>()
+    private var storedFence = 0L
     private fun book(busy: () -> String? = { null }, save: (List<AnnouncementLedger.Record>) -> Unit = { stored = it }, capacity: Int = 2048) =
-        AnnouncementLedger(emptyList(), { wall }, { elapsed }, save, busy, capacity)
+        AnnouncementLedger(emptyList(), { wall }, { elapsed }, { rows, fence -> save(rows); storedFence = fence }, busy, capacity)
     @After fun cleanup() { AnnouncementGate.release(a); AnnouncementGate.release(b) }
     @Test fun idleAcceptedAndDurableBeforeReturn() { assertTrue(book().claim(a, hash, wall + 1000).fresh); assertEquals("accepted", stored.single().status) }
     @Test fun invalidRequestIdRejected() { assertEquals("invalid_request", book().claim("bad", hash, wall + 1000).reason) }
@@ -37,8 +38,59 @@ class AnnouncementCoreTest {
     @Test fun oldStopCannotReleaseNewOwner() { val l = book(); l.claim(a, hash, wall + 1000); l.finish(a, "completed"); l.claim(b, hash, wall + 1000); l.finish(a, "stopped"); assertTrue(AnnouncementGate.owns(b)) }
     @Test fun monotonicDeadlineSurvivesWallClockBackwards() { val l = book(); l.claim(a, hash, wall + 1000); wall -= 500000; elapsed += 1001; assertTrue(l.deadlineExpired(a)) }
     @Test fun forwardWallClockExpiresEarly() { val l = book(); l.claim(a, hash, wall + 1000); wall += 2000; assertTrue(l.deadlineExpired(a)) }
-    @Test fun fullLedgerNeverEvicts() { val l = book(capacity = 1); l.claim(a, hash, wall + 1000); l.finish(a, "completed"); assertEquals("ledger_full", l.claim(b, hash, wall + 1000).reason) }
-    @Test fun restartConvertsInflightToUnknown() { book().claim(a, hash, wall + 1000); AnnouncementGate.release(a); val l = AnnouncementLedger(stored, { wall }, { elapsed }, { stored = it }, { null }); assertEquals("unknown", l.status(a).status); assertFalse(l.claim(a, hash, wall + 1000).fresh) }
+    @Test fun fullLedgerRetainsRecentReceipts() { val l = book(capacity = 1); l.claim(a, hash, wall + 1000); l.finish(a, "completed"); assertEquals("ledger_full", l.claim(b, hash, wall + 1000).reason) }
+    @Test fun completedReceiptsPruneOnlyAfterRetention() {
+        val l = book(capacity = 1); val expiry = wall + 1000
+        l.claim(a, hash, expiry); l.finish(a, "completed")
+        assertFalse(l.canAcceptNew)
+        wall = expiry + AnnouncementLedger.RETENTION_MS
+        assertFalse(l.canAcceptNew)
+        wall++
+        assertTrue(l.canAcceptNew)
+        assertTrue(l.claim(b, hash, wall + 1000).fresh)
+        assertEquals("unknown", l.status(a).status)
+        assertEquals(expiry, storedFence)
+    }
+    @Test fun activeReceiptNeverPruned() {
+        val l = book(capacity = 1); l.claim(a, hash, wall + 1000)
+        wall += AnnouncementLedger.RETENTION_MS + 2000
+        assertFalse(l.canAcceptNew)
+        assertEquals("ledger_full", l.claim(b, hash, wall + 1000).reason)
+        assertTrue(AnnouncementGate.owns(a))
+    }
+    @Test fun pruningWriteFailureRetainsReceiptsAndStopsAdmission() {
+        var fail = false
+        val l = book(save = { if (fail) error("disk failure") else stored = it }, capacity = 1)
+        l.claim(a, hash, wall + 1000); l.finish(a, "completed")
+        wall += AnnouncementLedger.RETENTION_MS + 2000; fail = true
+        assertEquals("journal_unavailable", l.claim(b, hash, wall + 1000).reason)
+        assertEquals("completed", l.status(a).status)
+        assertEquals(a, stored.single().requestId)
+        assertFalse(l.canAcceptNew)
+        assertFalse(AnnouncementGate.busy)
+    }
+    @Test fun persistedPruningFenceRejectsOriginalExpiryAfterClockRollback() {
+        val l = book(capacity = 2); val originalWall = wall; val expiry = wall + 1000
+        l.claim(a, hash, expiry); l.finish(a, "completed")
+        wall = expiry + AnnouncementLedger.RETENTION_MS + 1
+        l.claim(b, hash, wall + 1000); l.finish(b, "completed")
+        assertEquals(expiry, storedFence)
+        wall = originalWall
+        val restored = AnnouncementLedger(stored, { wall }, { elapsed }, { rows, fence -> stored = rows; storedFence = fence }, { null }, 2, storedFence)
+        assertFalse(restored.canAcceptNew)
+        val reply = restored.claim(a, hash, expiry)
+        assertFalse(reply.fresh); assertEquals("expired", reply.reason)
+        assertFalse(AnnouncementGate.busy)
+    }
+    @Test fun expiredOriginalCannotReplayAfterPruning() {
+        val l = book(capacity = 2); val expiry = wall + 1000
+        l.claim(a, hash, expiry); l.finish(a, "completed")
+        wall = expiry + AnnouncementLedger.RETENTION_MS + 1
+        l.claim(b, hash, wall + 1000); l.finish(b, "completed")
+        assertEquals("expired", l.claim(a, hash, expiry).reason)
+        assertFalse(AnnouncementGate.busy)
+    }
+    @Test fun restartConvertsInflightToUnknown() { book().claim(a, hash, wall + 1000); AnnouncementGate.release(a); val l = AnnouncementLedger(stored, { wall }, { elapsed }, { rows, fence -> stored = rows; storedFence = fence }, { null }); assertEquals("unknown", l.status(a).status); assertFalse(l.claim(a, hash, wall + 1000).fresh) }
     @Test fun failedClaimPersistenceReleasesReservation() { val l = book(save = { throw IllegalStateException() }); assertEquals("failed", l.claim(a, hash, wall + 1000).status); assertFalse(AnnouncementGate.busy) }
     @Test fun failedPlayingPersistenceStillAllowsOwnedCleanup() { var fail = false; val l = book(save = { if (fail) throw IllegalStateException() else stored = it }); l.claim(a, hash, wall + 1000); fail = true; assertEquals("unknown", l.playing(a).status); l.finish(a, "unknown"); assertFalse(AnnouncementGate.busy) }
     @Test fun uncertainTrackReleaseQuarantinesOwnership() { val l = book(); l.claim(a, hash, wall + 1000); l.finish(a, "unknown", "release_failed", releaseOwnership = false); assertTrue(AnnouncementGate.owns(a)); assertEquals("busy", l.claim(b, hash, wall + 1000).reason) }

@@ -37,7 +37,7 @@ Capability output includes `protocol: cisco-announcement-v1`, and Boolean `atomi
 
 Select the speech engine and voice in the producer, synthesize **once**, and reuse its prepared HA TTS URL for all targets. The HA API accepts the engine `tts.local_russian_speech` and voice `silero-ru-baya` when installed. `silero-ru-default` follows the speech service's current voice setting and is not a permanent alias for Baya.
 
-This overlay accepts only `/api/tts_proxy/<filename>` or the equivalent URL on this HA instance's configured internal/external origin. It deliberately rejects arbitrary URLs, inline text, `media-source://` identifiers that could trigger synthesis, user-info URLs, query strings, redirects, filesystem paths and other protocols. The file is fetched through HA's loopback listener, capped at 8 MiB, then decoded through ffmpeg stdin with a `pipe` protocol allowlist. The decoded PCM is bounded to 22,050 Hz, mono, signed 16-bit, at most 120 seconds. No URL or credential is passed to ffmpeg.
+This overlay accepts only `/api/tts_proxy/<filename>` or the equivalent URL on this HA instance's configured internal/external origin. It deliberately rejects arbitrary URLs, inline text, `media-source://` identifiers that could trigger synthesis, user-info URLs, query strings, redirects, filesystem paths and other protocols. The file is fetched through HA's loopback listener, capped at 8 MiB, then decoded through ffmpeg stdin with a `pipe` protocol allowlist. Plain HTTP listeners use HTTP loopback. Native-TLS listeners use HTTPS loopback with HA's certificate-verifying client session and SNI/hostname verification against the configured HTTPS internal URL (or HTTPS external URL when no HTTPS internal URL exists). The network destination stays loopback. No certificate or hostname verification is disabled. A missing configured HTTPS identity makes capabilities unsupported; an untrusted or mismatched certificate fails preparation before a native audio claim. Private CAs must already be trusted by HA's client SSL context. The decoded PCM is bounded to 22,050 Hz, mono, signed 16-bit, at most 120 seconds. No URL or credential is passed to ffmpeg.
 
 ## Required private guard mapping
 
@@ -63,7 +63,7 @@ If `show5_intercom` is loaded, its active lease, cleanup/recovery state and curr
 
 ## Installation and rollback
 
-Apply only to a **staging copy** of `custom_components/vaca`. The tool verifies exact source hashes and dependencies, checks all destinations before writing, and accepts an already applied identical overlay. Unknown, partially applied, linked or modified files fail closed.
+Apply only to a **staging copy** of `custom_components/vaca`. The tool verifies exact source hashes and dependencies, checks all destinations before writing, and accepts an already applied identical overlay. Unknown, partially applied, linked or modified files fail closed. The pinned VACA `VAAsyncTcpClient` subclass supplies `can_write_event()`; this overlay does not assume that method exists on the upstream Wyoming base client.
 
 ```sh
 python3 integrations/vaca-announce/home_assistant/apply.py --source /path/to/staging/vaca --check

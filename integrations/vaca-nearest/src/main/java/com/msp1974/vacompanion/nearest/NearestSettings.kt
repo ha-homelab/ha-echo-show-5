@@ -11,6 +11,11 @@ class NearestConfig(
     val enabled: Boolean = false, val name: String = "", internal val houseWord: String = "",
     val windowMs: Long = 300, val offsetDb: Double = 0.0, val port: Int = 18127,
 ) {
+    // Explicit comparison avoids data-class toString() exposing the house credential.
+    internal fun sameConfiguration(other: NearestConfig) =
+        enabled == other.enabled && name == other.name && houseWord == other.houseWord &&
+            windowMs == other.windowMs && offsetDb == other.offsetDb && port == other.port
+
     fun validate() {
         require(name.length <= 40 && name.none { it.isISOControl() })
         require(windowMs in 100L..500L && offsetDb.isFinite() && offsetDb in -30.0..30.0)

@@ -15,8 +15,8 @@ import android.os.Process
 internal class AnnouncementEnvironment(private val context: Context) {
     private val audio = context.getSystemService(AudioManager::class.java)
     private val usage = context.getSystemService(UsageStatsManager::class.java)
-    private var lastQuery = 0L
-    private var foreground: String? = null
+    private val foreground = ForegroundState()
+    init { AnnouncementLifecycle.initialize(context) }
     fun compatibleSip(): Boolean = try {
         val pm = context.packageManager
         val info = pm.getApplicationInfo(SIP, PackageManager.GET_META_DATA)
@@ -40,25 +40,30 @@ internal class AnnouncementEnvironment(private val context: Context) {
     } catch (_: Exception) { "external_state_unknown" }
     @Synchronized private fun foregroundAllowed(): Boolean {
         val now = System.currentTimeMillis()
-        // Initial query is deliberately broad: a stationary room screen may be open all day.
-        val from = if (lastQuery == 0L || now < lastQuery) now - 86400000 else (lastQuery - 1000).coerceAtLeast(0)
-        val events = usage.queryEvents(from, now)
-        val event = UsageEvents.Event()
-        var seen = 0
-        var latest = 0L
-        while (events.hasNextEvent()) {
-            if (++seen > 50000) return false
-            events.getNextEvent(event)
-            if (event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND && event.timeStamp >= latest) {
-                foreground = event.packageName
-                latest = event.timeStamp
+        val from = foreground.queryStart(now)
+        try {
+            val events = usage.queryEvents(from, now)
+            val event = UsageEvents.Event()
+            var seen = 0
+            while (events.hasNextEvent()) {
+                if (++seen > 50000) {
+                    foreground.failed(now)
+                    return false // Never admit on partial/over-budget history.
+                }
+                events.getNextEvent(event)
+                when (event.eventType) {
+                    UsageEvents.Event.MOVE_TO_FOREGROUND -> foreground.resumed(event.packageName, event.timeStamp)
+                    UsageEvents.Event.MOVE_TO_BACKGROUND -> foreground.paused(event.packageName, event.timeStamp)
+                }
             }
+            foreground.complete(now)
+        } catch (_: Exception) {
+            foreground.failed(now)
+            return false
         }
-        lastQuery = now
-        val pkg = foreground ?: return false
         val home = context.packageManager.resolveActivity(
             Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName
-        return pkg == context.packageName || (home != null && pkg == home)
+        return foreground.allows(context.packageName, home, AnnouncementLifecycle.snapshot())
     }
     companion object { const val SIP = "org.hahomelab.show5sip" }
 }

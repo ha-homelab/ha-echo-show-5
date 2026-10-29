@@ -1,24 +1,31 @@
 // SPDX-License-Identifier: Apache-2.0
 package com.msp1974.vacompanion.announce
 
-/** Durable idempotency ledger. It never evicts request IDs; full storage rejects new work. */
+/** Durable idempotency within the retained window; pruning persists an expiry fence. */
 internal class AnnouncementLedger(
     initial: List<Record>,
     private val wallNow: () -> Long,
     private val monotonicNow: () -> Long,
-    private val persist: (List<Record>) -> Unit,
+    private val persist: (List<Record>, Long) -> Unit,
     private val busyReason: () -> String?,
     private val capacity: Int = 2048,
+    initialPrunedThrough: Long = 0,
 ) {
     data class Record(val requestId: String, val fingerprint: String, val expiresAt: Long,
                       val status: String, val reason: String = "")
     data class Reply(val requestId: String, val status: String, val reason: String = "", val fresh: Boolean = false)
     private val records = LinkedHashMap<String, Record>()
     private var deadline: Long = 0
+    private var prunedThrough: Long = initialPrunedThrough
     @Volatile var healthy: Boolean = true
         private set
     val current: String? get() = synchronized(AnnouncementGate.monitor) { records.values.lastOrNull { it.status in ACTIVE }?.requestId }
+    val canAcceptNew: Boolean get() = synchronized(AnnouncementGate.monitor) {
+        healthy && wallNow() > prunedThrough &&
+            (records.size < capacity || records.values.any { prunable(it, wallNow()) })
+    }
     init {
+        require(capacity > 0 && initialPrunedThrough >= 0)
         require(initial.size <= capacity)
         initial.forEach { record ->
             require(validId(record.requestId) && record.fingerprint.matches(Regex("[0-9a-f]{64}")))
@@ -37,10 +44,11 @@ internal class AnnouncementLedger(
             return@synchronized Reply(id, old.status, old.reason)
         }
         if (!healthy) return@synchronized Reply(id, "failed", "journal_unavailable")
+        if (!prune()) return@synchronized Reply(id, "failed", "journal_unavailable")
         if (records.size >= capacity) return@synchronized Reply(id, "failed", "ledger_full")
         val remaining = expiresAt - wallNow()
         val reason = when {
-            remaining <= 0 -> "expired"
+            remaining <= 0 || expiresAt <= prunedThrough -> "expired"
             remaining > MAX_TTL_MS -> "invalid_expiry"
             else -> AnnouncementGate.claim(id, busyReason)
         }
@@ -82,9 +90,26 @@ internal class AnnouncementLedger(
         records[record.requestId] = record
         return Reply(record.requestId, record.status, record.reason)
     }
-    private fun write(next: List<Record>): Boolean = try { persist(next); true } catch (_: Exception) { healthy = false; false }
+    private fun prunable(record: Record, now: Long): Boolean =
+        record.status in TERMINAL && now > RETENTION_MS && record.expiresAt < now - RETENTION_MS
+    private fun prune(): Boolean {
+        val now = wallNow()
+        val expired = records.values.filter { prunable(it, now) }
+        if (expired.isEmpty()) return true
+        val retired = expired.map { it.requestId }.toSet()
+        val next = records.values.filterNot { it.requestId in retired }
+        val nextFence = maxOf(prunedThrough, expired.maxOf { it.expiresAt })
+        if (!write(next, nextFence)) return false
+        records.clear()
+        next.forEach { records[it.requestId] = it }
+        prunedThrough = nextFence
+        return true
+    }
+    private fun write(next: List<Record>, fence: Long = prunedThrough): Boolean =
+        try { persist(next, fence); true } catch (_: Exception) { healthy = false; false }
     companion object {
         const val MAX_TTL_MS = 300_000L
+        const val RETENTION_MS = 86_400_000L
         val ACTIVE = setOf("accepted", "playing")
         val TERMINAL = setOf("completed", "skipped", "failed", "stopped", "unknown")
         fun validId(id: String) = id.matches(Regex("announce-[0-9a-f]{32}-[0-9]{3}"))
