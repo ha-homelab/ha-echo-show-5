@@ -44,6 +44,16 @@ Check local preview, received remote video, outbound video at the other particip
 
 The [camera/intercom pilot](../camera-and-intercom.md) and [HA intercom integration](../../integrations/show5-intercom/README.md) are separate experimental paths. Do not combine their capture permissions and ownership with Jitsi without a new coexistence test. The native Jitsi route is documented independently; complete acoustic and long-duration acceptance still belongs to the deployment operator.
 
+## Native SIP audio
+
+The optional [Show phone application](../../integrations/show5-sip/README.md)
+uses a separately assigned account on an existing PBX. It adds incoming calls,
+allowlisted outgoing contacts and exact-call hangup controls. A same-signer local
+VACA service waits for actual recorder teardown before granting the microphone;
+HA does not carry the audio. The initial implementation disables video and
+camera permission. Keep its call window separate from the legacy Jitsi/intercom
+launchers, which do not participate in this local lease protocol.
+
 ## Language and deployment
 
 The display supports configured `en`, `ru`, `de` and `es` language families and a separate 12/24-hour choice. It defaults to English and 24-hour time. [Localization](Localization.md) lists translated surfaces and exclusions. Deploy a complete cache-versioned release, including `i18n.js`; changing `config.js` at an old cached URL is not a reliable update.

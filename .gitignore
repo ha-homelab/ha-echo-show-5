@@ -18,6 +18,7 @@ integrations/show5-display/config.js
 downloads/
 vendor/
 *.apk
+*.aar
 *.img
 *.bin
 *.dll
@@ -91,6 +92,9 @@ tmp/
 temp/
 dist/
 build/
+.gradle/
+.kotlin/
+local.properties
 *.tmp
 *.bak
 *~
