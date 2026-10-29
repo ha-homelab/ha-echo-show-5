@@ -90,3 +90,7 @@ Wählen Sie den **beobachteten physischen USB-Port und die vollständige Serienn
 Downloads gehören nach `downloads/`, fremder Quellcode nach `vendor/`, Sicherungen nach `backups/`, Protokolle nach `logs/`, Schlüssel, Aufnahmen und ausgefüllte Konfigurationen nach `private/`. Git ignoriert diese Verzeichnisse, entfernt damit aber keine bereits eingecheckten Daten. HA-Dateien unter `/local` sind ohne Anmeldung erreichbar und dürfen keine Geheimnisse enthalten.
 
 [Beiträge und Tests](CONTRIBUTING.md) · [Sicherheit](SECURITY.md) · [Drittlizenzen](THIRD_PARTY_NOTICES.md) · [Releases](RELEASING.md). Ein Projekt-Release enthält Integrationsquellen, keine Firmware und keine APK. CI bestätigt weder hörbaren Ton noch die Zuverlässigkeit eines konkreten Geräts.
+
+### Room endpoint expansion
+
+[Room controls and timers](docs/room-panel.md) · [Session policy](docs/room-session-policy.md) · [Remote administration](docs/remote-admin-tools.md) · [Capability delivery and limits](docs/room-capability-delivery.md)

@@ -2,12 +2,34 @@
 
 This standalone page replaces the full Home Assistant dashboard with a large
 clock. A matching Front or Porch motion event shows that camera for 30 seconds;
-another event renews the lease, and the latest camera wins. Expiry returns to the
+another event from the same camera renews the lease. Other automatic camera
+events do not replace an already playing camera. Expiry returns to the
 clock. The interface, date and status messages use English by default; English,
 Russian, German and Spanish are available through an explicit locale setting. Camera video fills
 the entire screen without a title or clock header. `object-fit: cover` preserves
 proportions and crops the excess at the edges instead of stretching or adding
 borders; timestamps embedded by a camera remain part of its video.
+
+Revision **`20261029-r13`** prepares camera playback behind the current clock or
+Room menu. Nothing switches until the first image has decoded, or WebRTC has
+both started playback and delivered a decoded/presented frame. There is no
+loading, connecting, delayed-frame or error screen. Initial failure leaves the
+current interface intact. Opening Room cancels a pending camera so a late frame
+cannot take the menu away. An established WebRTC failure returns silently to
+the clock after the stream adapter's existing bounded health checks; snapshot
+refresh failures retain the last good image for at most fifteen seconds before
+returning to the clock. Competing automatic camera events do not discard a
+working stream; explicit manual camera selection remains available. These
+changes preserve the one-decoder and one-request bounds.
+
+Revision **`20261029-r12`** adds an optional [room panel](../../docs/room-panel.md)
+with six fixed actions, four status readings, HA reminders, local timer controls,
+and an opt-in static offline cache/photo frame. A configured room session sensor
+guards automatic motion playback: the room must be freshly confirmed idle, and
+the Room menu must be closed. These options do not change the default clock or
+full-screen camera layout. Credentials and live sensor/camera responses are
+never stored in the offline cache. Local timers are browser timers, not native
+Android alarms; the runbook describes their suspension and reboot limits.
 
 Revision **`20261015-r11`** recovers when Home Assistant accepts WebSocket
 authentication before MQTT has registered its subscription command. An explicit

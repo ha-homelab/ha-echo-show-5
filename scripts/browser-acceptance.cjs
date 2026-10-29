@@ -12,7 +12,7 @@ const runtime = JSON.parse(fs.readFileSync(path.join(diagnostics, 'runtime.json'
 const root = path.resolve(__dirname, '..');
 const candidateMode = Boolean(process.env.CI_BROWSER_CANDIDATE_ARTIFACT_ID);
 const directory = path.join(root, candidateMode ? '.browser-display' : 'integrations/show5-display');
-const names = ['index.html', 'display.css', 'i18n.js', 'stream.js', 'auth.js', 'display.js', 'blank-video.svg'];
+const names = ['index.html', 'display.css', 'i18n.js', 'stream.js', 'auth.js', 'display.js', 'room.js', 'offline-worker.js', 'blank-video.svg'];
 const assets = new Map(names.map(name => {
   const file = path.join(directory, name);
   assert(fs.lstatSync(file).isFile() && !fs.lstatSync(file).isSymbolicLink());

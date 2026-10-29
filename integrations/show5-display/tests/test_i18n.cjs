@@ -10,7 +10,7 @@ const { create, createFormatters, resolveLocale, messages } = require("../i18n.j
 test("every supported language has a complete immutable plain-text catalog", () => {
   const keys = Object.keys(messages.en).sort();
   assert.deepEqual(Object.keys(messages).sort(), ["de", "en", "es", "ru"]);
-  assert.equal(keys.length, 12);
+  assert.equal(keys.length, 28);
   for (const [language, catalog] of Object.entries(messages)) {
     assert.deepEqual(Object.keys(catalog).sort(), keys, language);
     assert.ok(Object.isFrozen(catalog));

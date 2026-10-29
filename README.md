@@ -153,3 +153,7 @@ Original project code and documentation are available under the [MIT license](LI
 ## Screenshot artwork
 
 See [capture provenance and regeneration](docs/screenshot-artwork.md).
+
+### Room endpoint expansion
+
+[Room controls and timers](docs/room-panel.md) · [Session policy](docs/room-session-policy.md) · [Remote administration](docs/remote-admin-tools.md) · [Capability delivery and limits](docs/room-capability-delivery.md)

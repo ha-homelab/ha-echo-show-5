@@ -25,6 +25,10 @@ See the [mixed-wake guide](Mixed-wake-words.md) and [dated measurements](Validat
 These dated records retain the original versions, measurements and acceptance
 limits. They do not establish a new build or current availability of either device.
 
+## Room endpoint expansion
+
+[Room controls, timers, media and administration](Room-endpoint.md) documents the current expansion and its measured limits.
+
 ## Pick a task
 
 - **Convert an untouched Show:** read [installation and recovery](Installation-and-recovery.md), then follow the complete [attended runbook](../runbook.md). Identify the model before using any image.

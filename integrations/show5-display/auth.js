@@ -4,6 +4,7 @@
   var TIMEOUT_MS = 10000;
   var MAX_BYTES = 10 * 1024 * 1024;
   var ROLES = ["front", "porch"];
+  var roomModule = typeof module !== "undefined" && module.exports ? require("./room.js") : root.Show5Room;
 
   function failure(code) {
     var error = new Error(code);
@@ -35,7 +36,10 @@
       if (typeof value !== "string" || !value || value.length > 1024) { throw failure("invalid_configuration"); }
       rules.push(Object.freeze({ role: role, topic: motion.topic, payload: motion.payload, jsonName: motion.jsonName }));
     });
-    return { entities: entities, rules: rules, roles: Object.keys(input.cameras), remoteTarget: input.remoteTarget,
+    var room;
+    try { room = input.room === undefined ? null : roomModule.validateConfig(input.room, input.remoteTarget); }
+    catch (_) { throw failure("invalid_room_configuration"); }
+    return { entities: entities, rules: rules, roles: Object.keys(input.cameras), remoteTarget: input.remoteTarget, room: room,
       topics: Array.from(new Set(rules.map(function (rule) { return rule.topic; }))) };
   }
 
@@ -55,6 +59,7 @@
     var clearTimer = options.clearTimeout || root.clearTimeout.bind(root);
     var display = options.display || function () { return root.Show5Display; };
     var requestNative = options.requestNative;
+    var roomOpen = options.roomOpen || function () { return roomModule && roomModule.isOpen && roomModule.isOpen(); };
     var token = null;
     var tokenExpires = 0;
     var pendingAuth = null;
@@ -76,11 +81,14 @@
     var retryMs = 1000;
     var subscriptions = new Map();
     var operations = new Set();
+    var roomOperations = new Set();
     var videoRefreshWaiters = new Set();
     var forceNextAuth = false;
     var manualUntil = 0;
     var recentCommands = new Map();
     var acknowledgements = new Set();
+    var motionCheckPending = false;
+    var lastMotionCheck = -Infinity;
 
     function clock() {
       manualUntil = 0;
@@ -299,6 +307,73 @@
       });
     }
 
+    function roomRequest(path, method) {
+      if (hidden || destroyed) { return Promise.reject(failure("inactive")); }
+      var controller = new Abort();
+      roomOperations.add(controller);
+      var timer = setTimer(function () { controller.abort(); }, method === "POST" ? 90000 : TIMEOUT_MS);
+      var stop = new Promise(function (_, reject) {
+        controller.signal.addEventListener("abort", function () { reject(failure("room_request_failed")); }, { once: true });
+      });
+      var work = (async function () {
+        var response;
+        try {
+          var used = await getToken(false);
+          if (controller.signal.aborted) { throw failure("room_request_failed"); }
+          response = await fetch(new URL(path, origin).href, {
+            method: method, headers: { Authorization: "Bearer " + used, "Content-Type": "application/json" },
+            body: method === "POST" ? "{}" : undefined, signal: controller.signal,
+            cache: "no-store", redirect: "error", credentials: "omit", referrerPolicy: "no-referrer"
+          });
+          if (controller.signal.aborted) { throw failure("room_request_failed"); }
+          if (!response.ok || response.redirected) {
+            // Never automatically retry a command with an uncertain outcome.
+            if (response.status === 401) { token = null; tokenExpires = 0; }
+            throw failure("room_request_failed");
+          }
+          if (method === "POST") { return true; }
+          if (!(response.headers.get("content-type") || "").toLowerCase().startsWith("application/json") ||
+              !response.body || !response.body.getReader) { throw failure("room_response_invalid"); }
+          var reader = response.body.getReader(), chunks = [], size = 0;
+          try {
+            while (true) {
+              var chunk = await reader.read();
+              if (chunk.done) { break; }
+              size += chunk.value.byteLength;
+              if (size > 65536 || controller.signal.aborted) { throw failure("room_response_invalid"); }
+              chunks.push(chunk.value);
+            }
+          } finally { try { await reader.cancel(); } catch (_) {} reader.releaseLock(); }
+          var bytes = new Uint8Array(size), offset = 0;
+          chunks.forEach(function (chunk) { bytes.set(chunk, offset); offset += chunk.byteLength; });
+          var value = JSON.parse(new TextDecoder().decode(bytes));
+          if (!value || Array.isArray(value) || typeof value !== "object") { throw failure("room_response_invalid"); }
+          return value;
+        } finally {
+          if (response && response.body && !response.body.locked) { try { await response.body.cancel(); } catch (_) {} }
+        }
+      })();
+      return Promise.race([work, stop]).catch(function () { throw failure("room_request_failed"); }).finally(function () {
+        clearTimer(timer); roomOperations.delete(controller);
+      });
+    }
+
+    function fetchRoomState(entityId) {
+      if (!config.room || config.room.entities.indexOf(entityId) < 0) { return Promise.reject(failure("room_entity_not_allowed")); }
+      return roomRequest("/api/states/" + encodeURIComponent(entityId), "GET").then(function (value) {
+        if (value.entity_id !== entityId || typeof value.state !== "string") { throw failure("room_response_invalid"); }
+        return value;
+      });
+    }
+
+    function runRoomAction(id) {
+      if (!config.room) { return Promise.reject(failure("room_action_not_allowed")); }
+      var action = config.room.actions.find(function (item) { return item.id === id; });
+      var script = action ? action.script : id === "dismiss" ? config.room.dismissScript : null;
+      if (!script) { return Promise.reject(failure("room_action_not_allowed")); }
+      return roomRequest("/api/services/script/" + script.slice(7), "POST");
+    }
+
     function motionEvent(topic, message) {
       if (now() < manualUntil) { return; }
       if (!message || message.retain !== false || message.topic !== topic || typeof message.payload !== "string" || message.payload.length > 16384) { return; }
@@ -311,10 +386,28 @@
             matches = value !== null && typeof value === "object" && !Array.isArray(value) && value.name === rule.jsonName;
           } catch (_) { matches = false; }
         }
-        var target = display();
-        // Motion is never queued while the renderer is absent or hidden.
-        if (matches && !hidden && target && typeof target.showCamera === "function") { target.showCamera(rule.role); }
+        if (matches) { requestMotion(rule.role); }
       });
+    }
+
+    function requestMotion(role) {
+      var target = display();
+      // Motion is never queued while the renderer is absent or hidden.
+      if (hidden || destroyed || roomOpen() || !target || typeof target.showCamera !== "function") { return; }
+      if (!config.room || !config.room.sessionEntity) {
+        (target.showMotionCamera || target.showCamera)(role); return;
+      }
+      // Freshly confirm ownership before automatic camera playback. Coalesce
+      // bursty motion, and never play an old event after a slow HA response.
+      if (motionCheckPending || now() - lastMotionCheck < 5000) { return; }
+      motionCheckPending = true; lastMotionCheck = now();
+      var startedAt = now();
+      fetchRoomState(config.room.sessionEntity).then(function (session) {
+        if (hidden || destroyed || roomOpen() || now() < manualUntil || now() - startedAt > 5000 ||
+            session.state !== "idle" || !session.attributes || session.attributes.busy !== false) { return; }
+        var current = display();
+        if (current && typeof current.showCamera === "function") { (current.showMotionCamera || current.showCamera)(role); }
+      }, function () { /* Unknown ownership cannot authorize automatic playback. */ }).finally(function () { motionCheckPending = false; });
     }
 
     function remoteEvent(event, send) {
@@ -458,6 +551,7 @@
         clearTimer(reconnectTimer); reconnectTimer = null;
         clearTimer(refreshTimer); refreshTimer = null;
         closeSocket(); operations.forEach(function (operation) { operation.abort(); });
+        roomOperations.forEach(function (operation) { operation.abort(); });
         videoRefreshWaiters.forEach(function (cancel) { cancel(); });
         state = "hidden"; clock();
       } else if (!destroyed) {
@@ -478,11 +572,11 @@
       return Object.freeze({ connection: state, hidden: hidden, authenticated: validToken(),
         expiresInSeconds: validToken() ? Math.max(0, Math.floor((tokenExpires - now()) / 1000)) : 0,
         subscriptions: Array.from(subscriptions.values()).filter(function (item) { return item.ready; }).length,
-        inFlightSnapshots: operations.size, lastError: lastError });
+        inFlightSnapshots: operations.size, inFlightRoomRequests: roomOperations.size, lastError: lastError });
     }
 
     return Object.freeze({ start: start, setHidden: setHidden, destroy: destroy, receiveToken: receiveToken,
-      fetchSnapshot: fetchSnapshot, startVideo: startVideo, status: status });
+      fetchSnapshot: fetchSnapshot, startVideo: startVideo, fetchRoomState: fetchRoomState, runRoomAction: runRoomAction, status: status });
   }
 
   function bootstrap() {
@@ -499,7 +593,8 @@
       return;
     }
     root.externalAuthSetToken = adapter.receiveToken;
-    root.Show5Auth = Object.freeze({ fetchSnapshot: adapter.fetchSnapshot, startVideo: adapter.startVideo, status: adapter.status });
+    root.Show5Auth = Object.freeze({ fetchSnapshot: adapter.fetchSnapshot, startVideo: adapter.startVideo,
+      fetchRoomState: adapter.fetchRoomState, runRoomAction: adapter.runRoomAction, status: adapter.status });
     root.document.addEventListener("visibilitychange", function () { adapter.setHidden(root.document.hidden); });
     root.addEventListener("pagehide", function () { adapter.setHidden(true); });
     root.addEventListener("pageshow", function () { adapter.setHidden(root.document.hidden); });

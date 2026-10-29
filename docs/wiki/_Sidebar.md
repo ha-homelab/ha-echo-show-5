@@ -1,6 +1,7 @@
 # Project wiki
 
 - [Home](Home.md)
+- [Room endpoint](Room-endpoint.md)
 - [Mixed wake phrases: Myshka + Hey Jarvis](Mixed-wake-words.md)
 - [Wake-model rollout: process and results](Wake-model-rollout.md)
 - [Conversion process and results](Process-and-results.md)

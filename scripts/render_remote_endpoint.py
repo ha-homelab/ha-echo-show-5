@@ -17,8 +17,7 @@ from urllib.parse import urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 VACA_PACKAGE = "com.msp1974.vacompanion"
 MODES = ("home", "stop", "camera_front", "camera_porch", "music", "tv",
-         "ottplay", "ottplay_native", "ottplayer", "jitsi")
-ACTIVE_MODES = ("idle",) + MODES[2:]
+         "ottplay", "ottplay_native", "ottplayer", "jitsi", "library", "bluetooth", "sendspin", "announce")
 MARKER = "{{ 'SHOW5_' ~ now().strftime('%Y%m%d%H%M%S%f') ~ '_' ~ (range(10000, 99999) | random) }}"
 
 
@@ -53,7 +52,7 @@ def validate_config(config):
                 "vaca_media_entity", "vaca_refresh_entity", "jitsi_room_url",
                 "ottplay_url", "app_ids", "tv_presets"}
     if (not isinstance(config, dict) or not required <= set(config)
-            or set(config) - required - {"clock_path", "jitsi_auto_join"}):
+            or set(config) - required - {"clock_path", "jitsi_auto_join", "sip_call_entity", "sip_registration_entity", "room"}):
         raise ValueError("Config must contain the documented bindings only")
     c = copy.deepcopy(config)
     if "jitsi_auto_join" in c and type(c["jitsi_auto_join"]) is not bool:
@@ -71,8 +70,8 @@ def validate_config(config):
     apps = c["app_ids"]
     required_apps = {"vlc", "jitsi", "browser", "ottplayer"}
     if (not isinstance(apps, dict) or not required_apps <= set(apps)
-            or set(apps) - required_apps - {"ottplay_native"}):
-        raise ValueError("app_ids requires vlc, jitsi, browser, ottplayer; optional ottplay_native")
+            or set(apps) - required_apps - {"ottplay_native", "sendspin"}):
+        raise ValueError("app_ids requires vlc, jitsi, browser, ottplayer; optional ottplay_native and sendspin")
     for key, value in apps.items():
         if (not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+",
                              _text(value, "app_ids." + key, 200))
@@ -93,6 +92,14 @@ def validate_config(config):
             raise ValueError("Each TV preset needs a safe key, label and fixed URL")
         _text(value["label"], "TV label", 100)
         _url(value["url"], "TV preset URL")
+    for key in ("sip_call_entity", "sip_registration_entity"):
+        if key in c and not re.fullmatch(r"sensor\.[a-z0-9_]+", _text(c[key], key)):
+            raise ValueError("Wrong SIP sensor binding")
+    if "sip_registration_entity" in c and "sip_call_entity" not in c:
+        raise ValueError("SIP registration requires its call sensor")
+    if "room" in c:
+        from render_room_policy import validate_room
+        c["room"] = validate_room(c["room"])
     return c
 
 
@@ -126,12 +133,13 @@ def fixed_operations(c):
         jitsi_uri += "&config.requireDisplayName=false"
     operations["start_jitsi"] = _launch("-a android.intent.action.VIEW -d " + shlex.quote(jitsi_uri) + " -p " + shlex.quote(apps["jitsi"]))
     operations["start_ottplay"] = _launch("-a android.intent.action.VIEW -d " + shlex.quote(c["ottplay_url"]) + " -p " + shlex.quote(apps["browser"]))
-    for key in ("ottplayer", "ottplay_native"):
+    operations["start_bluetooth"] = _launch("-a android.settings.BLUETOOTH_SETTINGS")
+    for name, key in (("ottplayer", "ottplayer"), ("ottplay_native", "ottplay_native"), ("library", "vlc"), ("sendspin", "sendspin")):
         if key in apps:
             # Launcher filters need not include DEFAULT; an implicit am start
             # may fail even when package-manager resolves the launcher.
             package = shlex.quote(apps[key])
-            operations["start_" + key] = (
+            operations["start_" + name] = (
                 'component=$(cmd package resolve-activity --brief '
                 '-a android.intent.action.MAIN -c android.intent.category.LAUNCHER -p '
                 + package + ' | tail -n 1) && case "$component" in '
@@ -186,6 +194,14 @@ def render_package(config):
     display_script = entity("script", "display")
     command_script = entity("script", "command")
     operations = fixed_operations(c)
+    sip_guard = []
+    if "sip_call_entity" in c:
+        sip = c["sip_call_entity"]
+        sip_guard = [
+            _service("homeassistant.update_entity", sip),
+            _require("states(" + repr(sip) + ") in ['idle', 'error'] and state_attr(" + repr(sip) + ", 'lease_held') == false and state_attr(" + repr(sip) + ", 'call_id') == none",
+                     "SIP call is active or its state is unavailable; use the phone controls first"),
+        ]
     call_adb = lambda op: _service(adb_script, operation=op)
     state = lambda eid: "states(" + repr(eid) + ")"
     is_on = lambda eid: "is_state(" + repr(eid) + ", 'on')"
@@ -225,7 +241,10 @@ def render_package(config):
     # No public command parameter is interpolated into Android shell text.
     available_modes = [mode for mode in MODES
                        if (mode != "ottplay_native" or "ottplay_native" in c["app_ids"])
-                       and (mode != "tv" or c["tv_presets"])]
+                       and (mode != "tv" or c["tv_presets"])
+                       and (mode != "sendspin" or "sendspin" in c["app_ids"])
+                       and (mode != "announce" or c.get("room", {}).get("announcement"))]
+    active_modes = ["idle"] + [mode for mode in available_modes if mode not in ("home", "stop")]
     field_options = [{"value": key, "label": value["label"]} for key, value in c["tv_presets"].items()]
     fields = {
         "mode": {"required": True, "selector": {"select": {"options": available_modes}}},
@@ -246,11 +265,13 @@ def render_package(config):
         _require("mode != 'music' or (audio_media_id is defined and audio_media_id is string and 0 < audio_media_id | length <= 2048 and audio_media_id is match('^(media-source://|https?://)[^\\s\\x00-\\x1f]+$'))", "Music requires an audio media-source ID or HTTP(S) audio URL"),
         _require("_expected_token is not defined or (_expected_token is string and _expected_token | length <= 80)", "Invalid session token"),
         _if("{{ _expected_token is defined and _expected_token != " + state(token) + " }}", [{"stop": "Expired cleanup request ignored"}]),
-        _require(state(active) + " in " + repr(list(ACTIVE_MODES)) + " and " + state(pending) + " in ['on', 'off']", "Remote session helpers are unavailable"),
+        _require(state(active) + " in " + repr(active_modes) + " and " + state(pending) + " in ['on', 'off']", "Remote session helpers are unavailable"),
         {"variables": {"old_mode": "{{ " + state(active) + " }}"}},
     ]
     # Installation checks precede cleanup, mute or helper changes.
-    app_for_mode = {"tv": "vlc", "ottplay": "browser", "ottplayer": "ottplayer", "jitsi": "jitsi"}
+    app_for_mode = {"tv": "vlc", "ottplay": "browser", "ottplayer": "ottplayer", "jitsi": "jitsi", "library": "vlc"}
+    if "sendspin" in c["app_ids"]:
+        app_for_mode["sendspin"] = "sendspin"
     if "ottplay_native" in c["app_ids"]:
         app_for_mode["ottplay_native"] = "ottplay_native"
     sequence.append({"choose": [{"conditions": "{{ mode == " + repr(mode) + " }}", "sequence": [call_adb("probe_" + app)]} for mode, app in app_for_mode.items()]})
@@ -264,7 +285,9 @@ def render_package(config):
         ], [_service("timer.cancel", timer)]),
     ], [_service("timer.cancel", timer)]))
     # A failed stop preserves persisted ownership and keeps a call microphone muted.
-    cleanup = {"tv": "vlc", "ottplay": "browser", "ottplayer": "ottplayer"}
+    cleanup = {"tv": "vlc", "library": "vlc", "ottplay": "browser", "ottplayer": "ottplayer"}
+    if "sendspin" in c["app_ids"]:
+        cleanup["sendspin"] = "sendspin"
     if "ottplay_native" in c["app_ids"]:
         cleanup["ottplay_native"] = "ottplay_native"
     sequence.append({"choose": [{"conditions": "{{ old_mode == " + repr(mode) + " }}", "sequence": [call_adb("stop_" + app)]} for mode, app in cleanup.items()] + [
@@ -303,10 +326,15 @@ def render_package(config):
             {"conditions": "{{ mode in ['camera_front', 'camera_porch'] }}", "sequence": [_service(display_script, command="camera", role="{{ 'front' if mode == 'camera_front' else 'porch' }}", seconds="{{ camera_seconds | default(120) | int }}")]},
             {"conditions": "{{ mode == 'music' }}", "sequence": [_service(display_script, command="home"), _service("media_player.play_media", c["vaca_media_entity"], media_content_id="{{ audio_media_id }}", media_content_type="music")]},
             {"conditions": "{{ mode == 'tv' }}", "sequence": [call_adb("{{ 'tv_' ~ preset }}")]},
+            {"conditions": "{{ mode == 'bluetooth' }}", "sequence": [call_adb("start_bluetooth")]},
         ] + [{"conditions": "{{ mode == " + repr(mode) + " }}", "sequence": [call_adb("start_" + mode)]} for mode in app_for_mode if mode != "tv"]},
     ])
+    # Resolve the guard when this queued command executes, before any cleanup,
+    # mute restoration, player stop or foreground transition can affect a call.
+    sequence = sip_guard + sequence
     scripts[prefix + "_command"] = _script(prefix + ": remote endpoint", sequence, fields, "queued")
-    scripts[prefix + "_refresh"] = _script(prefix + ": refresh own VACA", [_service("button.press", c["vaca_refresh_entity"])])
+    scripts[prefix + "_display"]["sequence"] = sip_guard + scripts[prefix + "_display"]["sequence"]
+    scripts[prefix + "_refresh"] = _script(prefix + ": refresh own VACA", sip_guard + [_service("button.press", c["vaca_refresh_entity"])])
     scripts[prefix + "_play_audio"] = _script(prefix + ": choose music or radio", [
         _require("media is defined and media is mapping and media.get('media_content_id') is string", "Select an audio item in the media browser"),
         _require("media.get('media_content_type', 'music') is string and (media.get('media_content_type', 'music') in ['music', 'audio', 'podcast', 'radio'] or media.get('media_content_type', '').startswith('audio/'))", "This player accepts audio only"),
@@ -336,8 +364,8 @@ def render_package(config):
                        {"condition": "template", "value_template": "{{ " + state(c["adb_entity"]) + " not in ['unknown', 'unavailable'] and " + state(c["vaca_mute_entity"]) + " in ['on', 'off'] }}"}],
          "action": [cleanup_call], "trace": {"stored_traces": 0}},
     ]
-    return {
-        "input_select": {prefix + "_active_mode": {"name": prefix + " active mode", "options": list(ACTIVE_MODES)}},
+    package = {
+        "input_select": {prefix + "_active_mode": {"name": prefix + " active mode", "options": active_modes}},
         "input_boolean": {prefix + "_prior_mute": {"name": prefix + " saved microphone mute"}, prefix + "_restore_mute_pending": {"name": prefix + " microphone restoration pending"}},
         "input_text": {prefix + "_lease_token": {"name": prefix + " session token", "max": 80}, prefix + "_display_ack": {"name": prefix + " display acknowledgement", "max": 86}},
         "input_number": {prefix + "_cleanup_attempts": {"name": prefix + " interrupted cleanup attempts", "min": 0, "max": 3, "step": 1, "mode": "box"}},
@@ -345,6 +373,22 @@ def render_package(config):
         "script": scripts,
         "automation": automations,
     }
+    if "sip_call_entity" in c:
+        # A cleanup blocked by a call must resume when the call releases its
+        # lease, even if the media player itself never went unavailable.
+        automations.append({
+            "id": prefix + "_remote_after_call", "alias": prefix + ": recover expired session after phone call",
+            "mode": "single", "trace": {"stored_traces": 0},
+            "trigger": [{"platform": "state", "entity_id": c["sip_call_entity"]}],
+            "condition": [{"condition": "template", "value_template": needs_cleanup},
+                          {"condition": "state", "entity_id": timer, "state": "idle"},
+                          {"condition": "template", "value_template": sip_guard[1]["if"][0]["value_template"].replace("{{ not (", "{{ (")}],
+            "action": [cleanup_call],
+        })
+    if "room" in c:
+        from render_room_policy import extend_package
+        extend_package(c, package)
+    return package
 
 
 def write_private(output, value, root=ROOT):
