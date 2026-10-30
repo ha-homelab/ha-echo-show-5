@@ -1,9 +1,14 @@
 # Documentation diagrams
 
+- [Room capabilities and shared-resource plan](room-capabilities.svg): the
+  October 29 observed hardware/software, proposed activity coordinator and
+  server boundary. [Text equivalent and evidence](../installed-capabilities.md).
+
 These SVGs are editable repository source, not screenshots or automatically updated measurements. They use native SVG shapes and text, include accessible titles/descriptions, and require no external images, fonts or scripts. English labels are the canonical diagram text; translated entry READMEs link to the same diagrams.
 
 ## Service and installation diagrams
 
+- [Guarded announcements](guarded-announcements.svg): explicit speech preparation, HA policy, native admission and correlated completion; [operating contract](../guarded-announcements.md).
 - [Architecture](architecture.svg): device, HA, service roles and administration boundaries.
 - [Voice paths](voice-paths.svg): local activation plus three selectable assistant paths, with explicit cloud processing.
 - [Installation paths](installation-paths.svg): stock conversion versus existing-Android updates and recovery.

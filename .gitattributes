@@ -12,3 +12,8 @@ Dockerfile text eol=lf
 *.css text eol=lf
 *.js text eol=lf
 *.svg text eol=lf
+
+# Unified-diff context lines contain a literal leading space, including blank lines.
+integrations/show5-sip/vaca-bridge/vaca-audio-lease.patch text eol=lf -whitespace
+integrations/vaca-nearest/nearest.patch text eol=lf -whitespace
+integrations/vaca-announce/announcement.patch text eol=lf -whitespace

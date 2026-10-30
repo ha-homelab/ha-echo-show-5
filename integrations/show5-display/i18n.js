@@ -6,24 +6,28 @@
   var DEFAULT_LOCALES = Object.freeze({ en: "en-US", ru: "ru-RU", de: "de-DE", es: "es-ES" });
   var MESSAGES = Object.freeze({
     en: Object.freeze({
+      room: "Room", offline: "Home Assistant offline", stale: "Last known value", received: "Checked", working: "Working…", sent: "Done", actionFailed: "Not confirmed. Check the device before retrying.", dismiss: "Dismiss", localTimer: "Local timer", homeTimer: "Home timer", timerDone: "Time is up", localTimerNote: "Local chime requires this page to stay open.", minutes: "min", clear: "Clear", storageUnavailable: "Timer cannot be saved on this device.", offlineUnavailable: "Offline page cache is unavailable.",
       title: "Clock", display: "Clock and camera", clock: "Clock", camera: "Camera",
       cameraImage: "Camera image", cameraVideo: "Camera video",
       loading: "Loading camera…", connecting: "Connecting to camera…",
       delayed: "Update delayed", unavailable: "Camera unavailable", front: "Front", porch: "Porch"
     }),
     ru: Object.freeze({
+      room: "Комната", offline: "Home Assistant недоступен", stale: "Последнее известное значение", received: "Проверено", working: "Выполняется…", sent: "Готово", actionFailed: "Не подтверждено. Проверьте устройство перед повтором.", dismiss: "Закрыть", localTimer: "Локальный таймер", homeTimer: "Таймер дома", timerDone: "Время вышло", localTimerNote: "Для сигнала оставьте эту страницу открытой.", minutes: "мин", clear: "Сбросить", storageUnavailable: "Таймер не удалось сохранить на устройстве.", offlineUnavailable: "Офлайн-кэш страницы недоступен.",
       title: "Часы", display: "Часы и камера", clock: "Часы", camera: "Камера",
       cameraImage: "Изображение с камеры", cameraVideo: "Видео с камеры",
       loading: "Загрузка камеры…", connecting: "Подключение к камере…",
       delayed: "Обновление задерживается", unavailable: "Камера недоступна", front: "Перед домом", porch: "Крыльцо"
     }),
     de: Object.freeze({
+      room: "Zimmer", offline: "Home Assistant offline", stale: "Letzter bekannter Wert", received: "Geprüft", working: "Wird ausgeführt…", sent: "Erledigt", actionFailed: "Nicht bestätigt. Gerät vor erneutem Versuch prüfen.", dismiss: "Schließen", localTimer: "Lokaler Timer", homeTimer: "Haus-Timer", timerDone: "Zeit abgelaufen", localTimerNote: "Für den Signalton muss diese Seite offen bleiben.", minutes: "Min.", clear: "Löschen", storageUnavailable: "Timer kann nicht gespeichert werden.", offlineUnavailable: "Offline-Seitenspeicher nicht verfügbar.",
       title: "Uhr", display: "Uhr und Kamera", clock: "Uhr", camera: "Kamera",
       cameraImage: "Kamerabild", cameraVideo: "Kameravideo",
       loading: "Kamera wird geladen…", connecting: "Verbindung zur Kamera…",
       delayed: "Aktualisierung verzögert", unavailable: "Kamera nicht verfügbar", front: "Vor dem Haus", porch: "Veranda"
     }),
     es: Object.freeze({
+      room: "Habitación", offline: "Home Assistant sin conexión", stale: "Último valor conocido", received: "Comprobado", working: "Procesando…", sent: "Hecho", actionFailed: "Sin confirmar. Compruebe el dispositivo antes de repetir.", dismiss: "Cerrar", localTimer: "Temporizador local", homeTimer: "Temporizador de casa", timerDone: "Se acabó el tiempo", localTimerNote: "Deje esta página abierta para oír el aviso.", minutes: "min", clear: "Borrar", storageUnavailable: "No se puede guardar el temporizador.", offlineUnavailable: "Caché de página sin conexión no disponible.",
       title: "Reloj", display: "Reloj y cámara", clock: "Reloj", camera: "Cámara",
       cameraImage: "Imagen de la cámara", cameraVideo: "Vídeo de la cámara",
       loading: "Cargando cámara…", connecting: "Conectando con la cámara…",

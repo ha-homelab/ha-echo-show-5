@@ -2,6 +2,38 @@
 
 ## [0.1.6] - Unreleased
 
+### Guarded announcement candidate
+
+- Add a direct HA/VACA announcement protocol with correlated requests, deadlines, deduplication and owner-specific cancellation, while retaining one SIP account per physical Show.
+- Keep speech synthesis independent of the conversational pipeline and do not treat a service return or an uncorrelated `played` event as proof of playback completion.
+- Document the distinction between coordinated native audio ownership and external Android activity checks. Quiet builds and automated tests do not establish acoustic acceptance.
+
+- Close the SIP claim/preemption race, preserve foreground evidence during long kiosk sessions, and bound native receipt retention with an atomic expiry fence.
+- Bind election audio to the winning pipeline and retain discovery across wake-listener pauses, preventing stale replay and unnecessary rediscovery gaps.
+- Verify certificates for HA native-HTTPS loopback audio without adding an insecure fallback.
+- Add an opt-in `duck_music` announcement policy for the owned VACA music player, with capability checks and unchanged default `skip` behavior. Keep the music queue and current user volume while releasing only the announcement's temporary gain on completion, cancellation, expiry or failure.
+- Keep calls, Assist, alarms, timers and unsupported players protected; document the distinction between built-in-player ducking and external Android audio.
+
+### Mixed-device voice arbitration
+
+- Add an opt-in VACA overlay compatible with TECHO5's authenticated nearest-device protocol, preserving the private wake frontend and SIP microphone lease bridge.
+- Keep microphone capture running during election and replay bounded history without duplicating queued live frames.
+- Distinguish manual starts, auxiliary model detections and follow-up turns; cancel pending starts on mute, shutdown, reconnect and SIP preemption.
+- Add local settings, private configuration, bounded diagnostics, independent Go protocol/DSP fixtures, four-peer scenarios and Android adapter regression tests.
+- Document source licensing, deployment verification, HA fallback behavior and the limits of software-only acceptance.
+- Preserve the existing local Assist timeout-recovery path when nearest-device arbitration is disabled, while retaining microphone and call inhibitors. The standalone nearest revision is `.11-nearest.2`; the installed guarded revision is unchanged.
+
+### Room endpoint expansion
+
+- Add optional six-button room controls, compact live readings, reminders, local timer journals and a scoped offline static cache.
+- Keep the clock visible until the first decoded camera frame; suppress connection and failure overlays.
+- Preserve already dispatched room actions across app-launch visibility changes, so successful commands do not report a false failure.
+- Use successful live static responses even if offline-cache opening, lookup or writing fails.
+- Add device-bound room actions, quiet-hour announcements, timer overdue reconciliation, session/health status and native-call guards.
+- Add direct-LAN and existing-SSH administration tools, bounded scrcpy and verified SendspinDroid artifacts.
+- Document feature readiness and physical-test limits in the complete capability register and runtime diagram.
+
+
 ### Changed
 
 - Update the FCC cloud adapter to hash-locked grpcio 1.84.1 and refresh the pinned Debian Bookworm host-image base.

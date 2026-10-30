@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="270" viewBox="0 0 860 270" role="img" aria-labelledby="title desc">
+  <title id="title">Native SIP call and local microphone ownership</title>
+  <desc id="desc">Home Assistant controls the phone through authenticated ADB. The phone exchanges SIP and RTP with Asterisk and obtains a local same-signer audio lease from VACA before microphone capture.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10" fill="#8ea4c8"/></marker></defs>
+  <rect width="860" height="270" rx="18" fill="#11203a"/>
+  <g font-family="system-ui, sans-serif" text-anchor="middle">
+    <text x="430" y="35" font-size="21" fill="#fff">Phone calls without putting HA in the media path</text>
+    <rect x="25" y="90" width="180" height="82" rx="12" fill="#163c53" stroke="#39d0ce"/>
+    <text x="115" y="123" font-size="18" fill="#fff">Home Assistant</text><text x="115" y="149" font-size="13" fill="#c2d0e6">Call controls / status</text>
+    <rect x="340" y="90" width="180" height="82" rx="12" fill="#36345a" stroke="#c1a0ff"/>
+    <text x="430" y="123" font-size="18" fill="#fff">Show phone</text><text x="430" y="149" font-size="13" fill="#c2d0e6">Linphone SDK / audio</text>
+    <rect x="655" y="90" width="180" height="82" rx="12" fill="#463d2b" stroke="#f2c46b"/>
+    <text x="745" y="123" font-size="18" fill="#fff">Asterisk</text><text x="745" y="149" font-size="13" fill="#c2d0e6">Existing SIP account</text>
+    <path d="M211 132H333M527 132H648" stroke="#8ea4c8" stroke-width="2" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+    <text x="273" y="112" font-size="13" fill="#c2d0e6">Trusted ADB</text><text x="588" y="112" font-size="13" fill="#c2d0e6">SIP + RTP</text>
+    <path d="M430 177V202" stroke="#8ea4c8" stroke-width="2" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+    <rect x="285" y="210" width="290" height="40" rx="10" fill="#223f36" stroke="#6de0ad"/>
+    <text x="430" y="236" font-size="15" fill="#fff">VACA · local microphone lease</text>
+  </g>
+</svg>

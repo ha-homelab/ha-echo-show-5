@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "endpoint_id": "show_example",
+  "sip": {
+    "username": "assigned_extension",
+    "password": "replace-in-private-copy",
+    "domain": "pbx.example.invalid:5060",
+    "transport": "tcp",
+    "display_name": "Show phone"
+  },
+  "contacts": [
+    {
+      "id": "test_contact",
+      "label": "Test contact",
+      "address": "sip:assigned_test_extension@pbx.example.invalid:5060"
+    }
+  ],
+  "max_call_seconds": 120
+}

@@ -1,0 +1,36 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="com.msp1974.vacompanion.permission.AUDIO_LEASE" />
+    <!-- Audio-only includes the merged SDK manifest. -->
+    <uses-permission android:name="android.permission.CAMERA" tools:node="remove" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" tools:node="remove" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" tools:node="remove" />
+    <queries><package android:name="com.msp1974.vacompanion" /></queries>
+    <application android:label="Show phone" android:icon="@drawable/ic_phone" android:theme="@android:style/Theme.Material.NoActionBar"
+        android:allowBackup="false" android:usesCleartextTraffic="false" android:supportsRtl="true">
+        <meta-data android:name="org.hahomelab.show5sip.ANNOUNCEMENT_GUARD" android:value="1" />
+        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask"
+            android:showWhenLocked="true" android:turnScreenOn="true">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity>
+        <service android:name=".SipService" android:exported="false" android:stopWithTask="false" android:foregroundServiceType="phoneCall|microphone" />
+        <service android:name="org.linphone.core.tools.service.CoreService" android:exported="false" android:foregroundServiceType="phoneCall|microphone" android:stopWithTask="false" />
+        <provider android:name=".ControlProvider" android:authorities="org.hahomelab.show5sip" android:exported="true" android:permission="android.permission.DUMP" />
+        <receiver android:name=".ControlReceiver" android:exported="true" android:permission="android.permission.DUMP">
+            <intent-filter><action android:name="org.hahomelab.show5sip.CONTROL" /></intent-filter>
+        </receiver>
+        <receiver android:name=".BootReceiver" android:exported="false">
+            <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /></intent-filter>
+        </receiver>
+    </application>
+</manifest>

@@ -4,6 +4,26 @@
 
 This route targets **Echo Show 5 Gen2 / 2021 / cronos**, using **LineageOS / Android**, Companion and optional voice/display integrations. It is distinct from [EchoLocal on Dot 2](https://github.com/ha-homelab/ha-echo-dot) and [EchoMuse on emOS](https://github.com/ha-homelab/ha-echomuse). Never reuse another model's firmware or unlock commands.
 
+## Nearest-device interoperability
+
+[One voice response across VACA Shows and TECHO5 Dots](nearest-device-arbitration.md)
+explains the optional pre-pipeline election, the separate HA fallback, build
+provenance, and the difference between software checks and physical acceptance.
+
+## October 29: installed capability audit
+
+Both Shows are available and run VACA `0.13.4+myshka.10-sip.1` / 7010.
+The audit confirms one real light sensor per device, existing HA lux entities,
+bundled SSH binaries, an Android Bluetooth sink profile, and different installed
+media players. It separates observed functions from untested expansion options.
+The earlier SIP pilot verified HA-controlled pair calls and microphone return.
+
+[Measured baseline, priorities and limitations](installed-capabilities.md) ·
+[Remote access](android-remote-access.md) · [Permissions](android-permissions-and-limits.md).
+
+The October 20 section below is a historical checkpoint; its Show 2 availability
+and application version do not describe the October 29 installation.
+
 ## October 20: listener lifecycle verified on Show 1
 
 Show 1 runs **`myshka.9` / `7009`** with **“Привет, мышка” at 0.50** and optional
@@ -55,6 +75,7 @@ limits. They do not establish a new build or current availability of either devi
 
 ## Speech services and diagnostics
 
+- [Guarded announcements](guarded-announcements.md): direct audio, request ownership, honest completion and quiet rollout alongside ordinary SIP calls.
 - [FCC voice backup](fcc-voice-backup.md): separate speech paths and controlled switching; the selected Russian path still uses cloud speech recognition.
 - [Assist behavior](fcc-assist-behavior.md), [audio model capabilities](fcc-audio-models.md), [cloud audio](fcc-cloud-audio.md) and [local speech experiment](fcc-local-speech-experiment.md).
 - Speech recognition, TTS voice, conversation-agent language, display language and wake-word models are independent settings. Translating documentation changes none of them.
@@ -65,6 +86,7 @@ limits. They do not establish a new build or current availability of either devi
 
 - [Camera and intercom pilot](camera-and-intercom.md) and [HA intercom integration](../integrations/show5-intercom/README.md).
 - [Native Jitsi pilot](jitsi-calls.md): attended call setup, resource ownership and restoration.
+- [Native SIP audio pilot](../integrations/show5-sip/README.md): an existing PBX account, local VACA lease, incoming/outgoing calls and HA controls.
 - Treat each guide's acceptance limits independently. A fresh camera frame, successful signaling or normal app restart does not prove an audible call or recovery after power loss.
 
 ## Maintain and publish
@@ -75,3 +97,7 @@ limits. They do not establish a new build or current availability of either devi
 - [OpenSSF evidence](openssf-evidence.md).
 
 Architecture and process SVGs describe logical relationships. The validation chart labels recorded test **counts**, not coverage percentages or a performance benchmark. Historical measurements keep their original conditions and dates. Downloaded firmware, backups, household mappings, raw receipts and credentials stay outside Git.
+
+- [Room endpoint delivery](room-capability-delivery.md): room controls, timers, media, administration and remaining hardware checks.
+- [Room panel](room-panel.md) and [session policy](room-session-policy.md).
+- [Remote administration](remote-admin-tools.md).

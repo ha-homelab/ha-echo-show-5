@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "id": "sendspindroid",
+  "name": "SendSpinDroid-v2.0.0.apk",
+  "version": "2.0.0",
+  "url": "https://github.com/chrisuthe/SendspinDroid/releases/download/v2.0.0/SendSpinDroid-v2.0.0.apk",
+  "size": 4811258,
+  "sha256": "d76181915ddd6f0ff94742580ce8b1c65c064d4aae3eae26fcc893a83b36eb4b",
+  "source": "https://github.com/chrisuthe/SendspinDroid/releases/tag/v2.0.0",
+  "release_published_at": "2026-10-16T21:37:39Z",
+  "asset_id": 648697112,
+  "github_digest": "sha256:d76181915ddd6f0ff94742580ce8b1c65c064d4aae3eae26fcc893a83b36eb4b",
+  "checksum_provenance": "Downloaded bytes match the SHA-256 digest published in the official GitHub release asset metadata.",
+  "android_package": "com.sendspindroid",
+  "version_code": 20025,
+  "apk_manifest_observed": {
+    "min_sdk": 26,
+    "target_sdk": 36,
+    "native_abis": [
+      "arm64-v8a",
+      "armeabi-v7a",
+      "x86",
+      "x86_64"
+    ]
+  },
+  "apk_signature": {
+    "verification": "Android SDK build-tools 36.0.0 apksigner verify --verbose --print-certs passed APK Signature Scheme v2 with one signer.",
+    "certificate_sha256": "9c79599b43916b214bcd7701a2aff7170e0ba13eadb34246d50ee249b06a24e5",
+    "scope": "Pinned APK verification, not a reproducible-build claim."
+  },
+  "source_inspection": {
+    "repository": "chrisuthe/SendspinDroid",
+    "tag_object": "a135c27cde79316c46f50940cb35cf977d2a671e",
+    "scope": "Source and APK compatibility inspection; playback, discovery and synchronization require device acceptance."
+  },
+  "requires": {
+    "android_api_minimum": 26,
+    "music_assistant_minimum": "2.10.7",
+    "protocol": "SendSpin 1.0",
+    "network": "local"
+  },
+  "purpose": "Optional local synchronized audio client. Setup is via supported app UI and LAN discovery; the release has no exported configuration deep link."
+}

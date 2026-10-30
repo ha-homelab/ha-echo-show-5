@@ -1,4 +1,4 @@
-"""Bind the seven display files to an exact source-release artifact; never deploy."""
+"""Bind the display files to an exact source-release artifact; never deploy."""
 from __future__ import annotations
 
 import argparse
@@ -13,7 +13,7 @@ import tarfile
 import package_source
 
 ROOT = Path(__file__).resolve().parents[1]
-FILES = ('index.html', 'display.css', 'i18n.js', 'stream.js', 'auth.js', 'display.js', 'blank-video.svg')
+FILES = ('index.html', 'display.css', 'i18n.js', 'stream.js', 'auth.js', 'display.js', 'room.js', 'offline-worker.js', 'blank-video.svg')
 PREFIX = 'ha-echo-show-5/integrations/show5-display/'
 MAX_RECEIPT = 1024 * 1024
 

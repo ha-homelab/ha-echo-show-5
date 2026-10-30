@@ -1,5 +1,7 @@
 # Echo Show 5 Gen2 → Android → Home Assistant
 
+
+[Current delivery, acceptance results and limitations (English)](docs/room-capability-delivery.md).
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15595/badge)](https://www.bestpractices.dev/projects/15595)
 
 [English](README.md) · [Русский](README.ru.md) · [Deutsch](README.de.md) · [Español](README.es.md) · **Français**
@@ -100,3 +102,9 @@ Placez les téléchargements dans `downloads/`, les sources tierces dans `vendor
 - [Amazon Echo Home Energy / Alexa](https://github.com/4alvit/amazon-echo-home-voice)
 
 EchoMuse avec emOS est une autre pile logicielle pour Dot. Sa configuration et sa récupération sont documentées dans son dépôt. Le projet Alexa conserve la plateforme d’origine ; il ne crée pas un satellite Assist.
+
+### Room endpoint expansion
+
+[Room controls and timers](docs/room-panel.md) · [Session policy](docs/room-session-policy.md) · [Remote administration](docs/remote-admin-tools.md) · [Capability delivery and limits](docs/room-capability-delivery.md)
+
+[Choix de l’appareil qui répond : VACA et TECHO5 (anglais)](docs/nearest-device-arbitration.md).

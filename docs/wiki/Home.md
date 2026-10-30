@@ -4,6 +4,37 @@
 
 This wiki is versioned with the code under `docs/wiki/`. It describes the **Echo Show 5 Gen2 / 2021 / `cronos`** route. It is readable in a local checkout and on GitHub without enabling the separate GitHub Wiki feature. Detailed instructions and evidence remain linked at their source rather than copied into conflicting procedures.
 
+## Guarded announcement candidate
+
+[Direct announcements and ordinary SIP calls](../guarded-announcements.md)
+describes request ownership, expiry, honest completion, the shared native guard
+and its external-app limits. Build and quiet installation evidence do not replace
+attended acoustic acceptance.
+
+## October 29: room endpoint delivery
+
+The **r15** room display and HA policy are deployed on both Shows. Use the
+[capability delivery register](../room-capability-delivery.md) for per-device
+camera, timer, media and Bluetooth results, including remaining physical limits.
+[Room controls](Room-endpoint.md) · [Administration tools](../remote-admin-tools.md) ·
+[Runtime diagram](../assets/room-runtime.svg).
+
+## October 29: original installed capability audit
+
+At this earlier inventory checkpoint, both Shows were available and ran VACA
+`0.13.4+myshka.10-sip.1` / 7010.
+The audit confirms one real light sensor per device, existing HA lux entities,
+bundled SSH binaries, an Android Bluetooth sink profile, and different installed
+media players. Those app differences and untested candidates describe the
+pre-rollout checkpoint; the delivery register above records subsequent changes.
+The earlier SIP pilot verified HA-controlled pair calls and microphone return.
+
+[Measured baseline, priorities and limitations](../installed-capabilities.md) ·
+[Remote access](../android-remote-access.md) · [Permissions](../android-permissions-and-limits.md).
+
+The October 20 section below is a historical checkpoint; its Show 2 availability
+and application version do not describe the October 29 installation.
+
 ## October 20: listener lifecycle verified on Show 1
 
 Show 1 runs **`myshka.9` / `7009`** with **“Привет, мышка” at 0.50** and optional
@@ -24,6 +55,10 @@ See the [mixed-wake guide](Mixed-wake-words.md) and [dated measurements](Validat
 
 These dated records retain the original versions, measurements and acceptance
 limits. They do not establish a new build or current availability of either device.
+
+## Room endpoint expansion
+
+[Room controls, timers, media and administration](Room-endpoint.md) documents the current expansion and its measured limits.
 
 ## Pick a task
 

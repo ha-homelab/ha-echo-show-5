@@ -10,6 +10,8 @@ Reuse an **Amazon Echo Show 5, second generation (2021), codename `cronos`**, as
 
 **Documentation:** [topic index](docs/README.md) · [translation policy](docs/i18n.md).
 
+[Guarded announcement candidate](docs/guarded-announcements.md): direct HA audio with request identity, expiry and owned cancellation; ordinary calls keep one SIP account per device. Acoustic acceptance is separate from offline validation.
+
 **Start with the [project wiki](docs/wiki/Home.md), or the [conversion runbook](docs/runbook.md) for an untouched device.** Already running Android? Use the [installation and update guide](docs/wiki/Installation-and-recovery.md); do not repeat the unlock.
 
 ![Architecture: the Show connects to Home Assistant; voice, cameras, media and calls have separate data paths.](docs/assets/architecture.svg)
@@ -22,6 +24,29 @@ Reuse an **Amazon Echo Show 5, second generation (2021), codename `cronos`**, as
 The real display page (revision `20261015-r11`) captured in desktop Chrome at
 960 × 480 with the public example configuration. It shows only the local clock;
 no Home Assistant login, camera feed or device was used. Click for the flat original.
+
+## October 29: room endpoint delivery
+
+Both Shows run the r15 clock and room interface, with six fixed actions, compact
+readings, timers and quiet camera startup. Real camera checks passed on both:
+the clock stays visible until decoded video is ready, with no loading or failure
+overlay. Both HA room-health sensors report ready.
+
+VLC, native OTTPlay and SendspinDroid are installed on both Shows; Sendspin has
+two distinct connected players. A bounded Show-two audio transport test passed,
+and its NUC-hosted AirPlay receiver is enabled for an iPhone playback trial.
+Bluetooth music played on Show one but disrupted Wi-Fi until the phone
+Bluetooth connection ended, so that route remains experimental.
+
+[Delivery, acceptance results and remaining limits](docs/room-capability-delivery.md) ·
+[Room controls](docs/room-panel.md) · [Remote administration](docs/remote-admin-tools.md).
+
+The [original installed-capability audit](docs/installed-capabilities.md) records
+the baseline before these additions. Both Shows retain VACA
+`0.13.4+myshka.10-sip.1` / 7010 and the existing voice/SIP configuration.
+
+The October 20 section below is a historical checkpoint; its Show 2 availability
+and application version do not describe the October 29 installation.
 
 ## October 20: listener lifecycle verified on Show 1
 
@@ -59,6 +84,8 @@ These records keep their original versions, dates and limits; they do not establ
 - **A screen suited to five inches:** a large clock, full-screen Front/Porch video on motion, bounded manual camera viewing and return to the clock. Video preserves proportions; the ready-frame gate suppresses Android's stretched play placeholder. [Display guide](docs/wiki/Display-media-and-calls.md).
 - **An HA remote endpoint:** announcements, music, fixed TV streams, our OTT-play FOSS Capacitor client, a separate OTT web route and optional OttPlayer. Home/Stop ends the owned activity and restores the clock. [Remote controls](docs/remote-endpoint.md).
 - **Calls on your Jitsi installation:** a fixed room, explicit join policy, microphone handoff and bounded cleanup. The standalone camera/intercom pilot remains a separate experimental option. [Calls and intercom](docs/wiki/Display-media-and-calls.md#jitsi-and-intercom).
+- **Nearest-device arbitration:** an optional VACA overlay for authenticated TECHO5 peer selection before Assist starts. Includes bounded audio buffering, manual-start handling and software acceptance checks. [Setup and limits](docs/nearest-device-arbitration.md).
+- **Optional native SIP audio:** a separate phone application for an existing PBX, explicit incoming/outgoing calls, local VACA microphone ownership and HA call controls. This audio-only pilot has its own build and acceptance record; it does not route SIP video through Jitsi. [Setup, limitations and tests](integrations/show5-sip/README.md).
 - **Choice of voice backend:** Homeway, independent FCC cloud speech/conversation, or local Russian conversation and Silero speech with FCC cloud recognition. Selection is per satellite; fallback is manual. [Privacy boundaries and outage procedure](docs/wiki/Voice-and-wake-words.md#choose-and-switch-an-assistant).
 - **Localization:** English, Russian, German, Spanish and French project entry points, plus the clock interface's own locale configuration. Interface language, speech language and wake model are independent. Detailed technical runbooks and wiki pages are maintained in English. [Coverage and contribution rules](docs/wiki/Localization.md).
 
@@ -152,3 +179,7 @@ Original project code and documentation are available under the [MIT license](LI
 ## Screenshot artwork
 
 See [capture provenance and regeneration](docs/screenshot-artwork.md).
+
+### Room endpoint expansion
+
+[Room controls and timers](docs/room-panel.md) · [Session policy](docs/room-session-policy.md) · [Remote administration](docs/remote-admin-tools.md) · [Capability delivery and limits](docs/room-capability-delivery.md)

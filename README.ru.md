@@ -1,5 +1,7 @@
 # Echo Show 5 Gen2 → Android → Home Assistant
 
+
+[Current delivery, acceptance results and limitations (English)](docs/room-capability-delivery.md).
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15595/badge)](https://www.bestpractices.dev/projects/15595)
 
 [English](README.md) · **Русский** · [Deutsch](README.de.md) · [Español](README.es.md) · [Français](README.fr.md)
@@ -89,3 +91,9 @@ python3 scripts/remote.py inventory
 Скачанное хранится в `downloads/`, внешние исходники в `vendor/`, копии в `backups/`, журналы в `logs/`, ключи, записи и заполненные настройки в `private/`. Они игнорируются Git, но `.gitignore` не удаляет уже закоммиченные данные. Файлы HA `/local` доступны без авторизации: секретов в них быть не должно.
 
 [Правила вклада и тесты](CONTRIBUTING.md) · [безопасность](SECURITY.md) · [сторонние лицензии](THIRD_PARTY_NOTICES.md) · [релизы](RELEASING.md). Релиз проекта содержит исходники интеграций, а не прошивку или APK. Проверки CI не подтверждают слышимый звук или надёжность конкретного устройства.
+
+### Room endpoint expansion
+
+[Room controls and timers](docs/room-panel.md) · [Session policy](docs/room-session-policy.md) · [Remote administration](docs/remote-admin-tools.md) · [Capability delivery and limits](docs/room-capability-delivery.md)
+
+[Выбор отвечающей колонки: VACA и TECHO5 (на английском)](docs/nearest-device-arbitration.md).

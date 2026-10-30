@@ -8,7 +8,6 @@
   // Allow the stream adapter's 15-second startup deadline to settle first.
   var WEBRTC_STARTUP_MS = 16000;
   var SNAPSHOT_MS = 1000;
-  var FRAME_DELAYED_MS = 5000;
   var FRAME_MAX_AGE_MS = 15000;
   var MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
@@ -75,14 +74,12 @@
     var pollTimer = null;
     var leaseTimer = null;
     var staleTimer = null;
-    var delayedTimer = null;
     var imageURL = null;
     var failures = 0;
     var videoRequest = null;
-    var videoRetry = null;
+    var presented = false;
 
     function stopVideo() {
-      clearTimer(videoRetry); videoRetry = null;
       var item = videoRequest; videoRequest = null;
       // Mask the surface before abort/close clears its MediaStream. Otherwise
       // Android can briefly paint its fallback play poster during teardown.
@@ -96,7 +93,6 @@
 
     function clearImage() {
       if (staleTimer !== null) { clearTimer(staleTimer); staleTimer = null; }
-      if (delayedTimer !== null) { clearTimer(delayedTimer); delayedTimer = null; }
       view.clearSnapshot();
       if (imageURL !== null) { revokeURL(imageURL); imageURL = null; }
     }
@@ -111,6 +107,7 @@
       active = null;
       expiresAt = 0;
       failures = 0;
+      presented = false;
       if (pollTimer !== null) { clearTimer(pollTimer); pollTimer = null; }
       if (leaseTimer !== null) { clearTimer(leaseTimer); leaseTimer = null; }
       if (request !== null) {
@@ -127,13 +124,22 @@
       view.showClock();
     }
 
+    function finishCamera() {
+      var wasPresented = presented;
+      reset();
+      if (wasPresented) { view.showClock(); }
+      else if (view.cancelCamera) { view.cancelCamera(); }
+    }
+
+    function presentCamera() {
+      if (!presented) { presented = true; view.showCamera(active.label); }
+    }
+
     function unavailable(token) {
       if (!live(token)) { return; }
+      // Keep the base clock/menu or a still-fresh decoded image. Failure text
+      // never replaces useful content; the image age deadline is independent.
       failures += 1;
-      // A failed refresh does not invalidate the last decoded image. Its age
-      // deadline remains in force; retries and repeated motion cannot extend it.
-      if (imageURL !== null) { view.showDelayed(); }
-      else { view.showUnavailable(); }
     }
 
     async function pump() {
@@ -161,18 +167,15 @@
         // good frame while the next download or decode is still in progress.
         var previousURL = imageURL;
         view.showSnapshot(item.url);
+        presentCamera();
         imageURL = item.url;
         item.url = null;
         if (previousURL !== null) { revokeURL(previousURL); }
         failures = 0;
-        clearTimer(delayedTimer); clearTimer(staleTimer);
-        delayedTimer = setTimer(function () {
-          delayedTimer = null;
-          if (live(token) && imageURL !== null) { view.showDelayed(); }
-        }, FRAME_DELAYED_MS);
+        clearTimer(staleTimer);
         staleTimer = setTimer(function () {
           staleTimer = null;
-          if (live(token)) { clearImage(); view.showUnavailable(); }
+          if (live(token)) { finishCamera(); }
         }, FRAME_MAX_AGE_MS);
       } catch (_) {
         if (!item.timedOut) { unavailable(token); }
@@ -190,15 +193,14 @@
     }
 
     function startVideo(token) {
-      videoRetry = null;
       if (!live(token) || videoRequest !== null) { return; }
       var item = { controller: new Abort(), handle: null, timeout: null };
       videoRequest = item;
       function failed() {
         if (videoRequest !== item || !live(token)) { return; }
-        stopVideo();
-        view.showUnavailable();
-        videoRetry = setTimer(function () { startVideo(token); }, Math.min(5000, expiresAt - now()));
+        // The stream adapter already bounds established decode stalls. Once
+        // it fails, return silently instead of showing an error/retry screen.
+        finishCamera();
       }
       item.timeout = setTimer(failed, Math.min(WEBRTC_STARTUP_MS, expiresAt - now()));
       Promise.resolve().then(function () {
@@ -210,6 +212,7 @@
         item.handle = handle;
         clearTimer(item.timeout);
         view.showVideo();
+        presentCamera();
       }, failed);
     }
 
@@ -221,15 +224,16 @@
       if (camera && active === camera && live(sequence)) {
         expiresAt = now() + lease * 1000;
         clearTimer(leaseTimer);
-        leaseTimer = setTimer(showClock, lease * 1000);
+        leaseTimer = setTimer(finishCamera, lease * 1000);
         return true;
       }
       reset();
       if (destroyed || hidden || !camera) { view.showClock(); return false; }
       active = camera;
       expiresAt = now() + lease * 1000;
-      view.showCamera(camera.label);
-      leaseTimer = setTimer(showClock, lease * 1000);
+      // Stage below the current opaque clock/menu; reveal only after decode.
+      if (view.stageCamera) { view.stageCamera(camera.label); }
+      leaseTimer = setTimer(finishCamera, lease * 1000);
       if (config.cameraMode === "webrtc") { startVideo(sequence); }
       else { pump(); }
       return true;
@@ -240,8 +244,16 @@
       if (hidden) { showClock(); }
     }
 
+    function showMotionCamera(role) {
+      var camera = ROLES.indexOf(role) >= 0 ? config.cameras[role] : null;
+      // A working camera owns the screen. Do not discard it to test another
+      // motion source, or run two decoders on this small device.
+      if (presented && active !== camera) { return false; }
+      return showCamera(role);
+    }
+
     function snapshotFailed() {
-      if (live(sequence)) { clearImage(); unavailable(sequence); }
+      if (live(sequence)) { finishCamera(); }
     }
 
     function destroy() {
@@ -250,7 +262,7 @@
     }
 
     view.showClock();
-    return Object.freeze({ showCamera: showCamera, showClock: showClock, setHidden: setHidden,
+    return Object.freeze({ showCamera: showCamera, showMotionCamera: showMotionCamera, showClock: showClock, setHidden: setHidden,
       snapshotFailed: snapshotFailed, destroy: destroy });
   }
 
@@ -268,17 +280,41 @@
     camera.setAttribute("aria-label", language.text("camera"));
     image.setAttribute("alt", language.text("cameraImage"));
     video.setAttribute("aria-label", language.text("cameraVideo"));
-    status.textContent = language.text("loading");
+    status.textContent = "";
+    status.hidden = true;
     return {
       video: video,
-      showClock: function () { camera.hidden = true; clock.hidden = false; },
+      showClock: function () {
+        camera.hidden = true; clock.hidden = false;
+        var room = document.getElementById("room-panel");
+        if (room) { room.hidden = true; clock.classList.remove("room-open"); }
+        var toggle = document.getElementById("room-toggle");
+        if (toggle) { toggle.setAttribute("aria-expanded", "false"); }
+      },
+      stageCamera: function (label) {
+        camera.setAttribute("aria-label", label);
+        camera.setAttribute("aria-hidden", "true");
+        status.textContent = ""; status.hidden = true;
+        clock.hidden = false;
+        // This full-sized, transparent surface stays behind the opaque clock.
+        // It can decode frames without displaying a loading/poster screen.
+        camera.hidden = false;
+      },
+      cancelCamera: function () {
+        camera.hidden = true; camera.setAttribute("aria-hidden", "true");
+        clock.hidden = false;
+        status.textContent = ""; status.hidden = true;
+        // Unlike explicit Home, a failed preparation preserves the open menu.
+      },
       showCamera: function (label) {
         camera.setAttribute("aria-label", label);
-        status.textContent = language.text("loading");
-        status.classList.remove("frame-delayed");
-        status.hidden = false;
-        clock.hidden = true;
-        camera.hidden = false;
+        camera.setAttribute("aria-hidden", "false");
+        status.textContent = ""; status.hidden = true;
+        var room = document.getElementById("room-panel");
+        if (room) { room.hidden = true; clock.classList.remove("room-open"); }
+        var toggle = document.getElementById("room-toggle");
+        if (toggle) { toggle.setAttribute("aria-expanded", "false"); }
+        clock.hidden = true; camera.hidden = false;
       },
       clearSnapshot: function () { image.hidden = true; image.removeAttribute("src"); },
       clearVideo: function () {
@@ -294,9 +330,8 @@
         // adapter resolves only after playback and a decoded/presented frame.
         video.classList.remove("has-frame");
         video.hidden = false;
-        status.textContent = language.text("connecting");
-        status.classList.remove("frame-delayed");
-        status.hidden = false;
+        status.textContent = "";
+        status.hidden = true;
       },
       showVideo: function () { video.classList.add("has-frame"); video.hidden = false; status.hidden = true; },
       prepareSnapshot: function (url, signal) {
@@ -325,9 +360,7 @@
           }
         });
       },
-      showSnapshot: function (url) { image.src = url; image.hidden = false; status.hidden = true; status.classList.remove("frame-delayed"); },
-      showDelayed: function () { status.textContent = language.text("delayed"); status.classList.add("frame-delayed"); status.hidden = false; },
-      showUnavailable: function () { status.textContent = language.text("unavailable"); status.classList.remove("frame-delayed"); status.hidden = false; }
+      showSnapshot: function (url) { image.src = url; image.hidden = false; status.hidden = true; }
     };
   }
 
@@ -356,7 +389,8 @@
       }
       return root.Show5Auth.fetchSnapshot(entityId, options);
     } });
-    root.Show5Display = Object.freeze({ showCamera: controller.showCamera, showClock: controller.showClock });
+    root.Show5Display = Object.freeze({ showCamera: controller.showCamera,
+      showMotionCamera: controller.showMotionCamera, showClock: controller.showClock });
     document.getElementById("camera-image").addEventListener("error", controller.snapshotFailed);
     document.addEventListener("visibilitychange", function () { controller.setHidden(document.hidden); });
     root.addEventListener("pagehide", function () { controller.setHidden(true); root.clearInterval(clockTimer); });

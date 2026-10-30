@@ -1,0 +1,37 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'org.hahomelab.show5sip'
+    compileSdk 36
+    defaultConfig {
+        applicationId 'org.hahomelab.show5sip'
+        minSdk 28
+        targetSdk 35
+        versionCode 2
+        versionName '0.1.1'
+        ndk { abiFilters 'armeabi-v7a' }
+    }
+    signingConfigs {
+        release {
+            def location = System.getenv('KEYSTORE_FILE')
+            if (location) storeFile file(location)
+            storePassword System.getenv('KEYSTORE_PASSWORD')
+            keyAlias System.getenv('KEY_ALIAS') ?: 'vaca'
+            keyPassword System.getenv('KEY_PASSWORD')
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    buildTypes {
+        release { minifyEnabled false; debuggable false; signingConfig signingConfigs.release }
+    }
+}
+dependencies {
+    // build.py verifies the official 5.5.39 AAR digest before supplying this path.
+    implementation files(providers.gradleProperty('linphoneAar').get())
+    implementation 'androidx.annotation:annotation:1.9.1'
+    implementation 'androidx.media:media:1.7.0'
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20240303'
+}
