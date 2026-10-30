@@ -35,6 +35,17 @@ requirements, including for a security-driven migration; resolve the complete
 environment and run `test_cloud_speech.py` before merging. Updating these files
 does not deploy an image or change a device.
 
+Regenerate the hash-locked runtime for the Python version in `Dockerfile.cloud`
+(currently 3.14), including transitive build helpers required at runtime:
+
+```bash
+uv pip compile integrations/fcc-voice-backup/cloud-requirements.in --generate-hashes --universal --python-version 3.14 --output-file integrations/fcc-voice-backup/cloud-requirements.txt
+```
+
+Install the result into a fresh environment with `--require-hashes`, then run
+`python -m pip check` and the cloud speech tests. A developer environment with
+preinstalled `setuptools` can otherwise hide an incomplete lock.
+
 
 Optional energy grounding is described in [assistant behavior](../../docs/fcc-assist-behavior.md#optional-read-only-energy-context).
 It requires an explicitly configured IGW URL and scoped read token; it is off by
