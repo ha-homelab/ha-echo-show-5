@@ -36,7 +36,8 @@
 
 ### Changed
 
-- Update the FCC cloud adapter to hash-locked grpcio 1.84.1 and refresh the pinned Debian Bookworm host-image base.
+- Update the FCC cloud adapter to hash-locked grpcio 1.85.0 and refresh the pinned Debian Bookworm host-image base.
+- Regenerate the cloud dependency lock for Python 3.14, including the required setuptools dependency, and document clean hash-verified installation checks.
 - Keep reusable workflow references and runtime inputs aligned, with verified upstream ref metadata and a single Renovate owner for GitHub Actions updates.
 - Use the reviewed Ubuntu mirror fallback in browser CI and release-archive checks, preserving the required browser matrix.
 

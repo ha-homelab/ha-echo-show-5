@@ -145,7 +145,8 @@ disconnect cancellation and recovery without provider credentials. The connectio
 regressions also check that each operation owns a new channel, every channel
 closes after completion or cancellation, and the next request succeeds after a
 timeout without replaying the failed request. Run them with the hashed cloud
-dependencies on Python 3.11; CI also runs them inside the pinned Python 3.14 image:
+dependencies in a fresh Python 3.14 environment; CI also runs them inside the
+pinned Python 3.14 image:
 
 ```bash
 python -m pip install --require-hashes -r integrations/fcc-voice-backup/cloud-requirements.txt
