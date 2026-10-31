@@ -185,6 +185,21 @@ These tests do not replace HA configuration validation or per-device playback,
 call, screen and reconnect acceptance. Keep device-specific deployment receipts
 private and identify any unperformed physical checks in the delivery report.
 
+## Sendspin idle-load mitigation — 2026-10-31
+
+The paused Show-two SendspinDroid 2.0.0 process consumed roughly 245% CPU in a
+four-core `top` sample while the wake engine ran slower than real time. It was
+force-stopped after checking that no media session was playing. Its installation,
+server pairing and saved data were retained. Use the existing **Sendspin** endpoint
+action to launch it when needed; **Stop/Home** releases a session owned by that
+route. Pause alone did not release the observed background CPU load.
+
+The NUC AirPlay receiver configuration is retained, but cannot deliver audio to
+a stopped Android listener. Treat always-connected Sendspin/AirPlay on Show two
+as suspended until idle CPU, wake throughput and playback coexistence pass a
+new acceptance test. This is an operational mitigation, not a fix inside the
+third-party client. See the [wake recovery record](wake-recovery-2026-10-31.md).
+
 ## Sendspin pilot acceptance — 2026-10-29
 
 Both installed SendspinDroid 2.0.0 clients were registered as distinct Music

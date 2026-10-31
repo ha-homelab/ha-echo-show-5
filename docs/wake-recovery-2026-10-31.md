@@ -77,6 +77,35 @@ diagnostic logs remain in ignored private storage. No microphone recording,
 speech playback, music, ringing or announcement submission is part of this
 verification.
 
+## Background CPU finding
+
+A bounded live counter capture revealed an additional problem on Show two:
+processing 1,120,000 samples (70 seconds of 16 kHz audio) took approximately
+97 seconds from engine startup. Cumulative inference work was 93.552 seconds;
+Show one processed the same sample count in approximately 71 seconds, with
+57.016 seconds of inference work. These are wall-time throughput observations,
+not measured end-to-end wake latency; a slow reader may also lose buffered audio.
+
+The paused SendspinDroid 2.0.0 process consumed approximately **245% CPU** in a
+four-core `top` sample. A thread sample showed many active coroutine dispatcher
+threads. All four CPU cores still reported 1.3 GHz. The client was stopped after
+checking that no media session was playing. A subsequent sample showed about
+67% total CPU idle instead of about 4.5% idle. No thermal safeguards or CPU limits
+were disabled.
+
+The package and saved pairing remain installed. Show two's Sendspin route is
+currently **on demand**; use its existing endpoint action when needed and the
+owned Stop/Home route afterwards. The NUC AirPlay configuration remains in place,
+but audio cannot arrive through it while the Android Sendspin listener is stopped.
+The two consecutive post-mitigation counters were 3,040,000 samples at
+17:06:49.674 UTC and 4,000,000 at 17:07:49.804 UTC: **60 seconds of audio in
+60.130 seconds of wall time**. Cumulative inference time increased by 46.602
+seconds over that interval. This confirms restored real-time throughput during
+that bounded interval; it is not a recognition-rate measurement.
+
+This mitigation does not repair the third-party client's excessive idle CPU use. Recheck idle
+CPU and concurrent wake throughput before enabling permanent background service.
+
 ## Attended acceptance
 
 From a normal speaking position, try the configured Myshka phrase several times
@@ -84,4 +113,18 @@ with a pause between turns. Distinguish an absent wake from a wake followed by a
 slow backend response. For overlapping devices, compare the winner and the
 devices that yielded; one audible response alone does not prove correct
 arbitration. Check false activations from normal room sounds before lowering the
-threshold further. No real spoken acceptance result is recorded for this fix yet.
+threshold further. The operator subsequently reported that wake phrases were **still being missed**.
+The specific endpoint, distance and correlated confidence scores were not yet
+available. Acoustic acceptance therefore remains **failed/pending diagnosis**;
+the software and throughput corrections must not be described as a complete
+recognition fix.
+
+
+For an attended score check, temporarily enable the endpoint's **On screen
+diagnostics** switch in HA, wait for the overlay, and compare **Detection** with
+`3.5`. The displayed detection value is probability multiplied by ten; it holds
+a recent peak briefly. **Mic Level** is a display gauge, not a probability or
+calibrated room sound-pressure reading. A zero during a quiet interval does
+not alone prove a muted microphone. Leave **Record Audio** disabled and restore
+diagnostics to their previous state after the check. Record the endpoint,
+distance, number of attempts and observed peaks before changing another setting.
