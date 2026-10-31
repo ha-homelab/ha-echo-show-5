@@ -1,15 +1,14 @@
 diff --git a/app/build.gradle.kts b/app/build.gradle.kts
-index 4ff9852..8e813e9 100644
 --- a/app/build.gradle.kts
 +++ b/app/build.gradle.kts
-@@ -27,8 +27,8 @@ android {
+@@ -27,8 +27,8 @@
          applicationId = "com.msp1974.vacompanion"
          minSdk = 26
          targetSdk = 36
 -        versionName = "0.13.4+myshka.11-nearest.2"
 -        versionCode = 7011
-+        versionName = "0.13.4+myshka.14-announce.3"
-+        versionCode = 7014
++        versionName = "0.13.4+myshka.15-wake.1"
++        versionCode = 7015
          testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
      }
  
@@ -506,37 +505,42 @@ index fc71f8f..3d5dfba 100644
          mediaPlayer?.let { track ->
              try {
 diff --git a/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt b/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
-index b8d1d48..e955f82 100644
 --- a/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
 +++ b/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
-@@ -2,6 +2,8 @@
+@@ -2,6 +2,9 @@
  package com.msp1974.vacompanion.satellite
  
  import com.msp1974.vacompanion.nearest.NearestRuntime
++import com.msp1974.vacompanion.nearest.wakePipelineAllowsStart
 +import com.msp1974.vacompanion.announce.AnnouncementGate
 +import com.msp1974.vacompanion.announce.AnnouncementRuntime
  
  import android.annotation.SuppressLint
  import android.content.Context
-@@ -96,8 +98,8 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
-     private var audioPipelineLastStateChange = System.currentTimeMillis()
+@@ -93,11 +96,11 @@
+     private var wakeWordHandler: SatelliteWakeWorkHandler? = null
+     private val wakeWordLifecycle = Mutex()
+     private var audioPipeline: SatelliteAudioPipeline? = null
+-    private var audioPipelineLastStateChange = System.currentTimeMillis()
++    private var audioPipelineLastStateChange = android.os.SystemClock.elapsedRealtime()
      private val nearest = NearestRuntime(context, scope,
          canAnswer = { state == SatelliteState.RUNNING && clientId.isNotEmpty() && !config.isMuted &&
 -            !AudioLeaseRuntime.inhibited && (audioPipeline == null || audioPipeline?.pipelineStage == PipelineStage.ENDED) },
 -        captureAllowed = { state == SatelliteState.RUNNING && !config.isMuted && !AudioLeaseRuntime.inhibited },
-+            !AudioLeaseRuntime.inhibited && !AnnouncementGate.busy && (audioPipeline == null || audioPipeline?.pipelineStage == PipelineStage.ENDED) },
++            !AudioLeaseRuntime.inhibited && !AnnouncementGate.busy && canStartWakePipeline() },
 +        captureAllowed = { state == SatelliteState.RUNNING && !config.isMuted && !AudioLeaseRuntime.inhibited && !AnnouncementGate.busy },
          open = { detection, turn -> handleWakeWordDetection(detection, turn) })
  
      private var soundEffectFinishTime: Long = 0
-@@ -125,12 +127,15 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+@@ -125,12 +128,15 @@
          }
      }
  
 -    init { AudioLeaseRuntime.attach(this) }
-+    init { AudioLeaseRuntime.attach(this); AnnouncementRuntime.attach(this) }
- 
+-
 -    fun isBusyForAudioLease(): Boolean =
++    init { AudioLeaseRuntime.attach(this); AnnouncementRuntime.attach(this) }
++
 +    fun isBusyForAudioLease(): Boolean = synchronized(AnnouncementGate.monitor) { AnnouncementGate.busy || isBusyForAnnouncement(false) }
 +
 +    fun isBusyForAnnouncement(allowOwnedMusic: Boolean): Boolean = synchronized(AnnouncementGate.monitor) {
@@ -548,7 +552,7 @@ index b8d1d48..e955f82 100644
  
      suspend fun pauseForAudioLease() {
          check(AudioLeaseRuntime.inhibited)
-@@ -152,6 +157,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+@@ -152,6 +158,7 @@
  
      suspend fun start() {
          AudioLeaseRuntime.attach(this)
@@ -556,7 +560,7 @@ index b8d1d48..e955f82 100644
          // Add config change listeners
          Timber.d("Satellite starting...")
          val startTime = System.currentTimeMillis()
-@@ -268,6 +274,8 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+@@ -268,6 +275,8 @@
      }
  
      fun prepareSatelliteTakeover(clientId: String) {
@@ -565,7 +569,7 @@ index b8d1d48..e955f82 100644
          nearest.cancel()
          // This must run before WyomingTCPServer resumes reading the new connection.
          // Otherwise its settings event can arrive before initSettings is reset.
-@@ -320,6 +328,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+@@ -320,6 +329,7 @@
              { motionTask.release() },
          )
          state = SatelliteState.STOPPED
@@ -573,7 +577,7 @@ index b8d1d48..e955f82 100644
          AudioLeaseRuntime.detach(this)
          BroadcastSender.sendBroadcast(context, BroadcastSender.SATELLITE_STOPPED)
      }
-@@ -333,7 +342,13 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+@@ -333,7 +343,13 @@
          return true
      }
  
@@ -588,7 +592,7 @@ index b8d1d48..e955f82 100644
          when (packet.type) {
              WyomingEvent.CUSTOM_EVENT -> customEventHandler(clientId, packet)
              else -> {
-@@ -373,6 +388,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+@@ -373,6 +389,7 @@
                  }
  
                  override suspend fun onWakeWordDetected(detection: WakeWordEngineProvider.WakeWordDetection) {
@@ -596,16 +600,47 @@ index b8d1d48..e955f82 100644
                      Timber.d("Wake word detected: $detection")
                      if (audioPipeline != null && audioPipeline?.pipelineStage == PipelineStage.STREAMING_TTS) {
                          onStopWordDetected(detection)
-@@ -424,7 +440,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+@@ -423,31 +440,21 @@
+         startWakeWordDetectionLocked()
      }
  
++    private fun canStartWakePipeline(): Boolean = wakePipelineAllowsStart(
++        audioPipeline?.pipelineStage?.name,
++        android.os.SystemClock.elapsedRealtime() - audioPipelineLastStateChange,
++        mediaManager.voicePlayer.isPlaying(),
++    )
++
      suspend fun handleWakeWordDetection(detection: WakeWordEngineProvider.WakeWordDetection, nearestTurn: Long? = null) {
 -        if (AudioLeaseRuntime.inhibited || config.isMuted || state != SatelliteState.RUNNING) return
 +        if (AudioLeaseRuntime.inhibited || AnnouncementGate.busy || config.isMuted || state != SatelliteState.RUNNING) return
          if (detection.wakeWordId == "manual_wake") nearest.cancel()
          if (clientId.isEmpty()) {
              Timber.e("Unable to run audio pipeline. Satellite not connected to HA")
-@@ -465,7 +481,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+             return
+         }
+         soundEffectFinishTime = 0L
+-        var startNewPipeline = audioPipeline == null || audioPipeline?.pipelineStage == PipelineStage.ENDED
+-
+-        if (!startNewPipeline) {
+-            // Check if running pipeline is still valid.  Cancel if not.
+-            val currentAudioPipelineStageOrdinal = audioPipeline?.pipelineStage!!.ordinal
+-            val audioPipelineStateAge = ((System.currentTimeMillis() - audioPipelineLastStateChange) / 1000).toInt()
+-
+-            if (currentAudioPipelineStageOrdinal <= PipelineStage.AWAITING_RESPONSE.ordinal && audioPipelineStateAge > 15) {
+-                startNewPipeline = true
+-                Timber.d("Pipeline timed out waiting response, starting new pipeline. State age: $audioPipelineStateAge")
+-            } else if (currentAudioPipelineStageOrdinal <= PipelineStage.STREAMING_TTS.ordinal && audioPipelineStateAge > 30) {
+-                startNewPipeline = true
+-                Timber.d("Pipeline timed out waiting TTS, starting new pipeline. State age: $audioPipelineStateAge")
+-            }
+-        }
+-
+-        if (startNewPipeline) {
++        if (canStartWakePipeline()) {
+             if (audioPipeline != null) {
+                 audioPipeline?.stop()
+                 audioPipeline = null
+@@ -465,7 +472,7 @@
      }
  
      suspend fun playWakeWordDetectionSound() {
@@ -614,7 +649,7 @@ index b8d1d48..e955f82 100644
          if (config.wakeWordSound != "none") {
              try {
                  val soundUri = currentWakeWordSoundUri ?: resolveWakeSoundUri(config.wakeWordSound)
-@@ -517,7 +533,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+@@ -517,7 +524,7 @@
      }
  
      fun playErrorSound() {
@@ -623,7 +658,7 @@ index b8d1d48..e955f82 100644
          try {
              scope.launch {
                  // Same reasoning as playWakeWordDetectionSound() - keep the error sound's
-@@ -553,7 +569,8 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+@@ -553,19 +560,37 @@
  
      @OptIn(ExperimentalAtomicApi::class)
      fun startAudioPipeline(startStage: PipelineStartMode, eventId: Long = System.currentTimeMillis(), wakeWordId: String = config.wakeWord, nearestTurn: Long? = null) {
@@ -633,15 +668,92 @@ index b8d1d48..e955f82 100644
          if (audioPipeline != null) {
              audioPipeline?.stop()
              audioPipeline = null
-@@ -620,6 +637,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
-             nearest.bindReplay(nearestTurn, it)
-             it.run(startStage)
          }
+-        audioPipeline = object: SatelliteAudioPipeline(context, scope, config, eventId, mediaManager) {
++        val nextPipeline = object: SatelliteAudioPipeline(context, scope, config, eventId, mediaManager) {
+             override fun sendMessage(packet: WyomingPacket) {
+-                sendSatelliteMessage(clientId, packet.type, packet.data, packet.payload)
++                synchronized(AnnouncementGate.monitor) {
++                    if (audioPipeline !== this) return
++                    sendSatelliteMessage(clientId, packet.type, packet.data, packet.payload)
++                }
++            }
++
++            override fun startVoicePlayer() {
++                synchronized(AnnouncementGate.monitor) {
++                    if (audioPipeline === this) mediaManager.voicePlayer.start()
++                }
++            }
++
++            override fun stopVoicePlayer() {
++                synchronized(AnnouncementGate.monitor) {
++                    if (audioPipeline == null || audioPipeline === this) mediaManager.voicePlayer.stop()
++                }
+             }
+ 
+             override fun onStateChange(state: PipelineStage) {
++              synchronized(AnnouncementGate.monitor) {
++                if (audioPipeline !== this && !(audioPipeline == null && state == PipelineStage.ENDED)) return
+                 Timber.d("Audio pipeline state: $state")
+-                audioPipelineLastStateChange = System.currentTimeMillis()
++                audioPipelineLastStateChange = android.os.SystemClock.elapsedRealtime()
+                 when (state) {
+                     PipelineStage.LISTENING -> {
+                         wakeWordHandler?.engine?.setStreaming(true)
+@@ -578,6 +603,7 @@
+                     }
+                     else -> {}
+                 }
++              }
+             }
+ 
+             override fun onRequestTranscript(pipelineId: Long, text: String) {
+@@ -594,14 +620,19 @@
+ 
+             override fun onFinish(reason: PipelineEndReason, continueConversation: Boolean) {
+                 nearest.releaseReplay(this)
++              synchronized(AnnouncementGate.monitor) {
++                if (audioPipeline !== this) return
+                 if (reason == PipelineEndReason.END_OF_PIPELINE) {
+                     Timber.i("Pipeline ended.  Restarting: $continueConversation")
+                     if (continueConversation) {
++                        val originatingPipeline = this
+                         scope.launch {
+                             while (mediaManager.voicePlayer.isRunning()) {
+                                 delay(10.milliseconds)
+                             }
+-                            startAudioPipeline(PipelineStartMode.CONTINUE_CONVERSATION)
++                            synchronized(AnnouncementGate.monitor) {
++                                if (audioPipeline === originatingPipeline) startAudioPipeline(PipelineStartMode.CONTINUE_CONVERSATION)
++                            }
+                         }
+                     } else {
+                         audioPipeline = null
+@@ -613,13 +644,16 @@
+                 if (reason == PipelineEndReason.ERRORED && config.wakeWordSound != "none") {
+                     playErrorSound()
+                 }
+-            }
+-
+-        }.also {
+-            it.detectedWakeWordId = wakeWordId
+-            nearest.bindReplay(nearestTurn, it)
+-            it.run(startStage)
+-        }
++              }
++            }
++
++        }
++        // Install the identity before launching work; stale callbacks cannot own its output.
++        audioPipeline = nextPipeline
++        nextPipeline.detectedWakeWordId = wakeWordId
++        nearest.bindReplay(nearestTurn, nextPipeline)
++        nextPipeline.run(startStage)
 +      }
      }
  
      suspend fun sendAudio(audio: WakeWordEngineProvider.AudioResult.Audio) {
-@@ -649,6 +667,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+@@ -649,6 +683,7 @@
      @OptIn(ExperimentalAtomicApi::class)
      private suspend fun handleAction(action: String, packet: WyomingPacket) {
          if (AudioLeaseRuntime.inhibited && action in setOf("play-media", "play", "wake")) return
@@ -649,7 +761,7 @@ index b8d1d48..e955f82 100644
          Timber.d("Action received: $action")
          runCatching {
              val payloadStr = packet.getProp("payload")
-@@ -678,7 +697,7 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+@@ -678,7 +713,7 @@
  
      private suspend fun handleMediaPlayerAction(action: String, payloadStr: String) {
          withContext(Dispatchers.Main) {
@@ -658,7 +770,7 @@ index b8d1d48..e955f82 100644
              when (action) {
                  "play-media" -> if (payloadStr.isNotEmpty()) {
                      val payload = Json.parseToJsonElement(payloadStr).jsonObject
-@@ -697,9 +716,9 @@ abstract class Satellite(var context: Context, val deviceManager: DeviceManager,
+@@ -697,9 +732,9 @@
      }
  
      private suspend fun handleAlarmAction(enable: Boolean) {
@@ -671,10 +783,37 @@ index b8d1d48..e955f82 100644
                  val alarm = config.availableAlarms.find { it.id == config.alarmSound }
                  val mediaUri = if (alarm != null) {
 diff --git a/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteAudioPipeline.kt b/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteAudioPipeline.kt
-index 1dc8e1a..96b3320 100644
 --- a/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteAudioPipeline.kt
 +++ b/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteAudioPipeline.kt
-@@ -378,24 +378,24 @@ abstract class SatelliteAudioPipeline(
+@@ -113,6 +113,9 @@
+     private val isContinuation
+         get() = pipelineStartMode == PipelineStartMode.CONTINUE_CONVERSATION
+ 
++    protected open fun startVoicePlayer() { mediaManager.voicePlayer.start() }
++    protected open fun stopVoicePlayer() { mediaManager.voicePlayer.stop() }
++
+     fun run(startStage: PipelineStartMode = PipelineStartMode.WAKE_WORD_DETECTED) {
+         scope.launch {
+             start(startStage)
+@@ -155,7 +158,7 @@
+             try {
+                 pipelineStage = PipelineStage.STARTING
+ 
+-                mediaManager.voicePlayer.start()
++                startVoicePlayer()
+                 scope.launch { audioInMessageHandler() }
+                 scope.launch { audioOutHandler() }
+                 watchDogTimer()
+@@ -198,7 +201,7 @@
+                         else -> { "Pipeline ended for unknown reason" }
+                     }
+                     Timber.d("$msg [$pipelineId]")
+-                    mediaManager.voicePlayer.stop()
++                    stopVoicePlayer()
+                     pipelineStage = PipelineStage.ENDED
+                     onFinish(result, shouldContinueConversation)
+                 }
+@@ -378,24 +381,24 @@
  
      internal fun handleAudioStop() {
          scope.launch {
@@ -690,15 +829,17 @@ index 1dc8e1a..96b3320 100644
 -                        while (mediaManager.voicePlayer.isPlaying()) {
 -                            delay(100.milliseconds)
 -                        }
+-                    }
+-                }
+-                // Force stop audio as something is wrong
+-                mediaManager.voicePlayer.forceStop()
 +                check(player != null && generation != null)
 +                withTimeout(player.drainTimeoutMs) {
 +                    while (!player.isDrained) {
 +                        check(player.playbackGeneration == generation)
 +                        delay(10.milliseconds)
-                     }
-                 }
--                // Force stop audio as something is wrong
--                mediaManager.voicePlayer.forceStop()
++                    }
++                }
 +                completed = player.playbackGeneration == generation
              } catch (_: Exception) {
 -                Timber.d("Audio stop timed out")

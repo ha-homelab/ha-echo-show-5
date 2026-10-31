@@ -7,6 +7,8 @@ This route targets **Echo Show 5 Gen2 / 2021 / cronos**, using **LineageOS / And
 ## Nearest-device interoperability
 
 [One voice response across VACA Shows and TECHO5 Dots](nearest-device-arbitration.md)
+
+[October 31 wake recovery and sensitivity checks](wake-recovery-2026-10-31.md)
 explains the optional pre-pipeline election, the separate HA fallback, build
 provenance, and the difference between software checks and physical acceptance.
 
