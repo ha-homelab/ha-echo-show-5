@@ -42,6 +42,9 @@
         "member": "ha-echo-show-5/SOURCE_VERSION",
         "value": "package"
       }
+    ],
+    "required_build_receipts": [
+      "release-inputs-package.json"
     ]
   },
   "fuzzing": {
