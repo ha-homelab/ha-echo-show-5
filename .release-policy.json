@@ -42,9 +42,12 @@
         "member": "ha-echo-show-5/SOURCE_VERSION",
         "value": "package"
       }
+    ],
+    "required_build_receipts": [
+      "release-inputs-package.json"
     ]
   },
   "fuzzing": {
-    "toolkit_ref": "368320994ed55ae68935dcadb4062000a4648b92"
+    "toolkit_ref": "f77820983e4279471224b8443980f55448183872"
   }
 }

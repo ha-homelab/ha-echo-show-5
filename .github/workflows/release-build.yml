@@ -57,14 +57,14 @@ jobs:
       - id: assets
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: release-assets
+          name: release-assets-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}
           path: release-assets/package/*
           if-no-files-found: error
           retention-days: 14
 
   browser-release:
     needs: package
-    uses: victron-venus/venus-os-ci-toolkit/.github/workflows/typescript-ci.yml@368320994ed55ae68935dcadb4062000a4648b92 # main
+    uses: victron-venus/venus-os-ci-toolkit/.github/workflows/typescript-ci.yml@f77820983e4279471224b8443980f55448183872 # main
     permissions:
       contents: read
       actions: read
