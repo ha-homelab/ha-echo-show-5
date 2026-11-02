@@ -85,6 +85,30 @@ The reproducible overlay and build entry point live in
 signing material, per-device configuration and deployment evidence are excluded
 from source releases.
 
+## Recovering from a stalled voice request
+
+The composed `7015` build shares one admission policy between the nearest-device
+election and the local wake handler. Previously, enabled arbitration required an
+idle pipeline before calling the handler. A request stuck waiting for a response
+could therefore prevent the handler's existing recovery logic from ever running.
+
+A new detection can replace a stalled request after 16 seconds without a stage
+change through `AWAITING_RESPONSE`, or after 31 seconds in `AWAITING_TTS` or
+`STARTING_TTS`. These boundaries preserve the original whole-second `>15` and
+`>30` checks. Elapsed time uses Android's monotonic clock. There is no scheduled
+automatic retry: recovery happens only when another wake is detected.
+
+Actual voice playback, streaming/completed TTS, unknown stages, microphone mute,
+SIP microphone ownership and active announcements remain protected. Normal
+stop-word handling is separate. The standalone `7011` builder remains a
+historical baseline; use the composed announcement builder for this fix.
+
+Wake sensitivity is a separate control. The HA threshold uses a 0–10 scale:
+`3.5` corresponds to a model probability of `0.35`. Lowering it may also increase
+false activations. Verify the selected model, retained threshold, active capture
+and real spoken trials separately from pipeline recovery. See the
+[October 31 recovery record](wake-recovery-2026-10-31.md).
+
 ## Maintaining a public fork
 
 A maintained VACA fork is a reasonable next step when private-wake, SIP and

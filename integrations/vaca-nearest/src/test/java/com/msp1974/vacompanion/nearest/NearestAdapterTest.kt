@@ -5,6 +5,33 @@ import org.junit.Test
 import java.net.InetAddress
 
 class NearestAdapterTest {
+    @Test fun idleWakeAdmissionDoesNotDependOnAnOldTimestamp() {
+        assertTrue(wakePipelineAllowsStart(null, -1, false))
+        assertTrue(wakePipelineAllowsStart("ENDED", 0, false))
+    }
+    @Test fun coordinatedWakeCanRecoverAStalledResponse() {
+        for (stage in listOf("INIT", "STARTING", "STARTED", "LISTENING", "VOICE_STARTED", "VOICE_STOPPED", "AWAITING_RESPONSE")) {
+            assertFalse(wakePipelineAllowsStart(stage, 15_999, false))
+            assertTrue(nearestWakeAllowed(true,
+                { wakePipelineAllowsStart(stage, 16_000, false) }, { true }))
+        }
+    }
+    @Test fun speechStartupUsesTheLongerRecoveryDeadline() {
+        for (stage in listOf("AWAITING_TTS", "STARTING_TTS")) {
+            assertFalse(wakePipelineAllowsStart(stage, 30_999, false))
+            assertTrue(wakePipelineAllowsStart(stage, 31_000, false))
+        }
+    }
+    @Test fun recoveryCannotInterruptPlaybackOrUnknownStages() {
+        for (stage in listOf("STREAMING_TTS", "COMPLETED_TTS", "FUTURE_STAGE"))
+            assertFalse(wakePipelineAllowsStart(stage, Long.MAX_VALUE, false))
+        for (stage in listOf(null, "ENDED", "AWAITING_RESPONSE", "AWAITING_TTS"))
+            assertFalse(wakePipelineAllowsStart(stage, Long.MAX_VALUE, true))
+    }
+    @Test fun negativeElapsedTimeCannotExpireAnActiveRequest() {
+        assertFalse(wakePipelineAllowsStart("AWAITING_RESPONSE", -1, false))
+        assertFalse(wakePipelineAllowsStart("AWAITING_TTS", Long.MIN_VALUE, false))
+    }
     @Test fun disabledArbitrationLeavesActivePipelineRecoveryToLocalHandler() {
         var idleChecks = 0
         assertTrue(nearestWakeAllowed(false, { idleChecks++; false }, { true }))
@@ -14,7 +41,7 @@ class NearestAdapterTest {
     @Test fun disabledArbitrationStillHonorsCaptureInhibitors() {
         assertFalse(nearestWakeAllowed(false, { error("Idle check must not replace the capture guard") }, { false }))
     }
-    @Test fun enabledArbitrationStillRequiresAnIdlePipeline() {
+    @Test fun enabledArbitrationStillRequiresAdmissionFromTheLocalHandler() {
         assertFalse(nearestWakeAllowed(true, { false }, { error("Use the coordinated admission guard") }))
         assertTrue(nearestWakeAllowed(true, { true }, { false }))
     }

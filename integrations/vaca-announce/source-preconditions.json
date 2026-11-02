@@ -12,7 +12,7 @@
   "app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteAudioPipeline.kt": "dbf7af49b384232a827cc4072683e915f9bb270563d98f3f800fe0c2cccbfffe",
   "app/src/main/java/com/msp1974/vacompanion/nearest/NearestRuntime.kt": "cbbaf7ec94addb363bd06267518de664801ad47ff9450b884351c8db92e41f5b",
   "app/src/main/java/com/msp1974/vacompanion/players/SoundEffectsPlayer.kt": "63ef0063e4980288074ba8e13012b2cd81765bdaff6fc098df520a21cccad8cf",
-  "app/src/main/java/com/msp1974/vacompanion/nearest/NearestWakeAdmission.kt": "4236119057c1613695d742ff1c0ba59bf7ad0a1a25c5600ab3bb58793d518217",
+  "app/src/main/java/com/msp1974/vacompanion/nearest/NearestWakeAdmission.kt": "ad2384b4b970989d979e35bfa26b9cfd2aa1161f4c6878c79e6bc50ab267a4aa",
   "app/src/main/java/com/msp1974/vacompanion/nearest/NearestLifecycle.kt": "bf833887edb14959201aa24351e3c9aaaa324316c006cbfac0a25045487aea9a",
   "app/src/main/java/com/msp1974/vacompanion/nearest/NearestReplay.kt": "5dd63eb0109daf1ab37fc305b67eb1a73d9b3b1ab795dda597b03d4821f81049",
   "app/src/main/java/com/msp1974/vacompanion/nearest/NearestSettings.kt": "0ee4737b784fa4981a4db34795f6881682d049e86890837a2e51487ac988aaef"

@@ -72,6 +72,11 @@ With `.7`, retain `openwakeword`, primary
 {"id": "hey_jarvis"}
 ```
 
+The value above records the `.7` rollout, not a universal optimum. During the
+[October 31 wake recovery](../../docs/wake-recovery-2026-10-31.md), the two Show
+endpoints were changed to HA **3.5** (effective **0.35**) for the exact Myshka
+primary. Keep sensitivity testing separate from auxiliary-word configuration.
+
 Restart VACA and verify loaded models and capture. The auxiliary is enabled
 only when the exact primary's manifest validates. Blank/`none` primary,
 unknown/duplicate auxiliary IDs and other generic engines do not enable this

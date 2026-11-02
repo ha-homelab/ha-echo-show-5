@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1120" viewBox="0 0 1440 1120" role="img" aria-labelledby="title desc">
   <title id="title">Room endpoint delivery: interface, policy, apps and administration</title>
-  <desc id="desc">Three main layers connect the room display to Home Assistant policy and existing Android applications. The r15 display and policy are deployed on both Shows; real camera checks passed on both and timer checks passed on Show two. VLC, OTTPlay and SendspinDroid are installed on both devices; Sendspin is connected on both devices; a bounded Show-two transport test passed. Bluetooth music played but disrupted Show-one Wi-Fi until phone disconnection; BLE needs physical tests. The device has about 974 MiB RAM, an ARMv7 application ABI and one verified light sensor.</desc>
+  <desc id="desc">Three main layers connect the room display to Home Assistant policy and existing Android applications. The r15 display and policy are deployed on both Shows; real camera checks passed on both and timer checks passed on Show two. VLC, OTTPlay and SendspinDroid are installed on both devices; Sendspin was connected on both devices on October 29; Show two is now on demand after a paused-client CPU problem on October 31; a bounded Show-two transport test passed. Bluetooth music played but disrupted Show-one Wi-Fi until phone disconnection; BLE needs physical tests. The device has about 974 MiB RAM, an ARMv7 application ABI and one verified light sensor.</desc>
   <defs>
     <linearGradient id="background" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#091326"/><stop offset="1" stop-color="#101e31"/></linearGradient>
     <linearGradient id="screen" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#133a55"/><stop offset="1" stop-color="#102a3e"/></linearGradient>
@@ -87,8 +87,8 @@
   <text x="760" y="712" class="small">Per-device playback acceptance</text>
   <rect x="1016" y="620" width="352" height="113" rx="12" fill="#3a3023"/>
   <text x="1038" y="655" class="amber" font-size="24" font-weight="650">SendspinDroid 2.0</text>
-  <text x="1038" y="686" class="body">Connected · Two distinct players</text>
-  <text x="1038" y="712" class="small">No synchronization claim yet</text>
+  <text x="1038" y="686" class="body">Show Two: launch on demand</text>
+  <text x="1038" y="712" class="small">Idle CPU acceptance pending</text>
 
   <rect x="48" y="789" width="654" height="165" rx="20" class="card"/>
   <text x="72" y="829" class="heading">Administration with existing access</text>

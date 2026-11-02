@@ -25,7 +25,7 @@ separately scoped.
   Camera startup preserves the current interface until the first decoded frame;
   failure is silent and a working stream survives competing automatic motion.
 - VLC and native OTTPlay now have installation parity on both Shows.
-  **SendspinDroid 2.0 is connected on both**, with distinct player names. A bounded
+  **SendspinDroid 2.0 was connected on both on October 29**, with distinct player names. On October 31, the paused Show-two client was stopped after excessive background CPU usage interfered with wake processing; it is now available on demand. See the [wake recovery record](wake-recovery-2026-10-31.md). A bounded
   Show-two transport test received OPUS at 48 kHz stereo over the direct LAN;
   human listening and synchronized multiroom acceptance remain pending.
 - The administration tool adds a checked scrcpy route, scoped file transfers,
@@ -86,9 +86,9 @@ audible playback, radio reception or an Android cold start.
 
 | Requested route or protocol | Delivered state | Boundary and next step |
 | --- | --- | --- |
-| Multiroom Sendspin | **Connected on both; bounded transport checked on Show two.** Distinct player names, fixed launch/cleanup route and pinned artifact record; MA 2.10.8. | A 10.92-second test recorded 870 received chunks, 370 played, no dropped chunks or underruns, then restored the idle empty queue and original volume. Human-rated sound, synchronized playback, screen-off and call handoff remain unaccepted. |
+| Multiroom Sendspin | **Installed on both; Show two now on demand.** The October 29 connection and bounded transport checks remain historical evidence. Distinct player names, fixed launch/cleanup route and pinned artifact record; MA 2.10.8. | A 10.92-second test recorded 870 received chunks, 370 played, no dropped chunks or underruns, then restored the idle empty queue and original volume. Human-rated sound, synchronized playback, screen-off and call handoff remain unaccepted. |
 | Snapcast alternative | **Not installed.** Remains an alternative if the Sendspin trial exposes a concrete need. | Avoid running duplicate background music clients without an acceptance reason. |
-| AirPlay into the home audio system | **Enabled for Show two only.** Music Assistant on the NUC hosts one AirPlay Receiver mapped to the verified Sendspin player. | One healthy receiver daemon and its target mapping were verified. iPhone playback remains a physical test; expected buffering is about five seconds. This does not create a native Android AirPlay receiver. |
+| AirPlay into the home audio system | **Configured for Show two only; requires its Sendspin client to be running.** Music Assistant on the NUC hosts one AirPlay Receiver mapped to the verified Sendspin player. | One healthy receiver daemon and its target mapping were verified. iPhone playback remains a physical test; expected buffering is about five seconds. This does not create a native Android AirPlay receiver. |
 | NAS music/video | **Client installed; launch implemented.** VLC is available on both and a fixed Library action opens its browser. | Configure the intended SMB/UPnP/DLNA source inside VLC and test credentials, throughput, codec and Stop/Home. No share credentials are published or automatically imported. |
 | MQTT telemetry / commands | **No new Android agent.** Existing VACA/HA entities supply current telemetry; typed room scripts supply commands. | Add a broker client only for an unmet integration need, with topic authorization, expiry and acknowledgements. No retained start/call command is introduced. |
 | Remote screen control | **Implemented; screen transport verified on both Shows.** Checked, bounded scrcpy session, 960-pixel size limit, 15 fps and no audio capture by default. | Use a permitted direct-LAN route or an explicitly allowed SSH tunnel. A health read does not establish screen/input acceptance. |
@@ -122,9 +122,11 @@ does not bypass the user's Android debugging approval.
    current voice configuration and manual brightness baseline.
 3. Administration health, bounded screen transport and a disposable shared
    file round trip passed. Validate any new APK or file destination separately.
-4. Both Sendspin players are connected and the Show-two transport test passed.
-   Test human-rated sound, synchronization and call handoff separately. The
-   Show-two AirPlay receiver is enabled but iPhone playback remains unverified.
+4. Recheck idle CPU and wake throughput before restoring an always-connected
+   Sendspin client on Show two. Its earlier transport test passed, but the paused
+   client later interfered with voice processing. Test human-rated sound,
+   synchronization and call handoff separately. The configured AirPlay receiver
+   needs the client running; iPhone playback remains unverified.
 5. Keep the direct Bluetooth speaker route experimental after the observed
    network outage. BLE, QR, native alarms and accessory work require separate
    implementation or physical acceptance as indicated in the register.

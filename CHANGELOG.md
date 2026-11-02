@@ -16,6 +16,9 @@
 
 ### Mixed-device voice arbitration
 
+- Document the Show-two paused Sendspin CPU saturation and its on-demand mitigation, including the resulting AirPlay availability limit.
+- In the composed `7015` build, allow a fresh wake to recover a stalled Assist request even when nearest-device arbitration is enabled. Use monotonic recovery deadlines and prevent late callbacks from clearing or stopping a replacement pipeline. Record the two-Show sensitivity trial separately from acoustic acceptance.
+
 - Add an opt-in VACA overlay compatible with TECHO5's authenticated nearest-device protocol, preserving the private wake frontend and SIP microphone lease bridge.
 - Keep microphone capture running during election and replay bounded history without duplicating queued live frames.
 - Distinguish manual starts, auxiliary model detections and follow-up turns; cancel pending starts on mute, shutdown, reconnect and SIP preemption.
