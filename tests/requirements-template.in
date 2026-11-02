@@ -1,0 +1,2 @@
+# Template validation only; production voice and training use separate locks.
+Jinja2==3.1.6
