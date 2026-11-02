@@ -61,11 +61,16 @@ a missing archive. Review dependency updates and regenerate the locks with:
 ```sh
 uv pip compile integrations/fcc-voice-backup/requirements.in --generate-hashes --universal --python-version 3.11 --output-file integrations/fcc-voice-backup/requirements.txt
 uv pip compile integrations/fcc-voice-backup/cloud-requirements.in --generate-hashes --universal --python-version 3.11 --output-file integrations/fcc-voice-backup/cloud-requirements.txt
+uv pip compile tests/requirements-template.in --generate-hashes --universal --python-version 3.8 --only-binary=:all: --output-file tests/requirements-template.txt
 uv pip compile tests/requirements-voice.in --generate-hashes --universal --python-version 3.14.2 --output-file tests/requirements-voice.txt
 ```
 
+Template tests use `tests/requirements-template.txt` with
+`--require-hashes --only-binary=:all:` on Python 3.8 and 3.11. Its environment
+markers preserve compatible MarkupSafe wheels for both Python versions.
+
 Run the documented tests in a fresh virtual environment after updating a lock.
-The isolated Home Assistant test runtime is 2026.10.0 and requires Python
+The isolated Home Assistant test runtime is 2026.10.3 and requires Python
 3.14.2 or newer. Updating these test dependencies does not upgrade an installed
 Home Assistant instance.
 
