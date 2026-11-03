@@ -1,5 +1,7 @@
 # Isolated HA script/conversation tests; no running HA service or devices.
-homeassistant==2026.10.3
+# This CI-only beta selects upstream Pillow 13; it does not upgrade deployed HA.
+# Keep the explicit conversation dependencies aligned with HA's component manifest.
+homeassistant==2026.11.0b3
 hassil==3.12.1
 gazetteer-matcher==1.1.0
-home-assistant-intents==2026.10.6
+home-assistant-intents==2026.10.27
