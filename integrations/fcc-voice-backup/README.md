@@ -28,7 +28,10 @@ Keep both unauthenticated Wyoming listeners inside trusted infrastructure. Provi
 
 The cloud adapter installs `cloud-requirements.txt` as one environment. Riva
 2.27 requires protobuf **6.33.5** and websockets **>=15.0.1,<16**. The compatible
-gRPC tools line is **1.82**: 1.83 and later require protobuf 7.35.1 or newer.
+gRPC tools line is **1.81** (currently **1.81.1**). Version 1.82.0 was
+[yanked upstream](https://pypi.org/project/grpcio-tools/1.82.0/) because its
+compiler requires protobuf 7.x despite declaring compatibility with 6.x;
+1.82.1 and later explicitly require protobuf 7.35.1 or newer.
 Dependabot groups this runtime and excludes those incompatible ranges while
 leaving compatible updates eligible. Revisit the bounds when Riva changes its
 requirements, including for a security-driven migration; resolve the complete
