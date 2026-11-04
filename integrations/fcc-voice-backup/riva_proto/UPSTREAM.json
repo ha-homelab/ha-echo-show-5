@@ -6,7 +6,8 @@
   "source_directory": "riva/proto",
   "generator": {
     "grpcio-tools": "1.81.1",
-    "protobuf": "6.33.5"
+    "protobuf": "6.33.6",
+    "setuptools": "84.2.1"
   },
   "compatibility_oracle": {
     "distribution": "nvidia-riva-client",
