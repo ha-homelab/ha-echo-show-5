@@ -32,6 +32,16 @@ Copyright © 2025 Mark Parker and upstream contributors. The pinned upstream
 adds two-model selection and related lifecycle/build changes; it is not an
 upstream release. Keep these notices with redistributions of the patch.
 
+## Included NVIDIA Riva protocol bindings
+
+`integrations/fcc-voice-backup/proto/riva/proto` contains four unmodified protocol
+sources from [NVIDIA Riva common](https://github.com/nvidia-riva/common/tree/268890b7286031a6d4950e34f7ce13ed0d4ce621).
+The six Python binding modules under `riva_proto` are generated from those sources,
+with only Python import paths and class module metadata relocated. The original
+[NVIDIA MIT license](integrations/fcc-voice-backup/riva_proto/LICENSE) and
+[provenance manifest](integrations/fcc-voice-backup/riva_proto/UPSTREAM.json)
+are included. Preserve them when redistributing the source or runtime image.
+
 ## Referenced downloads and binaries
 
 `integrations/vaca-nearest` implements interoperability with the TECHO5

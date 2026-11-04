@@ -1,0 +1,5 @@
+# Maintenance only: never installed by the runtime Dockerfile.
+grpcio-tools==1.81.1
+grpcio==1.85.1
+protobuf==6.33.5
+setuptools==84.2.1

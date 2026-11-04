@@ -14,25 +14,15 @@ updates:
     directory: /integrations/fcc-voice-backup
     schedule:
       interval: daily
-    # Riva 2.27 requires protobuf==6.33.5 and websockets>=15.0.1,<16.
-    # grpcio-tools 1.82.0 was yanked: its compiler requires protobuf 7.x.
-    # Keep the compatible 1.81 line; later tools cannot share this protobuf 6 env.
-    # Revisit with Riva metadata + the cloud protocol tests; keep compatible patches.
-    ignore:
-      - dependency-name: protobuf
-        versions: [">6.33.5"]
-      - dependency-name: websockets
-        versions: [">=16"]
-      - dependency-name: grpcio-tools
-        versions: [">=1.82"]
+    # Runtime bindings and the isolated maintenance generator are reviewed together.
+    # Regeneration must preserve the pinned complete wire descriptors.
     groups:
-      riva-cloud-runtime:
+      riva-protocol-bindings:
         patterns:
-          - nvidia-riva-client
           - grpcio
           - grpcio-tools
           - protobuf
-          - websockets
+          - setuptools
   # Renovate owns CI updates. The ignore rule also prevents separate
   # Dependabot security-update PRs; vulnerability alerts remain enabled.
   - package-ecosystem: github-actions

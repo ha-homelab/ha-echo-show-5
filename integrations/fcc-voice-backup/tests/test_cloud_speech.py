@@ -1,5 +1,8 @@
 import asyncio
 import importlib.util
+from importlib.metadata import PackageNotFoundError, version
+import hashlib
+import pickle
 import json
 from pathlib import Path
 import sys
@@ -16,7 +19,12 @@ from wyoming.tts import Synthesize, SynthesizeVoice
 spec = importlib.util.spec_from_file_location("fcc_cloud_speech", Path(__file__).parents[1] / "cloud_speech.py")
 cloud = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = cloud
-spec.loader.exec_module(cloud)
+adapter_root = Path(__file__).parents[1]
+sys.path.insert(0, str(adapter_root))
+try:
+    spec.loader.exec_module(cloud)
+finally:
+    sys.path.remove(str(adapter_root))
 
 
 def response(*parts):
@@ -61,6 +69,32 @@ class FakeProvider:
         except asyncio.CancelledError:
             self.cancelled.set()
             raise
+
+
+class ProtocolBindingsTests(unittest.TestCase):
+    def test_complete_wire_descriptors_match_the_upstream_sdk(self):
+        from riva_proto import riva_common_pb2
+        manifest = json.loads((adapter_root / "riva_proto/UPSTREAM.json").read_text())
+        for module in (cloud.rasr, cloud.rtts, cloud.raudio, riva_common_pb2):
+            with self.subTest(descriptor=module.DESCRIPTOR.name):
+                expected = manifest["sources"][Path(module.DESCRIPTOR.name).name]
+                self.assertEqual(hashlib.sha256(module.DESCRIPTOR.serialized_pb).hexdigest(),
+                                 expected["descriptor_sha256"])
+                self.assertTrue(module.DESCRIPTOR.name.startswith("riva/proto/"))
+
+    def test_relocated_message_types_keep_pickle_and_wire_identity(self):
+        values = (cloud.rasr.RecognizeRequest(audio=b"\x00\x01"),
+                  cloud.rtts.SynthesizeSpeechRequest(text="synthetic speech"))
+        for value in values:
+            with self.subTest(message=type(value).__name__):
+                self.assertTrue(type(value).__module__.startswith("riva_proto."))
+                self.assertEqual(pickle.loads(pickle.dumps(value)), value)
+                self.assertEqual(type(value).FromString(value.SerializeToString()), value)
+
+    def test_runtime_does_not_install_unused_sdk_or_generator(self):
+        for package in ("nvidia-riva-client", "websockets", "grpcio-tools"):
+            with self.subTest(package=package), self.assertRaises(PackageNotFoundError):
+                version(package)
 
 
 class ContentTests(unittest.TestCase):
