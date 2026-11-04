@@ -717,6 +717,31 @@ class LifecycleTests(unittest.TestCase):  # pylint: disable=too-many-public-meth
         self.gh.save_completed_evidence(raw)
         return result, plan, json.loads(raw)
 
+    def fresh_attempt(self, attempt=2):
+        """Supply real-shaped current execution clocks for receipt-focused tests."""
+        self.gh.runs[99].update(run_attempt=attempt, run_started_at="2026-09-12T02:00:00Z")
+        os.environ["GITHUB_RUN_ATTEMPT"] = str(attempt)
+        for job in self.gh.jobs:
+            job.update(run_attempt=attempt, started_at="2026-09-12T02:01:00Z",
+                       completed_at="2026-09-12T02:03:00Z", steps=[{
+                           "name": "Validate fixture", "status": "completed", "conclusion": "success",
+                           "started_at": "2026-09-12T02:01:30Z", "completed_at": "2026-09-12T02:02:30Z",
+                       }])
+
+    def test_fresh_packages_reject_cloned_validation_success(self):
+        """New IDs and attempt numbers cannot refresh old validation executions."""
+        lifecycle.prepare(self.args)
+        self.fresh_attempt()
+        old = copy.deepcopy(self.gh.jobs[0])
+        old.update(id=201, name="checks / CI gate", started_at="2026-09-12T01:00:00Z",
+                   completed_at="2026-09-12T01:05:00Z")
+        old["steps"][0].update(started_at="2026-09-12T01:01:00Z", completed_at="2026-09-12T01:04:00Z")
+        self.gh.jobs.append(old)
+        self.build_current()
+        with self.assertRaisesRegex(rc.ReleaseError, "predates"):
+            lifecycle.publish_versioned(self.args)
+        self.assertEqual(self.gh.writes, [])
+
     def declare_json_artifact(self):
         self.policy["versioning"]["artifacts"] = [
             {
@@ -1618,8 +1643,7 @@ class LifecycleTests(unittest.TestCase):  # pylint: disable=too-many-public-meth
     def test_partial_rerun_rejects_prior_attempt_package_before_publication(self):
         lifecycle.prepare(self.args)
         self.build_current()
-        self.gh.runs[99]["run_attempt"] = 2
-        os.environ["GITHUB_RUN_ATTEMPT"] = "2"
+        self.fresh_attempt()
         ledger = copy.deepcopy(self.gh.ledger)
         with self.assertRaisesRegex(ValueError, "different package producer attempt"):
             lifecycle.publish_versioned(self.args)
@@ -1628,8 +1652,7 @@ class LifecycleTests(unittest.TestCase):  # pylint: disable=too-many-public-meth
         self.assertFalse(rc.EVIDENCE.exists())
 
     def test_complete_current_attempt_packages_publish_normally(self):
-        self.gh.runs[99]["run_attempt"] = 2
-        os.environ["GITHUB_RUN_ATTEMPT"] = "2"
+        self.fresh_attempt()
         lifecycle.prepare(self.args)
         self.build_current()
         result = lifecycle.publish_versioned(self.args)
@@ -1656,8 +1679,7 @@ class LifecycleTests(unittest.TestCase):  # pylint: disable=too-many-public-meth
         lifecycle.prepare(self.args)
         self.build_current()
         self.add_windows_package()
-        self.gh.runs[99]["run_attempt"] = 2
-        os.environ["GITHUB_RUN_ATTEMPT"] = "2"
+        self.fresh_attempt()
         (self.root / "version").write_text("1.2.3\n")
         self.args.assets = str(self.root / "attempt-2")
         lifecycle.prepare(self.args)
@@ -1677,8 +1699,7 @@ class LifecycleTests(unittest.TestCase):  # pylint: disable=too-many-public-meth
         first_plan = self.build_current()
         self.add_windows_package()
         writes = copy.deepcopy(self.gh.ledger_writes)
-        self.gh.runs[99]["run_attempt"] = 2
-        os.environ["GITHUB_RUN_ATTEMPT"] = "2"
+        self.fresh_attempt()
         (self.root / "version").write_text("1.2.3\n")
         self.args.assets = str(self.root / "attempt-2")
         lifecycle.prepare(self.args)
