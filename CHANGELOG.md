@@ -4,8 +4,8 @@
 
 ### Changed
 
-- Update the FCC cloud adapter to grpcio 1.85.1 while retaining Riva 2.27.0 and its required protobuf 6.33.5 runtime.
-- Replace yanked grpcio-tools 1.82.0 with the compatible 1.81.1 compiler and restore the explicit setuptools 84.2.1 hash lock for clean Python 3.14 installations.
+- Replace the FCC cloud adapter's full NVIDIA client SDK with six reproducibly generated protocol modules from pinned MIT-licensed upstream sources; preserve all four complete wire descriptors and the existing grpcio 1.85.1/protobuf 6.33.5 runtime.
+- Remove the unused WebSocket client and protocol compiler from the runtime dependency graph. Keep the generator and its dependencies in a separate hash-locked maintenance environment.
 - Include the isolated Home Assistant 2026.11.0b3 voice-test baseline with Pillow 13. This test-only baseline does not upgrade deployed Home Assistant instances.
 
 ### Upgrade
@@ -14,7 +14,7 @@ Rebuild the cloud-audio component from the updated locked source if you operate 
 
 ### Security
 
-Keep strict dependency hashes and TLS verification enabled. The compiler compatibility pin does not downgrade grpcio's transport runtime. Local protocol and generated-code checks do not establish provider, physical audio or device acceptance.
+Remove the SDK dependency that required the vulnerable WebSocket client tracked in issue #131. Keep strict dependency hashes, unchanged wire descriptors and TLS verification enabled. Local protocol and generated-code checks do not establish provider, physical audio or device acceptance.
 
 ## [0.1.6] - 2026-11-02
 
