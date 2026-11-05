@@ -1,6 +1,131 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "local>victron-venus/venus-os-ci-toolkit:renovate-ci"
-  ]
+    "local>victron-venus/venus-os-ci-toolkit:renovate-fleet"
+  ],
+  "enabledManagers": [
+    "github-actions",
+    "custom.regex",
+    "custom.jsonata",
+    "dockerfile",
+    "pip-compile",
+    "pip_requirements"
+  ],
+  "ignorePaths": [
+    "**/vendor/**",
+    "**/node_modules/**",
+    "**/fixtures/**",
+    "**/tools/browser-compatibility/**",
+    ".github/cosign/**",
+    "tests/requirements-template.txt"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "matchFileNames": [
+        "/^host/synology/[^/]+$/"
+      ],
+      "schedule": [
+        "at any time"
+      ]
+    },
+    {
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "matchFileNames": [
+        "/^integrations/fcc\\-voice\\-backup/[^/]+$/"
+      ],
+      "schedule": [
+        "at any time"
+      ]
+    },
+    {
+      "matchManagers": [
+        "pip_requirements",
+        "pip-compile"
+      ],
+      "matchFileNames": [
+        "/^integrations/fcc\\-voice\\-backup/[^/]+$/"
+      ],
+      "schedule": [
+        "at any time"
+      ]
+    },
+    {
+      "matchManagers": [
+        "pip_requirements",
+        "pip-compile"
+      ],
+      "matchFileNames": [
+        "/^integrations/fcc\\-voice\\-backup/[^/]+$/"
+      ],
+      "matchPackageNames": [
+        "grpcio",
+        "grpcio-tools",
+        "protobuf",
+        "setuptools"
+      ],
+      "groupName": "riva-protocol-bindings",
+      "groupSlug": "riva-protocol-bindings"
+    },
+    {
+      "description": "Regenerate compiled locks with their recorded source command; avoid independent edits to inputs or output snapshots.",
+      "matchManagers": [
+        "pip_requirements"
+      ],
+      "matchFileNames": [
+        "integrations/fcc-voice-backup/cloud-requirements.in",
+        "integrations/fcc-voice-backup/cloud-requirements.txt",
+        "integrations/fcc-voice-backup/proto-requirements.in",
+        "integrations/fcc-voice-backup/proto-requirements.txt",
+        "integrations/fcc-voice-backup/requirements.in",
+        "integrations/fcc-voice-backup/requirements.txt",
+        "tests/requirements-voice.in",
+        "tests/requirements-voice.txt"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "These generated locks use compile flags unsupported by the pinned Renovate parser; regenerate them through the documented source workflow.",
+      "matchManagers": [
+        "pip_requirements"
+      ],
+      "matchFileNames": [
+        "tests/requirements-template.txt"
+      ],
+      "enabled": false
+    }
+  ],
+  "pip_requirements": {
+    "managerFilePatterns": [
+      "/(^|/)([^/]*[-_])?requirements[^/]*\\.(txt|pip)$/"
+    ],
+    "ignorePaths": [
+      "**/vendor/**",
+      "**/node_modules/**",
+      "**/fixtures/**",
+      "**/tools/browser-compatibility/**",
+      ".github/cosign/**",
+      "tests/requirements-template.txt",
+      "integrations/fcc-voice-backup/cloud-requirements.in",
+      "integrations/fcc-voice-backup/cloud-requirements.txt",
+      "integrations/fcc-voice-backup/proto-requirements.in",
+      "integrations/fcc-voice-backup/proto-requirements.txt",
+      "integrations/fcc-voice-backup/requirements.in",
+      "integrations/fcc-voice-backup/requirements.txt",
+      "tests/requirements-voice.in",
+      "tests/requirements-voice.txt"
+    ]
+  },
+  "pip-compile": {
+    "managerFilePatterns": [
+      "/^integrations/fcc\\-voice\\-backup/cloud\\-requirements\\.txt$/",
+      "/^integrations/fcc\\-voice\\-backup/proto\\-requirements\\.txt$/",
+      "/^integrations/fcc\\-voice\\-backup/requirements\\.txt$/",
+      "/^tests/requirements\\-voice\\.txt$/"
+    ]
+  }
 }
