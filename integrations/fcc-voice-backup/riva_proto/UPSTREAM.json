@@ -1,0 +1,39 @@
+{
+  "repository": "https://github.com/nvidia-riva/common",
+  "commit": "268890b7286031a6d4950e34f7ce13ed0d4ce621",
+  "license": "MIT",
+  "license_sha256": "9c0bb53336319c13d061a2246eea4f3f216bad31cdeb1fc9ff0fd8d8308dd543",
+  "source_directory": "riva/proto",
+  "generator": {
+    "grpcio-tools": "1.81.1",
+    "protobuf": "6.33.6",
+    "setuptools": "84.2.1"
+  },
+  "compatibility_oracle": {
+    "distribution": "nvidia-riva-client",
+    "version": "2.27.0",
+    "wheel": "nvidia_riva_client-2.27.0-py3-none-any.whl",
+    "wheel_sha256": "a18b0fa274417455b4fe2db126a340b8e7bfd362de838e05cb64af37c23c7ef3",
+    "verification": "Complete FileDescriptorProto bytes match for all four sources"
+  },
+  "sources": {
+    "riva_asr.proto": {
+      "source_sha256": "e9b9443de9fd02c96935bf9fe32a7d459e5ca89c6f7731735de23d6e83dfd41e",
+      "descriptor_sha256": "9061b04c37d60cfff0f8dcfd45c47613232926cc174de8052c4a808a70a59f03"
+    },
+    "riva_tts.proto": {
+      "source_sha256": "c219215676a94576c3f19c00e0bdb52eeef0e538edfdeefc798b98330df38853",
+      "descriptor_sha256": "4ae06d5b9c32d5363087c98a50ad6f4383626b6848b11ffa614038d3f31b3bb8"
+    },
+    "riva_audio.proto": {
+      "source_sha256": "7ab2939dfe9f5ed121eba1c6b86cad0cd561fa483acfc653762a8b8af0b2a123",
+      "descriptor_sha256": "117cd5cade40df7d36febbb6f50a70e23451d54de4d51ce749122945a408c7d5"
+    },
+    "riva_common.proto": {
+      "source_sha256": "07d668e74d7c2c4e01fa5fee5323b9f6aff2f57f86f4f00d51656b9cb2a3a377",
+      "descriptor_sha256": "2aecd2a1238f6bcd8cb7255266b80764d07fd89d181c23f58df94c695c9133a4"
+    }
+  },
+  "python_namespace": "riva_proto",
+  "descriptor_namespaces": "Original riva/proto filenames and nvidia.riva packages are unchanged"
+}

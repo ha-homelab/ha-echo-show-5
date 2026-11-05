@@ -1,6 +1,22 @@
 # Changelog
 
-## [0.1.7] - Unreleased
+## [0.1.8] - Unreleased
+
+### Changed
+
+- Replace the FCC cloud adapter's full NVIDIA client SDK with six reproducibly generated protocol modules from pinned MIT-licensed upstream sources; preserve all four complete wire descriptors and the existing grpcio 1.85.1/protobuf 6.33.5 runtime.
+- Remove the unused WebSocket client and protocol compiler from the runtime dependency graph. Keep the generator and its dependencies in a separate hash-locked maintenance environment.
+- Validate release notes against the exact candidate source and keep trusted default-branch checks available after preparation failures.
+
+### Upgrade
+
+Rebuild the cloud-audio component from the updated locked source if you operate it, using the existing installation procedure and retaining its configuration and previous verified package for rollback. This release distributes the integration-source suite; it does not deploy a container, install an APK or flash firmware.
+
+### Security
+
+Remove the SDK dependency that required the vulnerable WebSocket client tracked in issue #131. Keep strict dependency hashes, unchanged wire descriptors and TLS verification enabled. Local protocol and generated-code checks do not establish provider, physical audio or device acceptance.
+
+## [0.1.7] - 2026-11-03
 
 ### Changed
 

@@ -3,6 +3,7 @@ WORKDIR /app
 COPY cloud-requirements.txt .
 RUN pip install --no-cache-dir --require-hashes -r cloud-requirements.txt
 COPY cloud_speech.py .
+COPY riva_proto ./riva_proto
 USER 65532:65532
 EXPOSE 10500
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1

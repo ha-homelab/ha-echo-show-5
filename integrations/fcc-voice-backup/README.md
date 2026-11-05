@@ -26,28 +26,61 @@ Keep both unauthenticated Wyoming listeners inside trusted infrastructure. Provi
 
 ## Dependency compatibility
 
-The cloud adapter installs `cloud-requirements.txt` as one environment. Riva
-2.27 requires protobuf **6.33.5** and websockets **>=15.0.1,<16**. The compatible
-gRPC tools line is **1.81** (currently **1.81.1**). Version 1.82.0 was
-[yanked upstream](https://pypi.org/project/grpcio-tools/1.82.0/) because its
-compiler requires protobuf 7.x despite declaring compatibility with 6.x;
-1.82.1 and later explicitly require protobuf 7.35.1 or newer.
-Dependabot groups this runtime and excludes those incompatible ranges while
-leaving compatible updates eligible. Revisit the bounds when Riva changes its
-requirements, including for a security-driven migration; resolve the complete
-environment and run `test_cloud_speech.py` before merging. Updating these files
-does not deploy an image or change a device.
+The cloud adapter installs `cloud-requirements.txt` as one runtime environment:
+Wyoming 1.10.2, gRPC 1.85.1 and protobuf 6.33.5. It uses six local generated
+protocol modules under `riva_proto`, not the full NVIDIA client SDK. The runtime
+therefore does not install the SDK's unused WebSocket client or `grpcio-tools`.
+The provider, TLS settings, request limits and ASR/TTS behavior are unchanged.
 
-Regenerate the hash-locked runtime for the Python version in `Dockerfile.cloud`
-(currently 3.14), including transitive build helpers required at runtime:
+The four protocol sources are copied from
+[NVIDIA Riva common, commit 268890b7](https://github.com/nvidia-riva/common/tree/268890b7286031a6d4950e34f7ce13ed0d4ce621),
+with the original [MIT license](riva_proto/LICENSE). Their complete protobuf
+wire descriptors match the descriptors shipped by NVIDIA client 2.27.0.
+[UPSTREAM.json](riva_proto/UPSTREAM.json) records source and descriptor hashes.
+Only Python imports and Python class module names are relocated to `riva_proto`;
+protobuf package names, field numbers and service paths remain unchanged.
+
+Regenerate the runtime lock for the Python version in `Dockerfile.cloud`
+(currently 3.14):
 
 ```bash
 uv pip compile integrations/fcc-voice-backup/cloud-requirements.in --generate-hashes --universal --python-version 3.14 --output-file integrations/fcc-voice-backup/cloud-requirements.txt
 ```
 
-Install the result into a fresh environment with `--require-hashes`, then run
-`python -m pip check` and the cloud speech tests. A developer environment with
-preinstalled `setuptools` can otherwise hide an incomplete lock.
+Install that lock in a clean environment with `--require-hashes`, run
+`python -m pip check`, then run `test_cloud_speech.py`. The tests check that the
+SDK, WebSocket library and generator are absent from the runtime. Existing local
+gRPC and Wyoming tests exercise actual serialization, failure handling and
+cancellation without contacting a speech provider.
+
+### Updating the protocol bindings
+
+Generation is an explicit maintenance operation in a separate environment:
+
+```bash
+tools_dir=$(mktemp -d)
+python -m venv "$tools_dir"
+"$tools_dir/bin/python" -m pip install --require-hashes -r integrations/fcc-voice-backup/proto-requirements.txt
+"$tools_dir/bin/python" integrations/fcc-voice-backup/generate_proto.py --check
+```
+
+Run the generator without `--check` to rewrite the six modules. It reads only
+the four vendored sources, checks their hashes and the resulting descriptors,
+and does not download source code. Regeneration is byte-for-byte reproducible;
+CI checks it in an isolated tool environment before testing the runtime.
+Remove the temporary tool environment when finished.
+
+To change the source revision, review the full upstream schema diff and update
+its source hashes, descriptor compatibility evidence and license deliberately.
+Regenerate and review all six modules, then rerun the complete cloud and container
+tests. Updating dependencies alone must not silently change the wire schema.
+The separate maintenance lock is regenerated with:
+
+```bash
+uv pip compile integrations/fcc-voice-backup/proto-requirements.in --generate-hashes --universal --python-version 3.11 --output-file integrations/fcc-voice-backup/proto-requirements.txt
+```
+
+These source changes do not deploy an image or change a device.
 
 
 Optional energy grounding is described in [assistant behavior](../../docs/fcc-assist-behavior.md#optional-read-only-energy-context).

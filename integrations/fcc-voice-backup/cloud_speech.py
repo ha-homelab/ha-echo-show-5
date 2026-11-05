@@ -15,11 +15,11 @@ import re
 from typing import Protocol
 
 import grpc
-from riva.client.proto import riva_asr_pb2 as rasr
-from riva.client.proto import riva_asr_pb2_grpc as rasr_grpc
-from riva.client.proto import riva_audio_pb2 as raudio
-from riva.client.proto import riva_tts_pb2 as rtts
-from riva.client.proto import riva_tts_pb2_grpc as rtts_grpc
+from riva_proto import riva_asr_pb2 as rasr
+from riva_proto import riva_asr_pb2_grpc as rasr_grpc
+from riva_proto import riva_audio_pb2 as raudio
+from riva_proto import riva_tts_pb2 as rtts
+from riva_proto import riva_tts_pb2_grpc as rtts_grpc
 from wyoming.asr import Transcript
 from wyoming.audio import AudioStart, AudioChunk, AudioStop
 from wyoming.error import Error

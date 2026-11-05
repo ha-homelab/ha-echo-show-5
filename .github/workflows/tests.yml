@@ -147,8 +147,19 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.11'
+      - name: Verify pinned protocol generation in an isolated maintenance environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          tools_dir=$(mktemp -d "$RUNNER_TEMP/riva-proto.XXXXXX")
+          trap 'rm -rf "$tools_dir"' EXIT
+          python -m venv "$tools_dir"
+          "$tools_dir/bin/python" -m pip install --require-hashes -r integrations/fcc-voice-backup/proto-requirements.txt
+          "$tools_dir/bin/python" integrations/fcc-voice-backup/generate_proto.py --check
       - name: Install cloud adapter dependencies
         run: python -m pip install --require-hashes -r integrations/fcc-voice-backup/cloud-requirements.txt
+      - name: Check the runtime dependency graph
+        run: python -m pip check
       - name: Test Wyoming and local fake gRPC without provider access
         run: python -m unittest discover -s integrations/fcc-voice-backup/tests -p test_cloud_speech.py -v
     timeout-minutes: 30
