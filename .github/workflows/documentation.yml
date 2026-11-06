@@ -21,3 +21,4 @@ jobs:
       - name: Validate documentation without installing application toolchains
         run: |
           python3 scripts/check_docs.py
+          python3 scripts/check_docs.py --inventory
