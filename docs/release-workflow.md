@@ -19,7 +19,7 @@ Main pushes, manual dispatch, scheduled runs and release qualification remain
 full, including required security and release-contract checks. This preserves
 current-source release guarantees and the configured nightly policy.
 
-### Updating documentation-only CI routing
+## Updating documentation-only CI routing
 
 The `toolkit_revision` in `.release-policy.json` records the historical imported
 release stack; it does not select the generator used for a later update. Keep
@@ -53,6 +53,7 @@ Callable validation workflows:
 - `.github/workflows/tests.yml`
 - `.github/workflows/codeql.yml`
 - `.github/workflows/dependency-review.yml`
+- `.github/workflows/documentation.yml`
 
 The [release strategy](../RELEASING.md) defines versioning, channels, acceptance,
 ownership, hotfixes and rollback. This document is the operational runbook.
