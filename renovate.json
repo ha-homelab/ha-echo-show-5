@@ -17,7 +17,9 @@
     "**/node_modules/**",
     "**/fixtures/**",
     "**/tools/browser-compatibility/**",
-    ".github/cosign/**"
+    ".github/cosign/**",
+    "tests/requirements-voice.in",
+    "tests/requirements-voice.txt"
   ],
   "packageRules": [
     {
@@ -122,8 +124,7 @@
       "/^integrations/fcc\\-voice\\-backup/cloud\\-requirements\\.txt$/",
       "/^integrations/fcc\\-voice\\-backup/proto\\-requirements\\.txt$/",
       "/^integrations/fcc\\-voice\\-backup/requirements\\.txt$/",
-      "/^tests/requirements\\-template\\.txt$/",
-      "/^tests/requirements\\-voice\\.txt$/"
+      "/^tests/requirements\\-template\\.txt$/"
     ]
   },
   "gradle": {
@@ -138,5 +139,8 @@
       ".github/cosign/**",
       "integrations/show5-sip/android/build.gradle"
     ]
-  }
+  },
+  "description": [
+    "Source-build dependency inputs and their generated locks are maintained together through the documented reviewed environment. Other native and CI updates remain automated."
+  ]
 }
