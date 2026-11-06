@@ -30,3 +30,30 @@ uv pip compile tests/requirements-voice.in --generate-hashes --universal --pytho
 Do not make the shared update runner execute source builds to bypass this
 boundary. Requalify native ownership only when the complete pinned dependency
 closure can be resolved without build-backend execution.
+
+## Security fixes for manually maintained locks
+
+For a direct or transitive advisory in the manually maintained environment,
+identify the affected package and the advisory's fixed version range. A plain
+lock regeneration may retain the existing transitive pin. Replace
+`AFFECTED_PACKAGE` below with the advisory's package name and request its update
+explicitly in the existing reviewed build environment:
+
+```sh
+uv pip compile tests/requirements-voice.in --generate-hashes --universal --python-version=3.14.2 --output-file=tests/requirements-voice.txt --upgrade-package AFFECTED_PACKAGE
+```
+
+Review any direct or parent constraint that prevents selection of a fixed
+release; qualify that constraint change together with the lock. Preserve the
+documented interpreter, platform, hash and build-isolation requirements.
+Check the resulting affected-package versions against the advisory's affected
+and fixed ranges in every applicable Python/platform marker branch and every
+coupled lock or export. A successful resolver exit alone is not proof of a fix.
+If no compatible fixed resolution exists, keep the advisory open and document
+the blocker instead of marking it remediated.
+
+Keep the Python 3.14.2 voice-test environment and its direct Home Assistant constraint aligned. Run the existing voice/HA validation before accepting the source and lock together.
+
+Run the repository's complete existing dependency, runtime and CI qualification
+before merging the source constraints and generated files together. GitHub
+vulnerability alerts remain enabled for these manually maintained units.
