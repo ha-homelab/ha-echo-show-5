@@ -8,7 +8,8 @@
   "validation_workflows": [
     "tests.yml",
     "codeql.yml",
-    "dependency-review.yml"
+    "dependency-review.yml",
+    "documentation.yml"
   ],
   "artifact_pattern": "release-assets*",
   "local_checks": [
@@ -22,7 +23,8 @@
   "notes": [
     "This release is the reviewed integration-source suite, not firmware, an APK, a boot image or a prebuilt container. The explicit source inventory excludes downloaded binaries and operator state.",
     "SOURCE_VERSION versions the suite. FCC bridge, cloud adapter, intercom manifest and external artifact pins retain their independent versions.",
-    "Every existing synthetic Python, JavaScript, FCC container and isolated HA runtime test remains required. Physical audio, firmware and installation acceptance are separate."
+    "Every existing synthetic Python, JavaScript, FCC container and isolated HA runtime test remains required. Physical audio, firmware and installation acceptance are separate.",
+    "The configured release-note file remains a full-validation input so its current release section, upgrade notes and security notes are checked."
   ],
   "versioning": {
     "schema": 1,
@@ -49,5 +51,22 @@
   },
   "fuzzing": {
     "toolkit_ref": "2439b9eb60cdbcd02edf43b62c551a357be3accc"
+  },
+  "change_scope": {
+    "documentation_paths": [
+      "GOVERNANCE.md",
+      "README.de.md",
+      "README.es.md",
+      "README.fr.md",
+      "README.ru.md",
+      "ROADMAP.md"
+    ],
+    "required_paths": [
+      "CHANGELOG.md"
+    ],
+    "always_validate_workflows": [
+      "codeql.yml",
+      "documentation.yml"
+    ]
   }
 }
