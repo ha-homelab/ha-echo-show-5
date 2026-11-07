@@ -80,7 +80,7 @@
     <text x="634" y="624" font-size="16" fill="#b7cbe2">Same Myshka model · threshold 0.35 · 7016 frame leveler</text>
 
     <rect x="42" y="691" width="1114" height="69" rx="15" fill="#504323"/>
-    <text x="62" y="718" font-size="17" font-weight="700" fill="#fff0be">Candidate 7017 · sound disabled live at the owner's request</text>
+    <text x="62" y="718" font-size="17" font-weight="700" fill="#fff0be">Installed 7017 · sound disabled live at the owner's request</text>
     <text x="62" y="744" font-size="15" fill="#e2d4ae">This quiet rollout checks build and lifecycle behavior only. Fresh wake and audible acceptance remain pending.</text>
   </g>
 </svg>

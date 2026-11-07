@@ -430,3 +430,18 @@ diff --git a/app/src/main/java/com/msp1974/vacompanion/players/SoundEffectsPlaye
              players.values.forEach {
                  if (it.isPlaying) {
                      it.pause()
+diff --git a/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteCustomEventHandler.kt b/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteCustomEventHandler.kt
+--- a/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteCustomEventHandler.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/satellite/SatelliteCustomEventHandler.kt
+@@ -98,9 +98,8 @@
+                     config.eventBroadcaster.notifyEvent(Event("showToastError", "", errorText))
+                 }
+
+-                if (config.wakeWordSound != "none") {
+-                    satellite.playErrorSound()
+-                }
++                // Recognition errors never queue a second sound or one that could
++                // outlive this request. The accepted wake cue is the only automatic cue.
+                 //audioRoute = AudioRouteOption.DETECT
+                 satellite.sendDiagnostics(0f, 0f)
+             }

@@ -1,6 +1,6 @@
 # Voice feedback on the clock screen
 
-The `7017` candidate, `0.13.4+myshka.17-feedback.1`, adds native visual feedback
+The installed `7017` build, `0.13.4+myshka.17-feedback.1`, adds native visual feedback
 for an accepted voice request and uses the existing wake-sound setting for a
 short acknowledgement. When a request starts from the clock, native
 `Listening`, `Thinking`, or `Speaking` feedback appears above the existing page
@@ -131,24 +131,39 @@ audio lifecycle must determine when the speaking indication ends.
 
 ## Validation and rollout evidence
 
-This page documents the candidate behavior. Package identity, build receipts,
-test totals, and per-device installation checks must be recorded from the final
-composed build; version numbers alone are not deployment evidence.
+Both household Shows received the same signed APK on November 7, with application
+data preserved. Package version and installed bytes were read back on each device.
+The clock web assets remain r15; this update adds Android feedback above them.
 
-- Target package: `0.13.4+myshka.17-feedback.1` / `7017`.
-- Recognition baseline retained: `0.13.4+myshka.16-audio.1` / `7016`.
-- Quiet rollout: sound support is implemented but disabled live at the owner's
-  request, with `wake_word_sound` set to `None`. Do not enable `Bubble`, synthesize
-  a sample, or run an audible test as part of this rollout.
-- Real room wake recognition and audible cue acceptance remain pending a fresh
-  acoustic check. A screenshot, a synthetic state transition, or a passing unit
-  test cannot establish that the wake phrase was heard in the bathroom.
-- Verify quiet lifecycle cases independently: losing an election, rejected
-  admission, a guarded announcement, an active call, cancellation, pipeline
-  failure, playback completion, and reconnection must not invent a new wake cue.
-- Confirm installation with application data preserved and the retained signer;
-  compare model configuration and threshold before and after the update. Keep
-  the preceding signed APK available for recovery without clearing app data.
+- Package: `0.13.4+myshka.17-feedback.1` / `7017`.
+- Composed source tree: `65389923a64e17c07fcecaa3529fc774c549344a`.
+- APK SHA-256: `9df197497d404f2a6a653dadcf5a107a020902e7a562c27b52eebc9133b9bde7`.
+- Retained signing certificate SHA-256: `2cebae957468fdb54ffaa473548e9b5f7946f84b8645e3947ff73d2af29b9850`.
+- All 267 JVM tests passed without failures, errors or skips, including 17 new
+  feedback-state and cue-ownership tests. All 35 build-provenance and eight
+  source-distribution tests passed; the documentation validator checked 107
+  Markdown/SVG files.
+- One isolated Compose instrumentation test passed on Show One, covering idle,
+  listening, thinking, speaking and cleanup. Four full-screen 960 × 480 captures
+  were visually inspected. The fixture has a synthetic clock and Android system
+  bars; it is not the deployed web clock or a physical wake-word test. Full-screen
+  captures confirmed the clock remained present where a node-only capture had
+  returned black. The test package and temporary device captures were removed.
+- The custom model files, threshold 0.35, selected pipeline and microphone
+  configuration were retained. The composed microphone implementation and all
+  six 7016 audio-overlay inputs match the preceding qualified build.
+- Wake sound remains **None on both Shows**, at the owner's request. No wake cue,
+  speech, music, recording or other audible test was started. Optional Bubble
+  support is available for later explicit selection; it was not enabled.
+- Automatic recognition/pipeline error sounds were removed. A failed personal
+  turn clears its indicator without scheduling another cue. Existing error
+  diagnostics remain available.
+
+Build checks and synthetic rendering establish a narrower result than acoustic
+acceptance. Fresh room recognition, heard-cue quality, speech immediately after a
+cue and competing-satellite behavior remain untested in this quiet rollout. Keep
+the preceding signed 7016 APK for recovery; do not clear pairing, model files or
+announcement journals to install an update.
 
 Attended acceptance should check the audible cue and visual transition after
 the actual wake phrase, a normal command and response, a cancelled or silent

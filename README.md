@@ -25,12 +25,14 @@ The real display page (revision `20261015-r11`) captured in desktop Chrome at
 960 × 480 with the public example configuration. It shows only the local clock;
 no Home Assistant login, camera feed or device was used. Click for the flat original.
 
-## Native voice feedback
+## November 7: native voice feedback
 
-The `.17` Android overlay adds an accepted-wake cue and a blue/cyan status strip
+Both Shows run `.17` / `7017`. The Android overlay adds a blue/cyan status strip
 above the clock: **Listening**, **Thinking**, then **Speaking** during response
 audio. It follows the local Assist turn, including ownership and cancellation,
-without polling Home Assistant or adding another microphone reader. The existing
+without polling Home Assistant or adding another microphone reader. The optional
+wake cue is implemented but remains **None** on both devices for the quiet rollout.
+The existing
 `.16` microphone leveling and selected wake models remain intact.
 
 [Behavior, configuration and qualification](docs/voice-feedback.md) ·
