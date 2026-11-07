@@ -12,8 +12,8 @@ import xml.etree.ElementTree as ET
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
-VERSION = '0.13.4+myshka.15-wake.1'
-CODE = 7015
+VERSION = '0.13.4+myshka.16-audio.1'
+CODE = 7016
 
 
 def load(name, path):
@@ -37,6 +37,8 @@ def main():
     nearest_dir = ROOT / 'integrations/vaca-nearest'
     nearest = load('vaca_nearest_overlay', nearest_dir / 'apply.py')
     announce = load('vaca_announce_overlay', HERE / 'apply.py')
+    audio_dir = ROOT / 'integrations/vaca-wake-audio'
+    audio = load('vaca_audio_overlay', audio_dir / 'apply.py')
     work = b.require_private_destination(args.work_dir)
     signing = b.require_private_destination(args.signing_dir)
     work.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -52,6 +54,7 @@ def main():
         overlay.apply(source)
         nearest.apply(source)
         announce.apply(source)
+        audio.apply(source)
     if b.git(source, 'rev-parse', 'HEAD').stdout.decode().strip() != b.COMMIT:
         raise ValueError('Unexpected base commit')
     if b.git(source, 'diff', '--cached', '--quiet', 'HEAD', check=False).returncode:
@@ -60,10 +63,12 @@ def main():
     overlay_files = sorted((bridge / 'src').rglob('*.kt'))
     nearest_files = sorted((nearest_dir / 'src').rglob('*.kt'))
     announce_files = sorted((HERE / 'src').rglob('*.kt'))
+    audio_files = sorted((audio_dir / 'src').rglob('*.kt'))
     inputs = [Path(__file__), Path(b.__file__), b.PATCH, bridge / 'vaca-audio-lease.patch', bridge / 'apply.py',
               bridge / 'source-preconditions.json', nearest_dir / 'nearest.patch', nearest_dir / 'apply.py',
               nearest_dir / 'source-preconditions.json', HERE / 'announcement.patch', HERE / 'apply.py', HERE / 'source-preconditions.json', nearest_dir / 'src/test/golden-vectors.txt',
-              nearest_dir / 'src/test/golden_vectors.go', *overlay_files, *nearest_files, *announce_files]
+              nearest_dir / 'src/test/golden_vectors.go', *overlay_files, *nearest_files, *announce_files, *audio_files, audio_dir / 'apply.py',
+              audio_dir / 'audio.patch', audio_dir / 'source-preconditions.json']
     if any(path.is_symlink() for path in inputs):
         raise ValueError('Build inputs must be ordinary files')
     frozen_inputs = {path: b.sha256(path) for path in inputs}
@@ -85,6 +90,11 @@ def main():
         for path in announce_files:
             blob = b.git(source, 'hash-object', '-w', path).stdout.decode().strip()
             relative = 'app/' + path.relative_to(HERE).as_posix()
+            b.git(source, 'update-index', '--add', '--cacheinfo', '100644,' + blob + ',' + relative, env=index_env)
+        b.git(source, 'apply', '--cached', audio_dir / 'audio.patch', env=index_env)
+        for path in audio_files:
+            blob = b.git(source, 'hash-object', '-w', path).stdout.decode().strip()
+            relative = 'app/' + path.relative_to(audio_dir).as_posix()
             b.git(source, 'update-index', '--add', '--cacheinfo', '100644,' + blob + ',' + relative, env=index_env)
         fixture_blob = b.git(source, 'hash-object', '-w', nearest_dir / 'src/test/golden-vectors.txt').stdout.decode().strip()
         b.git(source, 'update-index', '--add', '--cacheinfo',
@@ -128,13 +138,17 @@ def main():
         duck_suite = source / 'app/build/test-results/testDebugUnitTest/TEST-com.msp1974.vacompanion.announce.AnnouncementDuckingTest.xml'
         if not duck_suite.exists() or int(ET.parse(duck_suite).getroot().get('tests', '0')) < 37:
             raise ValueError('Owned music ducking tests did not run')
+        audio_suite = source / 'app/build/test-results/testDebugUnitTest/TEST-com.msp1974.vacompanion.audio.FrameMicrophoneLevelerTest.xml'
+        if not audio_suite.exists() or int(ET.parse(audio_suite).getroot().get('tests', '0')) < 7:
+            raise ValueError('Frame microphone leveling tests did not run')
         if not b.source_matches(source, index_env):
             raise ValueError('Source changed during VACA build')
         if any(b.sha256(path) != checksum for path, checksum in frozen_inputs.items()):
             raise ValueError('Published bridge inputs changed during the build; use a fresh snapshot')
         if (overlay_files != sorted((bridge / 'src').rglob('*.kt')) or
                 nearest_files != sorted((nearest_dir / 'src').rglob('*.kt')) or
-                announce_files != sorted((HERE / 'src').rglob('*.kt'))):
+                announce_files != sorted((HERE / 'src').rglob('*.kt')) or
+                audio_files != sorted((audio_dir / 'src').rglob('*.kt'))):
             raise ValueError('Overlay source list changed during the build')
     apks = list((source / 'app/build/outputs/apk/debug').glob('*.apk'))
     if len(apks) != 1:

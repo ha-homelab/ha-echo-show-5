@@ -137,6 +137,7 @@ class SourceDistributionTests(unittest.TestCase):
         required = set()
         for relative in (
             "integrations/vaca-announce/src",
+            "integrations/vaca-wake-audio/src",
             "integrations/vaca-nearest/src",
             "integrations/show5-sip/vaca-bridge/src",
         ):
