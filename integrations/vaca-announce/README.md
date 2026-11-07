@@ -13,9 +13,9 @@ The optional `duck_music` extension is the `7014` follow-on candidate. Its separ
 [build and rollout record](build-validation-2026-10-29-duck.md) distinguishes
 software checks and quiet installation from pending acoustic acceptance.
 
-The current builder produces `0.13.4+myshka.15-wake.1` / `7015`, retaining the
-announcement and ducking guards while repairing wake admission after a stalled
-Assist request. See the [wake recovery record](../../docs/wake-recovery-2026-10-31.md)
+The current builder produces `0.13.4+myshka.16-audio.1` / `7016`, adding
+[built-in Show microphone leveling](../vaca-wake-audio/README.md) while retaining
+the `7015` wake admission repair and the announcement and ducking guards. See the [wake recovery record](../../docs/wake-recovery-2026-10-31.md)
 for the separate deployment evidence and sensitivity setting. Historical build
 records above retain their original versions and acceptance limits.
 

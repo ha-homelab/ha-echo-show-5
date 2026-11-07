@@ -1,0 +1,75 @@
+diff --git a/app/build.gradle.kts b/app/build.gradle.kts
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -27,8 +27,8 @@
+         applicationId = "com.msp1974.vacompanion"
+         minSdk = 26
+         targetSdk = 36
+-        versionName = "0.13.4+myshka.15-wake.1"
+-        versionCode = 7015
++        versionName = "0.13.4+myshka.16-audio.1"
++        versionCode = 7016
+         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+     }
+ 
+diff --git a/app/src/main/java/com/msp1974/vacompanion/audio/AudioEnhancer.kt b/app/src/main/java/com/msp1974/vacompanion/audio/AudioEnhancer.kt
+--- a/app/src/main/java/com/msp1974/vacompanion/audio/AudioEnhancer.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/audio/AudioEnhancer.kt
+@@ -32,6 +32,8 @@
+ ) {
+ 
+     var agcEnabled = false
++    var frameLevelingEnabled = false
++    private val frameLeveler = FrameMicrophoneLeveler()
+     var noiseSuppressionEnabled = false
+ 
+     private val agc = AutomaticGainController(sampleRate)
+@@ -45,27 +47,31 @@
+      * louder or quieter by the same number of dB.
+      */
+     fun setMicGainDb(micGainDb: Float) {
++        frameLeveler.setMicGainDb(micGainDb)
+         agc.targetLevelDbfs = AutomaticGainController.BASE_TARGET_LEVEL_DBFS +
+             micGainDb.coerceIn(MIC_GAIN_MIN_DB, MIC_GAIN_MAX_DB)
+     }
+ 
+     fun processFrame(input: ShortArray): ShortArray {
+         if (input.isEmpty()) return input
+-        // Noise suppression cleans up generic noise, then the AGC levels the final, cleaned signal.
++        // Preserve the existing path on other hardware. Cronos uses the frame leveler.
+         var processed = input
+ 
+-        if (agcEnabled) processed = agc.process(processed)
++        if (frameLevelingEnabled) processed = frameLeveler.process(processed)
++        else if (agcEnabled) processed = agc.process(processed)
+         if (noiseSuppressionEnabled) processed = noiseSuppressor.process(processed)
+         return processed
+     }
+ 
+     fun reset() {
++        frameLeveler.reset()
+         agc.reset()
+         noiseSuppressor.reset()
+     }
+ 
+     /** Releases any native resources the current [NoiseSuppressor] implementation holds. */
+     fun release() {
++        frameLeveler.reset()
+         noiseSuppressor.release()
+     }
+ 
+diff --git a/app/src/main/java/com/msp1974/vacompanion/audio/MicrophoneInput.kt b/app/src/main/java/com/msp1974/vacompanion/audio/MicrophoneInput.kt
+--- a/app/src/main/java/com/msp1974/vacompanion/audio/MicrophoneInput.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/audio/MicrophoneInput.kt
+@@ -123,7 +123,10 @@
+             "Failed to initialize AudioRecord"
+         }
+         micController.applyPreferredDevice(record, preferred.device)
+-        setupAudioEffects(record, attachNs = !isBuiltIn)
++        // The Show built-in input needs stable phrase-level gain, not the generic sample gate.
++        audioEnhancer.frameLevelingEnabled = isBuiltIn && android.os.Build.DEVICE == "cronos"
++        setupAudioEffects(record, attachNs = !isBuiltIn, attachAgc = !audioEnhancer.frameLevelingEnabled)
++        if (audioEnhancer.frameLevelingEnabled) agcSource = "VACA (20 ms frames)"
+ 
+         if (record.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+             record.startRecording()
