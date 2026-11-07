@@ -1,5 +1,12 @@
 # Documentation map — Echo Show 5 Gen2
 
+## November 6: built-in microphone leveling
+
+The [7016 qualification record](wake-audio-2026-11-06.md) compares the retained
+owner clips with the current TECHO5 Dot baseline and documents the scoped
+Android microphone change. It separates offline/native replay from live
+acoustic acceptance.
+
 [English overview](../README.md) · [Русский](../README.ru.md) · [Deutsch](../README.de.md) · [Español](../README.es.md) · [Français](../README.fr.md)
 
 This route targets **Echo Show 5 Gen2 / 2021 / cronos**, using **LineageOS / Android**, Companion and optional voice/display integrations. It is distinct from [EchoLocal on Dot 2](https://github.com/ha-homelab/ha-echo-dot) and [EchoMuse on emOS](https://github.com/ha-homelab/ha-echomuse). Never reuse another model's firmware or unlock commands.

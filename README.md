@@ -73,6 +73,7 @@ Five README languages and four runtime UI languages remain available.
 - [October 20, `.8`](docs/wiki/Validation.md#october-20-lifecycle-checkpoint): serialized listener replacement and disabled-primary validation.
 - [October 19, `.7`](docs/wiki/Validation.md#october-19-mixed-wake-checkpoint): first verified mixed Myshka/Jarvis installation.
 - [October 19, `.6`](docs/wiki/Validation.md#october-19-current-checkpoint): retained-key update, HTTPS verification, reference replay and separate voice-backend timings.
+- [November 6, `.16`](docs/wake-audio-2026-11-06.md): built-in microphone leveling and retained-fixture recognition checks.
 - [October 16, `.4`](docs/wiki/Validation.md#pr-69-follow-up-myshka4-build-and-show-2-checks): Show 2 model-inventory regression and microphone recovery.
 - [October 16, `.3`](docs/wiki/Validation.md#october-16-installed-state-and-replay-checks): both Shows, exact-frontend replay and microphone lifecycle checks. The [single-phrase diagram](docs/assets/exact-oww-pipeline.svg) describes this earlier configuration.
 

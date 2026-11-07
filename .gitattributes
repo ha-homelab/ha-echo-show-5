@@ -17,3 +17,4 @@ Dockerfile text eol=lf
 integrations/show5-sip/vaca-bridge/vaca-audio-lease.patch text eol=lf -whitespace
 integrations/vaca-nearest/nearest.patch text eol=lf -whitespace
 integrations/vaca-announce/announcement.patch text eol=lf -whitespace
+integrations/vaca-wake-audio/audio.patch text eol=lf -whitespace

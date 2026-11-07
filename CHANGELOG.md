@@ -4,11 +4,14 @@
 
 ### Changed
 
+- Add the signed VACA `7016` build composition with 20 ms microphone leveling for the built-in Cronos input. Preserve the personal wake model, operator threshold and existing call/announcement guards. Native replay improves the retained owner validation set from 22/24 to 24/24 positive detections, with 0/32 negative activations; this is not a new live acoustic trial.
 - Replace the FCC cloud adapter's full NVIDIA client SDK with six reproducibly generated protocol modules from pinned MIT-licensed upstream sources; preserve all four complete wire descriptors and the existing grpcio 1.85.1/protobuf 6.33.5 runtime.
 - Remove the unused WebSocket client and protocol compiler from the runtime dependency graph. Keep the generator and its dependencies in a separate hash-locked maintenance environment.
 - Validate release notes against the exact candidate source and keep trusted default-branch checks available after preparation failures.
 
 ### Upgrade
+
+For the optional Android update, use the existing matching signing identity and an authorized management connection. Preserve app data, model files and the previous signed APK. See the [microphone qualification and rollout record](docs/wake-audio-2026-11-06.md).
 
 Rebuild the cloud-audio component from the updated locked source if you operate it, using the existing installation procedure and retaining its configuration and previous verified package for rollback. This release distributes the integration-source suite; it does not deploy a container, install an APK or flash firmware.
 

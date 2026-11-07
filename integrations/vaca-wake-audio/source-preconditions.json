@@ -1,0 +1,5 @@
+{
+  "app/build.gradle.kts": "625e68b23d96154dfc95c5dd201ed24e562cdeab41382059fea5f14bd588dd73",
+  "app/src/main/java/com/msp1974/vacompanion/audio/AudioEnhancer.kt": "16862ed7887ed7b0c85f4882a8db5c9ddf0f27e67d3ec25e07b0fe2bd1ff9165",
+  "app/src/main/java/com/msp1974/vacompanion/audio/MicrophoneInput.kt": "46c18fe77324d0534d22f2ad21613227bb0d9ee6a293306ff0e8f6b5330a2f8e"
+}
