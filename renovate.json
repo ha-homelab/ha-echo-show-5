@@ -1,6 +1,152 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "local>victron-venus/venus-os-ci-toolkit:renovate-ci"
-  ]
+    "local>victron-venus/venus-os-ci-toolkit:renovate-fleet"
+  ],
+  "enabledManagers": [
+    "github-actions",
+    "custom.regex",
+    "custom.jsonata",
+    "dockerfile",
+    "pip-compile",
+    "pip_requirements",
+    "gradle"
+  ],
+  "ignorePaths": [
+    "**/vendor/**",
+    "**/node_modules/**",
+    "**/fixtures/**",
+    "**/tools/browser-compatibility/**",
+    ".github/cosign/**",
+    "tests/requirements-voice.in",
+    "tests/requirements-voice.txt",
+    "integrations/fcc-voice-backup/proto-requirements.in",
+    "integrations/fcc-voice-backup/proto-requirements.txt"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "matchFileNames": [
+        "/^host/synology/[^/]+$/"
+      ],
+      "schedule": [
+        "at any time"
+      ]
+    },
+    {
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "matchFileNames": [
+        "/^integrations/fcc\\-voice\\-backup/[^/]+$/"
+      ],
+      "schedule": [
+        "at any time"
+      ]
+    },
+    {
+      "matchManagers": [
+        "pip_requirements",
+        "pip-compile"
+      ],
+      "matchFileNames": [
+        "/^integrations/fcc\\-voice\\-backup/[^/]+$/"
+      ],
+      "schedule": [
+        "at any time"
+      ]
+    },
+    {
+      "matchManagers": [
+        "pip_requirements",
+        "pip-compile"
+      ],
+      "matchFileNames": [
+        "/^integrations/fcc\\-voice\\-backup/[^/]+$/"
+      ],
+      "matchPackageNames": [
+        "grpcio",
+        "protobuf"
+      ],
+      "groupName": "riva-protocol-bindings",
+      "groupSlug": "riva-protocol-bindings",
+      "description": "Keep independently updatable Riva runtime protocol dependencies together across major, minor and security updates; generator source remains separately qualified.",
+      "separateMajorMinor": false,
+      "separateMultipleMajor": false
+    },
+    {
+      "description": "Regenerate compiled locks with their recorded source command; avoid independent edits to inputs or output snapshots.",
+      "matchManagers": [
+        "pip_requirements"
+      ],
+      "matchFileNames": [
+        "--output-file=tests/requirements-template.txt",
+        ".github/requirements-wheels-only.in",
+        "integrations/fcc-voice-backup/cloud-requirements.in",
+        "integrations/fcc-voice-backup/cloud-requirements.txt",
+        "integrations/fcc-voice-backup/proto-requirements.in",
+        "integrations/fcc-voice-backup/proto-requirements.txt",
+        "integrations/fcc-voice-backup/requirements.in",
+        "integrations/fcc-voice-backup/requirements.txt",
+        "tests/requirements-template.in",
+        "tests/requirements-template.txt",
+        "tests/requirements-voice.in",
+        "tests/requirements-voice.txt"
+      ],
+      "enabled": false
+    }
+  ],
+  "pip_requirements": {
+    "managerFilePatterns": [
+      "/(^|/)([^/]*[-_])?requirements[^/]*\\.(txt|pip)$/"
+    ],
+    "ignorePaths": [
+      "**/vendor/**",
+      "**/node_modules/**",
+      "**/fixtures/**",
+      "**/tools/browser-compatibility/**",
+      ".github/cosign/**",
+      "--output-file=tests/requirements-template.txt",
+      ".github/requirements-wheels-only.in",
+      "integrations/fcc-voice-backup/cloud-requirements.in",
+      "integrations/fcc-voice-backup/cloud-requirements.txt",
+      "integrations/fcc-voice-backup/proto-requirements.in",
+      "integrations/fcc-voice-backup/proto-requirements.txt",
+      "integrations/fcc-voice-backup/requirements.in",
+      "integrations/fcc-voice-backup/requirements.txt",
+      "tests/requirements-template.in",
+      "tests/requirements-template.txt",
+      "tests/requirements-voice.in",
+      "tests/requirements-voice.txt"
+    ]
+  },
+  "pip-compile": {
+    "managerFilePatterns": [
+      "/^integrations/fcc\\-voice\\-backup/cloud\\-requirements\\.txt$/",
+      "/^integrations/fcc\\-voice\\-backup/requirements\\.txt$/",
+      "/^tests/requirements\\-template\\.txt$/"
+    ]
+  },
+  "gradle": {
+    "managerFilePatterns": [
+      "/^integrations/show5-sip/android/app/build\\.gradle$/"
+    ],
+    "ignorePaths": [
+      "**/vendor/**",
+      "**/node_modules/**",
+      "**/fixtures/**",
+      "**/tools/browser-compatibility/**",
+      ".github/cosign/**",
+      "integrations/show5-sip/android/build.gradle"
+    ]
+  },
+  "description": [
+    "Source-build dependency inputs and their generated locks are maintained together through the documented reviewed environment. Other native and CI updates remain automated."
+  ],
+  "vulnerabilityAlerts": {
+    "groupName": "{{#if (and (equals manager \"pip-compile\") (or (equals packageFile \"integrations/fcc-voice-backup/cloud-requirements.in\") (equals packageFile \"integrations/fcc-voice-backup/requirements.in\")) (or (equals depName \"grpcio\") (equals depName \"protobuf\")))}}riva-protocol-bindings{{else}}{{#if (or (equals manager \"github-actions\") (equals manager \"custom.regex\") (equals manager \"custom.jsonata\"))}}GitHub Actions and reusable workflows{{else}}Security update: {{{depName}}}{{/if}}{{/if}}",
+    "groupSlug": "{{#if (and (equals manager \"pip-compile\") (or (equals packageFile \"integrations/fcc-voice-backup/cloud-requirements.in\") (equals packageFile \"integrations/fcc-voice-backup/requirements.in\")) (or (equals depName \"grpcio\") (equals depName \"protobuf\")))}}riva-protocol-bindings{{else}}{{#if (or (equals manager \"github-actions\") (equals manager \"custom.regex\") (equals manager \"custom.jsonata\"))}}ci-workflows{{else}}{{{datasource}}}-{{{depNameSanitized}}}-vulnerability{{/if}}{{/if}}"
+  }
 }
