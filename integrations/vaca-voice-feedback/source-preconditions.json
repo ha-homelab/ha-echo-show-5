@@ -1,0 +1,6 @@
+{
+  "app/build.gradle.kts": "c81c78deeb828f3c5c9ac9e3d8b6ec0b77487e25db3767519f7f7275520d9505",
+  "app/src/main/java/com/msp1974/vacompanion/MainActivity.kt": "1b51eba582632455711a03cfa192cd99d970fb2ac63fd7c1ed31f7923f587c1c",
+  "app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt": "bcd4ff03115fee364f5cbe76fa1b11d524f03eca2d39604583d74c3f8075ab4c",
+  "app/src/main/java/com/msp1974/vacompanion/players/SoundEffectsPlayer.kt": "c095e17b95315b5411ba89520775bc684be9f6c9715bf75b34cd50df11433b38"
+}

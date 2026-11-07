@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">Echo Show voice feedback on the clock screen</title>
+  <desc id="desc">Four illustrative clock views show idle, listening, thinking and speaking. An accepted wake must win any nearest-device election before native Assist-state feedback and an optional short cue. The live cue is disabled at the owner's request for a quiet rollout. Calls and announcements retain their guards. The microphone model and threshold are unchanged. These illustrations are not an acoustic test or a live microphone-level meter.</desc>
+  <rect width="1200" height="800" rx="24" fill="#101c2c"/>
+  <g font-family="sans-serif" fill="#f1f6ff">
+    <text x="42" y="52" font-size="28" font-weight="700">A visible reply to the wake word</text>
+    <text x="42" y="86" font-size="17" fill="#b7cbe2">Native feedback sits above the current page. One accepted voice turn owns it.</text>
+
+    <g transform="translate(42 130)">
+      <rect width="252" height="126" rx="13" fill="#060b13" stroke="#38516b" stroke-width="2"/>
+      <text x="126" y="69" text-anchor="middle" font-size="44" font-weight="300">10:08</text>
+      <text x="126" y="94" text-anchor="middle" font-size="11" fill="#a3b6d0">SATURDAY, NOVEMBER 7</text>
+      <text x="126" y="162" text-anchor="middle" font-size="20" font-weight="700">Idle</text>
+      <text x="126" y="190" text-anchor="middle" font-size="15" fill="#b7cbe2">Ordinary clock</text>
+    </g>
+    <g transform="translate(330 130)">
+      <rect width="252" height="126" rx="13" fill="#060b13" stroke="#38516b" stroke-width="2"/>
+      <text x="126" y="59" text-anchor="middle" font-size="44" font-weight="300">10:08</text>
+      <text x="126" y="91" text-anchor="middle" font-size="14" fill="#d4f6ff">Listening</text>
+      <rect x="12" y="104" width="228" height="18" rx="8" fill="#18345e"/>
+      <rect x="12" y="117" width="228" height="6" rx="3" fill="#4368ff"/>
+      <rect x="72" y="117" width="108" height="6" rx="3" fill="#5ce4ff"/>
+      <text x="126" y="162" text-anchor="middle" font-size="20" font-weight="700">Listening</text>
+      <text x="126" y="190" text-anchor="middle" font-size="15" fill="#b7cbe2">Accepted command capture</text>
+    </g>
+    <g transform="translate(618 130)">
+      <rect width="252" height="126" rx="13" fill="#060b13" stroke="#38516b" stroke-width="2"/>
+      <text x="126" y="59" text-anchor="middle" font-size="44" font-weight="300">10:08</text>
+      <text x="126" y="91" text-anchor="middle" font-size="14" fill="#d4f6ff">Thinking</text>
+      <rect x="12" y="117" width="228" height="6" rx="3" fill="#4368ff"/>
+      <rect x="153" y="117" width="72" height="6" rx="3" fill="#5ce4ff"/>
+      <text x="126" y="162" text-anchor="middle" font-size="20" font-weight="700">Thinking</text>
+      <text x="126" y="190" text-anchor="middle" font-size="15" fill="#b7cbe2">Native processing stage</text>
+    </g>
+    <g transform="translate(906 130)">
+      <rect width="252" height="126" rx="13" fill="#060b13" stroke="#38516b" stroke-width="2"/>
+      <text x="126" y="59" text-anchor="middle" font-size="44" font-weight="300">10:08</text>
+      <text x="126" y="91" text-anchor="middle" font-size="14" fill="#d4f6ff">Speaking</text>
+      <rect x="24" y="117" width="204" height="5" rx="2.5" fill="#315dfa"/>
+      <rect x="70" y="110" width="112" height="12" rx="6" fill="#69d9ff"/>
+      <text x="126" y="162" text-anchor="middle" font-size="20" font-weight="700">Speaking</text>
+      <text x="126" y="190" text-anchor="middle" font-size="15" fill="#b7cbe2">Assistant reply playback</text>
+    </g>
+    <text x="600" y="357" text-anchor="middle" font-size="14" fill="#91abc7">Illustrative state artwork · no microphone-amplitude display · original HA interface</text>
+
+    <rect x="42" y="397" width="250" height="132" rx="16" fill="#174c5b"/>
+    <text x="62" y="429" font-size="20" font-weight="700">Accept the wake</text>
+    <text x="62" y="459" font-size="16">Admission checks</text>
+    <text x="62" y="486" font-size="16">Nearest-device winner</text>
+    <text x="62" y="511" font-size="14" fill="#bce8ed">Rejected candidates stay quiet</text>
+
+    <rect x="330" y="397" width="250" height="132" rx="16" fill="#264a86"/>
+    <text x="350" y="429" font-size="20" font-weight="700">Optional wake sound</text>
+    <text x="350" y="459" font-size="16">Bubble when enabled</text>
+    <text x="350" y="486" font-size="16">Approximately 95 ms</text>
+    <text x="350" y="511" font-size="14" fill="#cadaf7">Current quiet rollout: None</text>
+
+    <rect x="618" y="397" width="250" height="132" rx="16" fill="#553f78"/>
+    <text x="638" y="429" font-size="20" font-weight="700">Follow the turn</text>
+    <text x="638" y="459" font-size="16">Native Assist stages</text>
+    <text x="638" y="486" font-size="16">Actual reply playback</text>
+    <text x="638" y="511" font-size="14" fill="#ddcfef">No camera or music inference</text>
+
+    <rect x="906" y="397" width="250" height="132" rx="16" fill="#235b4c"/>
+    <text x="926" y="429" font-size="20" font-weight="700">Clear the indicator</text>
+    <text x="926" y="459" font-size="16">Completed or cancelled</text>
+    <text x="926" y="486" font-size="16">Failed turn cleaned up</text>
+    <text x="926" y="511" font-size="14" fill="#c5e9da">A reconnect is not a new wake</text>
+    <g fill="#91adc9" stroke="none">
+      <path d="M298 458H314V453L323 460L314 467V462H298Z"/>
+      <path d="M586 458H602V453L611 460L602 467V462H586Z"/>
+      <path d="M874 458H890V453L899 460L890 467V462H874Z"/>
+    </g>
+
+    <rect x="42" y="566" width="542" height="90" rx="15" fill="#1d314a"/>
+    <text x="62" y="596" font-size="19" font-weight="700">Audio ownership stays guarded</text>
+    <text x="62" y="624" font-size="16" fill="#b7cbe2">Calls and announcements do not become wake requests.</text>
+    <rect x="614" y="566" width="542" height="90" rx="15" fill="#1d314a"/>
+    <text x="634" y="596" font-size="19" font-weight="700">Recognition settings stay intact</text>
+    <text x="634" y="624" font-size="16" fill="#b7cbe2">Same Myshka model · threshold 0.35 · 7016 frame leveler</text>
+
+    <rect x="42" y="691" width="1114" height="69" rx="15" fill="#504323"/>
+    <text x="62" y="718" font-size="17" font-weight="700" fill="#fff0be">Candidate 7017 · sound disabled live at the owner's request</text>
+    <text x="62" y="744" font-size="15" fill="#e2d4ae">This quiet rollout checks build and lifecycle behavior only. Fresh wake and audible acceptance remain pending.</text>
+  </g>
+</svg>

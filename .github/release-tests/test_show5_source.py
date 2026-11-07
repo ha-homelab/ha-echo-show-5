@@ -138,6 +138,7 @@ class SourceDistributionTests(unittest.TestCase):
         for relative in (
             "integrations/vaca-announce/src",
             "integrations/vaca-wake-audio/src",
+            "integrations/vaca-voice-feedback/src",
             "integrations/vaca-nearest/src",
             "integrations/show5-sip/vaca-bridge/src",
         ):

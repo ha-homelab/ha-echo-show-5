@@ -8,6 +8,7 @@ These SVGs are editable repository source, not screenshots or automatically upda
 
 ## Service and installation diagrams
 
+- [Native voice feedback](voice-feedback.svg): accepted wake, optional cue and owned listening/thinking/speaking states; [behavior and qualification](../voice-feedback.md).
 - [Guarded announcements](guarded-announcements.svg): explicit speech preparation, HA policy, native admission and correlated completion; [operating contract](../guarded-announcements.md).
 - [Architecture](architecture.svg): device, HA, service roles and administration boundaries.
 - [Voice paths](voice-paths.svg): local activation plus three selectable assistant paths, with explicit cloud processing.

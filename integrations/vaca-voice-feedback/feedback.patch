@@ -1,0 +1,432 @@
+diff --git a/app/build.gradle.kts b/app/build.gradle.kts
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -27,8 +27,8 @@
+         applicationId = "com.msp1974.vacompanion"
+         minSdk = 26
+         targetSdk = 36
+-        versionName = "0.13.4+myshka.16-audio.1"
+-        versionCode = 7016
++        versionName = "0.13.4+myshka.17-feedback.1"
++        versionCode = 7017
+         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+     }
+ 
+diff --git a/app/src/main/java/com/msp1974/vacompanion/MainActivity.kt b/app/src/main/java/com/msp1974/vacompanion/MainActivity.kt
+--- a/app/src/main/java/com/msp1974/vacompanion/MainActivity.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/MainActivity.kt
+@@ -45,6 +45,7 @@
+ import androidx.compose.ui.graphics.Color
+ import androidx.core.net.toUri
+ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
++import androidx.lifecycle.Lifecycle
+ import androidx.lifecycle.lifecycleScope
+ import androidx.localbroadcastmanager.content.LocalBroadcastManager
+ import com.msp1974.vacompanion.broadcasts.BroadcastSender
+@@ -61,6 +62,7 @@
+ import com.msp1974.vacompanion.ui.layouts.ConnectionScreen
+ import com.msp1974.vacompanion.ui.layouts.SettingsLayout
+ import com.msp1974.vacompanion.ui.layouts.WebViewScreen
++import com.msp1974.vacompanion.feedback.VoiceFeedbackOverlay
+ import com.msp1974.vacompanion.ui.theme.AppTheme
+ import com.msp1974.vacompanion.utils.CustomWebView
+ import com.msp1974.vacompanion.utils.CustomWebViewClient
+@@ -159,6 +161,7 @@
+ 
+         setContent {
+             val vaUiState by viewModel.vacaState.collectAsState()
++            val activityState by lifecycle.currentStateFlow.collectAsState()
+             AppTheme(darkMode = vaUiState.darkMode, dynamicColor = false) {
+                 Scaffold(
+                     snackbarHost = { SnackbarHost(snackbarHostState) },
+@@ -173,6 +176,10 @@
+                             vaUiState.satelliteRunning -> {
+                                 Box(modifier = Modifier.fillMaxSize()) {
+                                     WebViewScreen(webView)
++                                    if (activityState.isAtLeast(Lifecycle.State.RESUMED) &&
++                                        !vaUiState.showMenu && vaUiState.alertDialog == null) {
++                                        VoiceFeedbackOverlay()
++                                    }
+                                     if (vaUiState.showMenu) {
+                                         SettingsLayout(
+                                             viewModel = viewModel,
+diff --git a/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt b/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
+--- a/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/satellite/Satellite.kt
+@@ -5,6 +5,7 @@
+ import com.msp1974.vacompanion.nearest.wakePipelineAllowsStart
+ import com.msp1974.vacompanion.announce.AnnouncementGate
+ import com.msp1974.vacompanion.announce.AnnouncementRuntime
++import com.msp1974.vacompanion.feedback.VoiceFeedbackRuntime
+ 
+ import android.annotation.SuppressLint
+ import android.content.Context
+@@ -51,6 +52,7 @@
+ import kotlinx.coroutines.sync.Mutex
+ import kotlinx.coroutines.sync.withLock
+ import kotlinx.coroutines.withTimeout
++import kotlinx.coroutines.withTimeoutOrNull
+ import kotlinx.serialization.json.Json
+ import kotlinx.serialization.json.JsonElement
+ import kotlinx.serialization.json.JsonObject
+@@ -115,6 +117,9 @@
+         set(value) {
+             field = value
+             _satelliteState.value = value
++            if (value != SatelliteState.RUNNING) {
++                audioPipeline?.let { VoiceFeedbackRuntime.clear(it) }
++            }
+         }
+     private var volumeObserver: VolumeObserver? = null
+ 
+@@ -402,8 +407,7 @@
+ 
+                 override suspend fun onStopWordDetected(detection: WakeWordEngineProvider.WakeWordDetection) {
+                     if (audioPipeline != null && audioPipeline?.pipelineStage == PipelineStage.STREAMING_TTS) {
+-                        audioPipeline?.stop()
+-                        audioPipeline = null
++                        stopAudioPipeline()
+                     }
+ 
+                     if (mediaManager.alarmPlayer.isSounding()) {
+@@ -455,10 +459,7 @@
+         }
+         soundEffectFinishTime = 0L
+         if (canStartWakePipeline()) {
+-            if (audioPipeline != null) {
+-                audioPipeline?.stop()
+-                audioPipeline = null
+-            }
++            stopAudioPipeline()
+ 
+             // if wake up on ww, send event
+             if (config.screenOnWakeWord) {
+@@ -466,46 +467,61 @@
+                 config.screenSaver = false
+             }
+             audioLogManager.onWakeWordDetected(detection.timestamp, detection.wakeWord, detection.score)
+-            startAudioPipeline(if (detection.wakeWordId == "manual_wake") PipelineStartMode.MANUAL else PipelineStartMode.WAKE_WORD_DETECTED, detection.timestamp, detection.wakeWordId, nearestTurn)
+-            playWakeWordDetectionSound()
+-        }
+-    }
+-
+-    suspend fun playWakeWordDetectionSound() {
+-        if (AudioLeaseRuntime.inhibited || AnnouncementGate.busy) return
+-        if (config.wakeWordSound != "none") {
+-            try {
+-                val soundUri = currentWakeWordSoundUri ?: resolveWakeSoundUri(config.wakeWordSound)
+-
+-                if (soundUri != null) {
+-                    // Gate the mic before the chime starts, not after - most devices have no
+-                    // hardware AEC, so without this the chime's acoustic leak-back would pollute
+-                    // the AGC's envelope and get forwarded to HA. The capped duration is a safety
+-                    // net in case ENDED is never observed below.
+-                    MicrophoneInput.suppressMicFor(NOTIFICATION_SOUND_MAX_SUPPRESSION_MS)
+-                    mediaManager.soundPlayer.play(soundUri)
+-                }
+-
+-                Timber.i("Started wake word sound")
+-                scope.launch {
+-                    // The player may already be sitting at STATE_ENDED from a previous play of
+-                    // this same (cached) sound, so wait for it to actually leave ENDED first -
+-                    // confirming this playback has genuinely (re)started - before waiting for it
+-                    // to end again. Without this, a stale ENDED reading here would shrink the
+-                    // mic gate down to the trailing margin before the chime has even played.
+-                    mediaManager.soundPlayer.state.first { it != Player.STATE_ENDED }
+-                    mediaManager.soundPlayer.state.first { it == Player.STATE_ENDED }
+-                    // Now that actual playback end is known, shrink the gate down to just the
+-                    // acoustic/capture-latency margin instead of the full safety-net duration.
++            val acceptedPipeline = startAudioPipeline(if (detection.wakeWordId == "manual_wake") PipelineStartMode.MANUAL else PipelineStartMode.WAKE_WORD_DETECTED, detection.timestamp, detection.wakeWordId, nearestTurn)
++            if (acceptedPipeline != null) playWakeWordDetectionSound(acceptedPipeline)
++        }
++    }
++
++    private suspend fun playWakeWordDetectionSound(owner: SatelliteAudioPipeline) {
++        if (config.wakeWordSound == "none") {
++            synchronized(AnnouncementGate.monitor) {
++                if (audioPipeline === owner) owner.silenceAudioBefore = 1L
++            }
++            return
++        }
++        val soundUri = currentWakeWordSoundUri ?: resolveWakeSoundUri(config.wakeWordSound)
++        if (soundUri == null) {
++            synchronized(AnnouncementGate.monitor) {
++                if (audioPipeline === owner) owner.silenceAudioBefore = 1L
++            }
++            return
++        }
++        // The player checks ownership on its main-thread admission boundary, immediately
++        // before playback. A rejected pipeline or late continuation cannot produce a cue.
++        val generation = mediaManager.soundPlayer.play(soundUri,
++            onStarted = { MicrophoneInput.suppressMicFor(NOTIFICATION_SOUND_MAX_SUPPRESSION_MS) },
++            onFailure = { failedGeneration ->
++                // Called inside the player's admission lock before its generation is released.
++                if (audioPipeline === owner && mediaManager.soundPlayer.playbackGeneration == failedGeneration &&
++                    state == SatelliteState.RUNNING && !AudioLeaseRuntime.inhibited && !AnnouncementGate.busy) {
+                     MicrophoneInput.suppressMicFor(NOTIFICATION_SOUND_TRAILING_MARGIN_MS)
+-                    audioPipeline?.silenceAudioBefore = System.currentTimeMillis() + NOTIFICATION_SOUND_TRAILING_MARGIN_MS
+-                    Timber.i("Ended wake word sound")
+-                }
+-            } catch (e: Exception) {
+-                Timber.e("Error playing wake word sound: ${e.message.toString()}")
+-            }
+-        } else {
+-            audioPipeline?.silenceAudioBefore = 1L
++                    owner.silenceAudioBefore = System.currentTimeMillis() + NOTIFICATION_SOUND_TRAILING_MARGIN_MS
++                }
++            }) {
++            audioPipeline === owner && owner.pipelineStage != PipelineStage.ENDED &&
++                state == SatelliteState.RUNNING && !config.isMuted
++        } ?: run {
++            synchronized(AnnouncementGate.monitor) {
++                if (audioPipeline === owner) owner.silenceAudioBefore = 1L
++            }
++            return
++        }
++        Timber.i("Started accepted wake sound")
++        scope.launch {
++            // Each play resets the state and has a generation. A preloaded/older player's
++            // ENDED event cannot shorten this turn's microphone gate.
++            withTimeoutOrNull(NOTIFICATION_SOUND_MAX_SUPPRESSION_MS) {
++                mediaManager.soundPlayer.state.first {
++                    mediaManager.soundPlayer.playbackGeneration != generation || it == Player.STATE_ENDED
++                }
++            }
++            synchronized(AnnouncementGate.monitor) {
++                if (audioPipeline === owner && mediaManager.soundPlayer.playbackGeneration == generation &&
++                    !AudioLeaseRuntime.inhibited && !AnnouncementGate.busy) {
++                    MicrophoneInput.suppressMicFor(NOTIFICATION_SOUND_TRAILING_MARGIN_MS)
++                    owner.silenceAudioBefore = System.currentTimeMillis() + NOTIFICATION_SOUND_TRAILING_MARGIN_MS
++                }
++            }
+         }
+     }
+ 
+@@ -540,7 +556,10 @@
+ 
+ 
+     fun muteMicrophone(muted: Boolean) {
+-        if (muted) nearest.cancel()
++        if (muted) {
++            nearest.cancel()
++            audioPipeline?.let { VoiceFeedbackRuntime.clear(it) }
++        }
+         if (AudioLeaseRuntime.inhibited) return
+         runCatching {
+             wakeWordHandler?.engine?.setMuted(muted)
+@@ -559,13 +578,13 @@
+     }
+ 
+     @OptIn(ExperimentalAtomicApi::class)
+-    fun startAudioPipeline(startStage: PipelineStartMode, eventId: Long = System.currentTimeMillis(), wakeWordId: String = config.wakeWord, nearestTurn: Long? = null) {
++    fun startAudioPipeline(startStage: PipelineStartMode, eventId: Long = System.currentTimeMillis(), wakeWordId: String = config.wakeWord, nearestTurn: Long? = null, personalContinuation: Boolean = false): SatelliteAudioPipeline? {
+       synchronized(AnnouncementGate.monitor) {
+-        if (AudioLeaseRuntime.inhibited || AnnouncementGate.busy) return
+-        if (audioPipeline != null) {
+-            audioPipeline?.stop()
+-            audioPipeline = null
+-        }
++        if (AudioLeaseRuntime.inhibited || AnnouncementGate.busy) return null
++        stopAudioPipeline()
++        val personalTurn = startStage == PipelineStartMode.WAKE_WORD_DETECTED ||
++            startStage == PipelineStartMode.MANUAL ||
++            (startStage == PipelineStartMode.CONTINUE_CONVERSATION && personalContinuation)
+         val nextPipeline = object: SatelliteAudioPipeline(context, scope, config, eventId, mediaManager) {
+             override fun sendMessage(packet: WyomingPacket) {
+                 synchronized(AnnouncementGate.monitor) {
+@@ -591,6 +610,7 @@
+                 if (audioPipeline !== this && !(audioPipeline == null && state == PipelineStage.ENDED)) return
+                 Timber.d("Audio pipeline state: $state")
+                 audioPipelineLastStateChange = android.os.SystemClock.elapsedRealtime()
++                VoiceFeedbackRuntime.update(this, state.name)
+                 when (state) {
+                     PipelineStage.LISTENING -> {
+                         wakeWordHandler?.engine?.setStreaming(true)
+@@ -631,7 +651,8 @@
+                                 delay(10.milliseconds)
+                             }
+                             synchronized(AnnouncementGate.monitor) {
+-                                if (audioPipeline === originatingPipeline) startAudioPipeline(PipelineStartMode.CONTINUE_CONVERSATION)
++                                if (audioPipeline === originatingPipeline) startAudioPipeline(
++                                    PipelineStartMode.CONTINUE_CONVERSATION, personalContinuation = personalTurn)
+                             }
+                         }
+                     } else {
+@@ -641,18 +662,19 @@
+                     audioPipeline = null
+                 }
+ 
+-                if (reason == PipelineEndReason.ERRORED && config.wakeWordSound != "none") {
+-                    playErrorSound()
+-                }
++                // A failed request clears its owned feedback; it never queues another
++                // sound which could outlive this turn and interrupt its replacement.
+               }
+             }
+ 
+         }
+         // Install the identity before launching work; stale callbacks cannot own its output.
+         audioPipeline = nextPipeline
++        if (personalTurn) VoiceFeedbackRuntime.begin(nextPipeline)
+         nextPipeline.detectedWakeWordId = wakeWordId
+         nearest.bindReplay(nearestTurn, nextPipeline)
+         nextPipeline.run(startStage)
++        return nextPipeline
+       }
+     }
+ 
+@@ -662,9 +684,13 @@
+         pipeline.sendMicAudio(audio)
+     }
+ 
+-    fun stopAudioPipeline() {
+-        audioPipeline?.stop()
+-        audioPipeline = null
++    fun stopAudioPipeline() = synchronized(AnnouncementGate.monitor) {
++        val owner = audioPipeline
++        if (owner != null) {
++            VoiceFeedbackRuntime.clear(owner)
++            owner.stop()
++            if (audioPipeline === owner) audioPipeline = null
++        }
+     }
+ 
+     // *************************************************************************
+diff --git a/app/src/main/java/com/msp1974/vacompanion/players/SoundEffectsPlayer.kt b/app/src/main/java/com/msp1974/vacompanion/players/SoundEffectsPlayer.kt
+--- a/app/src/main/java/com/msp1974/vacompanion/players/SoundEffectsPlayer.kt
++++ b/app/src/main/java/com/msp1974/vacompanion/players/SoundEffectsPlayer.kt
+@@ -2,6 +2,7 @@
+ 
+ import android.content.Context
+ import com.msp1974.vacompanion.announce.AnnouncementGate
++import com.msp1974.vacompanion.feedback.WakeCueOwnership
+ import com.msp1974.vacompanion.telephony.AudioLeaseRuntime
+ import android.net.Uri
+ import androidx.core.net.toUri
+@@ -19,6 +20,9 @@
+ 
+ class SoundEffectsPlayer(val context: Context) {
+     @Volatile var playing = false; private set
++    private val cueOwnership = WakeCueOwnership()
++    val playbackGeneration: Long get() = cueOwnership.generation
++    private var feedbackListener: Pair<ExoPlayer, Player.Listener>? = null
+     private val players = mutableMapOf<Int, ExoPlayer>()
+     private val uriPlayers = mutableMapOf<Uri, ExoPlayer>()
+     private var activeAdhocPlayer: ExoPlayer? = null
+@@ -64,11 +68,6 @@
+             player.setAudioAttributes(audioAttributes, false)
+             player.setMediaItem(mediaItem)
+             player.addListener(object : Player.Listener {
+-                override fun onIsPlayingChanged(isPlaying: Boolean) { playing = isPlaying }
+-                override fun onPlaybackStateChanged(playbackState: Int) {
+-                    _state.value = playbackState
+-                }
+-
+                 override fun onPlayerError(error: PlaybackException) {
+                     // Cached players (uriPlayers/players) are reused across many play() calls -
+                     // ExoPlayer stays stuck in the error state until prepare() is called again,
+@@ -84,14 +83,44 @@
+         }
+     }
+ 
++    private fun failFeedbackPlayback(player: ExoPlayer, generation: Long, onFailure: ((Long) -> Unit)?) {
++        synchronized(AnnouncementGate.monitor) {
++            cueOwnership.release(player, generation) {
++                onFailure?.invoke(generation)
++                playing = false
++                _state.value = Player.STATE_IDLE
++            }
++        }
++    }
++
++    private fun watchFeedbackPlayback(player: ExoPlayer, onFailure: ((Long) -> Unit)?): Long {
++        val generation = cueOwnership.begin(player)
++        val listener = object : Player.Listener {
++            override fun onIsPlayingChanged(isPlaying: Boolean) {
++                if (cueOwnership.isCurrent(player, generation)) playing = isPlaying
++            }
++            override fun onPlaybackStateChanged(playbackState: Int) {
++                if (cueOwnership.isCurrent(player, generation)) _state.value = playbackState
++            }
++            override fun onPlayerError(error: PlaybackException) {
++                failFeedbackPlayback(player, generation, onFailure)
++            }
++        }
++        feedbackListener = player to listener
++        player.addListener(listener)
++        return generation
++    }
++
+     suspend fun play(resId: Int) {
+         play("android.resource://${context.packageName}/$resId".toUri())
+     }
+ 
+-    suspend fun play(uri: Uri) {
+-        withContext(Dispatchers.Main) {
++    suspend fun play(uri: Uri, onStarted: ((Long) -> Unit)? = null,
++                     onFailure: ((Long) -> Unit)? = null, canPlay: () -> Boolean = { true }): Long? = withContext(Dispatchers.Main) {
+           synchronized(AnnouncementGate.monitor) {
+-            if (AnnouncementGate.busy || AudioLeaseRuntime.inhibited) return@withContext
++            if (AnnouncementGate.busy || AudioLeaseRuntime.inhibited || !canPlay()) return@synchronized null
++            var startedPlayer: ExoPlayer? = null
++            var startedGeneration: Long? = null
+             try {
+                 // Ensure only one feedback sound plays at a time
+                 stopAllOnMain()
+@@ -104,6 +133,9 @@
+                 }
+ 
+                 if (player != null) {
++                    startedPlayer = player
++                    startedGeneration = watchFeedbackPlayback(player, onFailure)
++                    onStarted?.invoke(startedGeneration)
+                     if (player.playerError != null) {
+                         // A previous playback error leaves ExoPlayer parked in STATE_IDLE with
+                         // playerError set - play()/seekTo() are then no-ops until prepare() is
+@@ -117,9 +149,11 @@
+                     // Fallback for non-prepared sounds
+                     val adhocPlayer = createPlayer(uri)
+                     activeAdhocPlayer = adhocPlayer
++                    startedPlayer = adhocPlayer
++                    startedGeneration = watchFeedbackPlayback(adhocPlayer, onFailure)
++                    onStarted?.invoke(startedGeneration)
+                     adhocPlayer.addListener(object : Player.Listener {
+                         override fun onPlaybackStateChanged(playbackState: Int) {
+-                            _state.value = playbackState
+                             if (playbackState == Player.STATE_ENDED) {
+                                 adhocPlayer.release()
+                                 if (activeAdhocPlayer == adhocPlayer) activeAdhocPlayer = null
+@@ -135,12 +169,16 @@
+                     adhocPlayer.prepare()
+                     adhocPlayer.play()
+                 }
++                startedGeneration
+             } catch (ex: Exception) {
++                if (startedPlayer != null && startedGeneration != null) {
++                    failFeedbackPlayback(startedPlayer, startedGeneration, onFailure)
++                }
+                 Timber.e("Error playing sound effect: ${ex.message}")
+                 ex.printStackTrace()
+-            }
+-                  }
+-        }
++                null
++            }
++          }
+     }
+ 
+     suspend fun stop() {
+@@ -151,6 +189,13 @@
+     private suspend fun stopAllInternal() = withContext(Dispatchers.Main) { stopAllOnMain() }
+ 
+     private fun stopAllOnMain() {
++            cueOwnership.invalidate()
++            feedbackListener?.let { (player, listener) -> player.removeListener(listener) }
++            feedbackListener = null
++            playing = false
++            // A queued callback from a previous use of the same cached player retains its
++            // old generation, so it cannot complete this turn's wake cue.
++            _state.value = Player.STATE_IDLE
+             players.values.forEach {
+                 if (it.isPlaying) {
+                     it.pause()

@@ -73,6 +73,7 @@ limits. They do not establish a new build or current availability of either devi
 
 ## Daily display and voice
 
+- [Native voice feedback](voice-feedback.md): accepted-wake chime, listening/processing/response indication, ownership and qualification limits.
 - [Display, media and calls](wiki/Display-media-and-calls.md): the room endpoint's operating behavior and feature boundaries.
 - [Clock and camera display](../integrations/show5-display/README.md): versioned deployment, four-language UI, startup recovery and camera lifecycle.
 - [Voice and wake words](wiki/Voice-and-wake-words.md): exact Myshka with optional Jarvis, the older two-model microWakeWord mode, independent language settings and per-satellite assistant selection.

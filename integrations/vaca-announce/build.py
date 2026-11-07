@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build pinned VACA with SIP, nearest-device and guarded announcement overlays; never access devices."""
+"""Build pinned VACA with owned voice feedback and guarded audio overlays; never access devices."""
 import argparse
 import importlib.util
 import json
@@ -12,8 +12,8 @@ import xml.etree.ElementTree as ET
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
-VERSION = '0.13.4+myshka.16-audio.1'
-CODE = 7016
+VERSION = '0.13.4+myshka.17-feedback.1'
+CODE = 7017
 
 
 def load(name, path):
@@ -39,6 +39,8 @@ def main():
     announce = load('vaca_announce_overlay', HERE / 'apply.py')
     audio_dir = ROOT / 'integrations/vaca-wake-audio'
     audio = load('vaca_audio_overlay', audio_dir / 'apply.py')
+    feedback_dir = ROOT / 'integrations/vaca-voice-feedback'
+    feedback = load('vaca_feedback_overlay', feedback_dir / 'apply.py')
     work = b.require_private_destination(args.work_dir)
     signing = b.require_private_destination(args.signing_dir)
     work.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -55,6 +57,7 @@ def main():
         nearest.apply(source)
         announce.apply(source)
         audio.apply(source)
+        feedback.apply(source)
     if b.git(source, 'rev-parse', 'HEAD').stdout.decode().strip() != b.COMMIT:
         raise ValueError('Unexpected base commit')
     if b.git(source, 'diff', '--cached', '--quiet', 'HEAD', check=False).returncode:
@@ -64,11 +67,13 @@ def main():
     nearest_files = sorted((nearest_dir / 'src').rglob('*.kt'))
     announce_files = sorted((HERE / 'src').rglob('*.kt'))
     audio_files = sorted((audio_dir / 'src').rglob('*.kt'))
+    feedback_files = sorted((feedback_dir / 'src').rglob('*.kt'))
     inputs = [Path(__file__), Path(b.__file__), b.PATCH, bridge / 'vaca-audio-lease.patch', bridge / 'apply.py',
               bridge / 'source-preconditions.json', nearest_dir / 'nearest.patch', nearest_dir / 'apply.py',
               nearest_dir / 'source-preconditions.json', HERE / 'announcement.patch', HERE / 'apply.py', HERE / 'source-preconditions.json', nearest_dir / 'src/test/golden-vectors.txt',
               nearest_dir / 'src/test/golden_vectors.go', *overlay_files, *nearest_files, *announce_files, *audio_files, audio_dir / 'apply.py',
-              audio_dir / 'audio.patch', audio_dir / 'source-preconditions.json']
+              audio_dir / 'audio.patch', audio_dir / 'source-preconditions.json', *feedback_files,
+              feedback_dir / 'apply.py', feedback_dir / 'feedback.patch', feedback_dir / 'source-preconditions.json']
     if any(path.is_symlink() for path in inputs):
         raise ValueError('Build inputs must be ordinary files')
     frozen_inputs = {path: b.sha256(path) for path in inputs}
@@ -96,12 +101,17 @@ def main():
             blob = b.git(source, 'hash-object', '-w', path).stdout.decode().strip()
             relative = 'app/' + path.relative_to(audio_dir).as_posix()
             b.git(source, 'update-index', '--add', '--cacheinfo', '100644,' + blob + ',' + relative, env=index_env)
+        b.git(source, 'apply', '--cached', feedback_dir / 'feedback.patch', env=index_env)
+        for path in feedback_files:
+            blob = b.git(source, 'hash-object', '-w', path).stdout.decode().strip()
+            relative = 'app/' + path.relative_to(feedback_dir).as_posix()
+            b.git(source, 'update-index', '--add', '--cacheinfo', '100644,' + blob + ',' + relative, env=index_env)
         fixture_blob = b.git(source, 'hash-object', '-w', nearest_dir / 'src/test/golden-vectors.txt').stdout.decode().strip()
         b.git(source, 'update-index', '--add', '--cacheinfo',
               '100644,' + fixture_blob + ',app/src/test/resources/nearest/golden-vectors.txt', env=index_env)
         b.validate_ignored_files(source)
         if not b.source_matches(source, index_env):
-            raise ValueError('Source does not match the pinned base, .9, SIP and nearest overlays')
+            raise ValueError('Source does not match the pinned base and published overlays')
         tree = b.git(source, 'write-tree', env=index_env).stdout.decode().strip()
         (source / 'local.properties').write_text('sdk.dir=' + b.java_property_value(str(Path(sdk).resolve())) + '\n', encoding='ascii')
         key, password, signer = b.ensure_signer(signing, java, expected=args.expected_signer_sha256)
@@ -141,6 +151,12 @@ def main():
         audio_suite = source / 'app/build/test-results/testDebugUnitTest/TEST-com.msp1974.vacompanion.audio.FrameMicrophoneLevelerTest.xml'
         if not audio_suite.exists() or int(ET.parse(audio_suite).getroot().get('tests', '0')) < 7:
             raise ValueError('Frame microphone leveling tests did not run')
+        feedback_suite = source / 'app/build/test-results/testDebugUnitTest/TEST-com.msp1974.vacompanion.feedback.VoiceFeedbackRuntimeTest.xml'
+        if not feedback_suite.exists() or int(ET.parse(feedback_suite).getroot().get('tests', '0')) < 9:
+            raise ValueError('Owned voice feedback regression tests did not run')
+        cue_suite = source / 'app/build/test-results/testDebugUnitTest/TEST-com.msp1974.vacompanion.feedback.WakeCueOwnershipTest.xml'
+        if not cue_suite.exists() or int(ET.parse(cue_suite).getroot().get('tests', '0')) < 8:
+            raise ValueError('Wake cue ownership regression tests did not run')
         if not b.source_matches(source, index_env):
             raise ValueError('Source changed during VACA build')
         if any(b.sha256(path) != checksum for path, checksum in frozen_inputs.items()):
@@ -148,7 +164,8 @@ def main():
         if (overlay_files != sorted((bridge / 'src').rglob('*.kt')) or
                 nearest_files != sorted((nearest_dir / 'src').rglob('*.kt')) or
                 announce_files != sorted((HERE / 'src').rglob('*.kt')) or
-                audio_files != sorted((audio_dir / 'src').rglob('*.kt'))):
+                audio_files != sorted((audio_dir / 'src').rglob('*.kt')) or
+                feedback_files != sorted((feedback_dir / 'src').rglob('*.kt'))):
             raise ValueError('Overlay source list changed during the build')
     apks = list((source / 'app/build/outputs/apk/debug').glob('*.apk'))
     if len(apks) != 1:

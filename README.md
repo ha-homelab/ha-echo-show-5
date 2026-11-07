@@ -25,6 +25,17 @@ The real display page (revision `20261015-r11`) captured in desktop Chrome at
 960 × 480 with the public example configuration. It shows only the local clock;
 no Home Assistant login, camera feed or device was used. Click for the flat original.
 
+## Native voice feedback
+
+The `.17` Android overlay adds an accepted-wake cue and a blue/cyan status strip
+above the clock: **Listening**, **Thinking**, then **Speaking** during response
+audio. It follows the local Assist turn, including ownership and cancellation,
+without polling Home Assistant or adding another microphone reader. The existing
+`.16` microphone leveling and selected wake models remain intact.
+
+[Behavior, configuration and qualification](docs/voice-feedback.md) ·
+[State diagram](docs/assets/voice-feedback.svg).
+
 ## October 29: room endpoint delivery
 
 Both Shows run the r15 clock and room interface, with six fixed actions, compact
