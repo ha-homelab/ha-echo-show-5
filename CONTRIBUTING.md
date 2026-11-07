@@ -61,7 +61,7 @@ a missing archive. Review dependency updates and regenerate the locks with:
 ```sh
 uv pip compile integrations/fcc-voice-backup/requirements.in --generate-hashes --universal --python-version 3.11 --output-file integrations/fcc-voice-backup/requirements.txt
 uv pip compile integrations/fcc-voice-backup/cloud-requirements.in --generate-hashes --universal --python-version 3.11 --output-file integrations/fcc-voice-backup/cloud-requirements.txt
-uv pip compile tests/requirements-template.in --generate-hashes --universal --python-version 3.8 --only-binary=:all: --output-file tests/requirements-template.txt
+uv pip compile .github/requirements-wheels-only.in tests/requirements-template.in --python-version=3.8 --universal --generate-hashes --output-file=tests/requirements-template.txt
 uv pip compile tests/requirements-voice.in --generate-hashes --universal --python-version 3.14.2 --output-file tests/requirements-voice.txt
 ```
 
@@ -92,3 +92,5 @@ replace actual device acceptance with synthetic test success.
 
 See [governance](GOVERNANCE.md), [conduct](CODE_OF_CONDUCT.md),
 [security reporting](SECURITY.md) and the [roadmap](ROADMAP.md).
+
+Renovate also updates the four external libraries declared in the SIP Android app Gradle file. The root Android Gradle Plugin declaration remains paired with the manually verified Gradle 9.4.1 build toolchain; the locally verified Linphone AAR remains on its existing source workflow.
