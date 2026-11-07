@@ -5,6 +5,16 @@ on:
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled, edited, converted_to_draft]
   pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled, edited, converted_to_draft]
+  workflow_run:
+    workflows: ["Auto Approve PRs", "CodeRabbit Review Requests", "Quality gate"]
+    types: [completed]
+  status:
+  check_run:
+    types: [completed]
+  schedule:
+    - cron: '41 * * * *'
+  workflow_dispatch:
+
 
 # Withdrawal evidence must survive later events, including pending-run replacement.
 # Ordinary state evaluations still coalesce; metadata-only edits stay independent.
@@ -35,6 +45,7 @@ jobs:
     uses: victron-venus/venus-os-ci-toolkit/.github/workflows/auto-merge.yml@3bb4cd3a5172dcb73330fc2fd23a62eff22fae1a # main
     with:
       reviewed-merge: true
+      reviewed-single-pass: true
       required-status-checks: CI gate
       allow-dependabot-actions-review: true
       allow-owned-bot-actions-review: true
@@ -55,5 +66,25 @@ jobs:
     uses: victron-venus/venus-os-ci-toolkit/.github/workflows/auto-merge.yml@559a10117d8831ee03ec0fcd195d6bf3716a7c11 # main
     with:
       withdrawal-only: true
+    secrets:
+      BOT_PAT: ${{ secrets.BOT_PAT }}
+
+  recover-auto-merge:
+    permissions:
+      contents: read
+      pull-requests: write
+    if: >-
+      contains(fromJSON('["workflow_run","status","check_run","schedule","workflow_dispatch"]'), github.event_name) &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    concurrency:
+      group: automerge-reviewed-recovery-${{ github.repository }}
+      cancel-in-progress: false
+    uses: victron-venus/venus-os-ci-toolkit/.github/workflows/auto-merge.yml@3bb4cd3a5172dcb73330fc2fd23a62eff22fae1a # main
+    with:
+      reviewed-merge: true
+      required-status-checks: "CI gate"
+      allow-dependabot-actions-review: true
+      allow-owned-bot-actions-review: true
+      reviewed-single-pass: true
     secrets:
       BOT_PAT: ${{ secrets.BOT_PAT }}
