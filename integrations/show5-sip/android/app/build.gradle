@@ -30,8 +30,8 @@ android {
 dependencies {
     // build.py verifies the official 5.5.39 AAR digest before supplying this path.
     implementation files(providers.gradleProperty('linphoneAar').get())
-    implementation 'androidx.annotation:annotation:1.9.1'
-    implementation 'androidx.media:media:1.7.0'
+    implementation 'androidx.annotation:annotation:1.11.0'
+    implementation 'androidx.media:media:1.8.0'
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.json:json:20240303'
 }
