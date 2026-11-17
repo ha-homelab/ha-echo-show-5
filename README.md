@@ -138,6 +138,8 @@ Every device operation must use the **observed physical USB port and complete se
 
 ## Documentation map
 
+Docs index: [docs/README.md](docs/README.md).
+
 - [Wiki home](docs/wiki/Home.md): task-based navigation, diagrams and terminology.
 - [Architecture and data paths](docs/wiki/Architecture.md): local/cloud boundaries, camera routing and Jitsi media.
 - [Installation, update and recovery](docs/wiki/Installation-and-recovery.md): stock conversion versus an existing Android installation, signing keys and rollback.

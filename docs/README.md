@@ -48,11 +48,15 @@ See the [mixed-wake guide](wiki/Mixed-wake-words.md) and [dated measurements](wi
 ## Start with the wiki
 
 - [Wiki home](wiki/Home.md): choose the installation, operation or maintenance path.
+- [Capabilities and expansion](wiki/Capabilities-and-expansion.md): what the installed build does today and what the original plan proposed.
+- [Room endpoint](wiki/Room-endpoint.md): the clock and six fixed controls, status readings, reminders and camera behavior.
+- [Localization and language settings](wiki/Localization.md): interface language, speech language and wake models stay independent.
 - [Wake-model rollout](wiki/Wake-model-rollout.md): the October 16 single-phrase ONNX trial, verified device replay and lifecycle checks, remaining physical acceptance and process/evidence diagrams.
 - [Process and results](wiki/Process-and-results.md): conversion stages, current software changes, installed results and remaining acceptance work.
 - [Architecture](wiki/Architecture.md): device, HA and service boundaries, including local versus cloud speech processing.
 - [Validation and evidence](wiki/Validation.md): dated versions, automated checks, per-device observations and unverified behavior.
 - [SVG diagram collection](assets/README.md): architecture, voice paths, installation paths, the conversion journey, startup recovery and recorded test counts.
+- [Wiki sidebar](wiki/_Sidebar.md): the compact navigation used by the hosted wiki.
 
 ## Historical checkpoints
 
@@ -77,6 +81,7 @@ limits. They do not establish a new build or current availability of either devi
 - [Display, media and calls](wiki/Display-media-and-calls.md): the room endpoint's operating behavior and feature boundaries.
 - [Clock and camera display](../integrations/show5-display/README.md): versioned deployment, four-language UI, startup recovery and camera lifecycle.
 - [Voice and wake words](wiki/Voice-and-wake-words.md): exact Myshka with optional Jarvis, the older two-model microWakeWord mode, independent language settings and per-satellite assistant selection.
+- [Privet Myshka as one openWakeWord phrase](openwakeword-myshka.md): the earlier single-phrase activation attempt and why the current route uses the exact Myshka model.
 - [Dual-wake extension](../integrations/vaca-dual-wake/README.md): source patch, reproducible build, versioned receipts, app-data preservation and rollback.
 - [VACA and private wake words](vaca-private-wakeword.md): permissions, model deployment, thresholds and acoustic limitations.
 - [Dashboard](show-dashboard.md) and [portable HA examples](../examples/home-assistant/README.md): provide your own private entity mapping.
@@ -105,6 +110,11 @@ limits. They do not establish a new build or current availability of either devi
 - [Contributing](../CONTRIBUTING.md), [translation policy](i18n.md), [security reporting](../SECURITY.md), [third-party notices](../THIRD_PARTY_NOTICES.md).
 - [Release packaging](release-packaging.md), [workflow](release-workflow.md), [versioning](VERSIONING.md), [runner preflight](runner-preflight.md) and [fuzzing](fuzzing.md).
 - [OpenSSF evidence](openssf-evidence.md).
+- [Clock and authentication browser acceptance](browser-compatibility.md): the display page's browser checks.
+- [Dependency updates](ci-dependency-updates.md): the shared Renovate preset for Actions, packages and containers.
+- [Quality evidence and limitations](quality.md): what host, browser and integration CI actually exercise.
+- [Original room-endpoint expansion plan](room-endpoint-capabilities.md): the historical planning checkpoint, superseded by current delivery.
+- [Clock screenshot artwork](screenshot-artwork.md): how the cover image was produced.
 
 Architecture and process SVGs describe logical relationships. The validation chart labels recorded test **counts**, not coverage percentages or a performance benchmark. Historical measurements keep their original conditions and dates. Downloaded firmware, backups, household mappings, raw receipts and credentials stay outside Git.
 
