@@ -196,7 +196,7 @@ changes. Keep the previous reviewed policy available for rollback. If HA
 cannot be allowed without giving unrelated clients access, keep the listener
 isolated while arranging a distinct trusted network path.
 
-Thanks to **Аникуш** for discovering and reporting the Wyoming ingress
+Thanks to **Ankush Kumar Mohapatra** for discovering and reporting the Wyoming ingress
 isolation gap in the original deployment examples.
 
 ## Switch one or several satellites

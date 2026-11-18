@@ -19,7 +19,7 @@ Rebuild the cloud-audio component from the updated locked source if you operate 
 
 The Kubernetes manifests now restrict ingress to both FCC Wyoming listeners.
 Review the [client policy and upgrade checks](docs/fcc-voice-backup.md#wyoming-ingress-requirements)
-before rollout. Discovered and reported by **Аникуш**.
+before rollout. Discovered and reported by **Ankush Kumar Mohapatra**.
 
 Remove the SDK dependency that required the vulnerable WebSocket client tracked in issue #131. Keep strict dependency hashes, unchanged wire descriptors and TLS verification enabled. Local protocol and generated-code checks do not establish provider, physical audio or device acceptance.
 
