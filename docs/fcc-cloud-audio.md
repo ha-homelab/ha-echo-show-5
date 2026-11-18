@@ -59,6 +59,9 @@ Import this image into the selected node's k3s/containerd store before applying
 `integrations/fcc-voice-backup/k8s/cloud-speech.yaml`. The image uses
 `imagePullPolicy: Never`; a workstation Docker image is insufficient. The existing
 FCC gateway and bridge do not need rebuilding for this audio adapter.
+The manifest includes ingress isolation. Review the [Wyoming ingress
+requirements](fcc-voice-backup.md#wyoming-ingress-requirements) before
+applying it, especially when Home Assistant uses host networking.
 
 Namespace `homeassistant` and Secret `fcc-cloud-speech-credentials` must exist.
 Its single key, `nvidia-api-key`, comes from the existing private FCC credential
@@ -86,7 +89,9 @@ when deliberately selecting a device. Do not remove either integration to switch
 The cloud adapter keeps audio in memory and does not log audio, transcripts,
 credentials or raw provider errors. Its Wyoming listener is unauthenticated and
 must stay on trusted internal networking; ClusterIP is not authentication.
-The accepted gateway policy does not isolate the separate audio listener.
+The cloud-speech manifest now includes a dedicated ingress allowlist. See
+[Wyoming ingress requirements](fcc-voice-backup.md#wyoming-ingress-requirements)
+for the supported client boundary and upgrade checks.
 
 - Separate ASR and TTS pools, each allowing two operations by default.
   `FCC_ASR_CONCURRENCY` and `FCC_TTS_CONCURRENCY` accept integers 1–4.

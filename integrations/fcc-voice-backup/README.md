@@ -22,7 +22,10 @@ The conversation bridge uses `FCC_BASE_URL`, `FCC_API_KEY_FILE`, an explicit fre
 
 The cloud adapter uses `NVIDIA_API_KEY_FILE` and `NVIDIA_RPC_TIMEOUT_SECONDS` (1–30; default 30), listening on TCP 10500. It fixes its TLS provider target, model routes and Russian voice; it does not load a local model or enable arbitrary URLs/SSML. Independent ASR and TTS pools default to two operations each (`FCC_ASR_CONCURRENCY` and `FCC_TTS_CONCURRENCY`, integer 1–4). Bounded input/output, real RPC deadlines and cancellation protect the service.
 
-Keep both unauthenticated Wyoming listeners inside trusted infrastructure. Provider keys, filled manifests and raw evidence stay outside Git. The images and Kubernetes manifests are separate so cloud-audio rollout does not restart the conversation path or Homeway.
+Keep both unauthenticated Wyoming listeners inside trusted infrastructure.
+The Kubernetes workload manifests include ingress policies for both listeners.
+Check the [Wyoming ingress requirements](../../docs/fcc-voice-backup.md#wyoming-ingress-requirements)
+before installation or upgrade. Provider keys, filled manifests and raw evidence stay outside Git. The images and Kubernetes manifests are separate so cloud-audio rollout does not restart the conversation path or Homeway.
 
 ## Dependency compatibility
 

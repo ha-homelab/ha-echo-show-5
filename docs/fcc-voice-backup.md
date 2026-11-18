@@ -146,7 +146,7 @@ This route is text-only and currently has zero prompt/completion price. Its prov
 
 ## Deploy and recover the FCC services
 
-Implementation lives in [`integrations/fcc-voice-backup/`](../integrations/fcc-voice-backup/): the conversation bridge, cloud-audio adapter, pinned dependencies/images, `k8s/gateway.yaml`, `k8s/bridge.yaml`, `k8s/cloud-speech.yaml` and optional network policies. No speech model download, local Whisper/Piper deployment or model PVC is required for this active scope. The operator maintains the reviewed placement and recovery copy with the deployment configuration.
+Implementation lives in [`integrations/fcc-voice-backup/`](../integrations/fcc-voice-backup/): the conversation bridge, cloud-audio adapter, pinned dependencies/images, `k8s/gateway.yaml`, `k8s/bridge.yaml`, `k8s/cloud-speech.yaml` and ingress policies. No speech model download, local Whisper/Piper deployment or model PVC is required for this active scope. The operator maintains the reviewed placement and recovery copy with the deployment configuration.
 
 ```bash
 docker build -t fcc-voice-bridge:0.1.4 integrations/fcc-voice-backup
@@ -168,9 +168,36 @@ kubectl -n homeassistant create secret generic fcc-voice-credentials \
 
 Preserve existing credentials during recovery. The gateway reads both; the bridge mounts only the proxy token. The pinned FCC gateway uses Bearer authentication and empty `MODEL_FALLBACKS`. The bridge accepts explicit FCC OpenRouter `:free` IDs; that suffix is not a billing guarantee. The existing shared FCC deployment is untouched. Cloud speech has a separate `fcc-cloud-speech-credentials` Secret containing only the existing NVIDIA key; see the cloud-audio guide for its image and credential mount.
 
-Apply only the reviewed gateway, bridge, cloud-audio service and accepted gateway-ingress policy with your private scheduling overlay. TCP readiness proves a listening process, not provider quota or complete voice capability. In HA, register the bridge through **Settings → Devices & services → Add integration → Wyoming Protocol**, host `fcc-voice-bridge.homeassistant.svc.cluster.local`, port `10400`. Register `fcc-cloud-speech.homeassistant.svc.cluster.local:10500` as a second Wyoming integration for FCC STT/TTS. HA outside the cluster needs private reachable addresses. The Echo connects to HA, not to cluster DNS directly. Neither registration requires restarting HA.
+Apply only the reviewed gateway, bridge, cloud-audio service and gateway-ingress policy with your private scheduling overlay. Read the ingress requirements below before applying either Wyoming manifest. TCP readiness proves a listening process, not provider quota or complete voice capability. In HA, register the bridge through **Settings → Devices & services → Add integration → Wyoming Protocol**, host `fcc-voice-bridge.homeassistant.svc.cluster.local`, port `10400`. Register `fcc-cloud-speech.homeassistant.svc.cluster.local:10500` as a second Wyoming integration for FCC STT/TTS. HA outside the cluster needs private reachable addresses. The Echo connects to HA, not to cluster DNS directly. Neither registration requires restarting HA.
 
-All services are internal ClusterIP. Wyoming is unauthenticated. The gateway ingress policy was verified to allow bridge pods and deny an unrelated ordinary pod; missing proxy credentials were rejected. The optional bridge policy blocked the actual HA host-network path despite exact-source exceptions and is not deployed. Therefore the conversation and audio Wyoming listeners trust cluster clients and are not claimed to be network-isolated. Do not blindly apply `network-policy.yaml` in full or reintroduce a rejected bridge policy during recovery. No public Ingress or NodePort is required.
+### Wyoming ingress requirements
+
+Each Wyoming manifest includes an ingress NetworkPolicy and an internal
+ClusterIP Service. The default policy allows only same-namespace HA Pods
+with both Home Assistant labels shown in the policy, on the matching Wyoming
+port. It requires a CNI that enforces NetworkPolicy. The gateway has a separate
+bridge-only policy and Bearer authentication. Keep these services behind
+private networking without public listeners or proxies.
+
+For a host-network HA installation, replace the default ingress peer in
+each policy with a private overlay that allows the exact source address
+seen by the destination at policy evaluation (IPv4 /32 or IPv6 /128).
+The effective address can differ from the node LAN address because of
+routing or source NAT. The rule trusts the node source and Kubernetes may
+exempt traffic from the destination node. Wyoming itself has no client
+authentication.
+
+Before applying, verify the deployment context, client labels or effective
+source address, and all other policies selecting the two Pods. NetworkPolicy
+allows are additive. Apply the reviewed policies and allow the CNI to converge.
+Verify that HA can connect and that unrelated Pods are denied through both
+Service and Pod addresses. Repeat those checks after HA moves or networking
+changes. Keep the previous reviewed policy available for rollback. If HA
+cannot be allowed without giving unrelated clients access, keep the listener
+isolated while arranging a distinct trusted network path.
+
+Thanks to **Аникуш** for discovering and reporting the Wyoming ingress
+isolation gap in the original deployment examples.
 
 ## Switch one or several satellites
 
