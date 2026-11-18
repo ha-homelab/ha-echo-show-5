@@ -348,6 +348,7 @@
     "patches/ottplay-foss-capacitor-remote-control.patch",
     "patches/ottplay-foss-capacitor-startup.patch",
     "release-files.json",
+    "renovate.json",
     "scripts/android_admin.py",
     "scripts/artifacts.py",
     "scripts/check_docs.py",
