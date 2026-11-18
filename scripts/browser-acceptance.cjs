@@ -32,7 +32,7 @@ const server = http.createServer((request, response) => {
     return response.writeHead(405).end();
   }
   if (url.pathname === '/config.js') {
-    const config = {...selection, timeZone:'UTC', cameraSeconds:5, cameraMode:'snapshots', cameras:{front:{entityId:'camera.front',motion:{topic:'fixture/front',payload:'motion'}}}};
+    const config = {timeZone:'UTC', ...selection, cameraSeconds:5, cameraMode:'snapshots', cameras:{front:{entityId:'camera.front',motion:{topic:'fixture/front',payload:'motion'}}}};
     response.writeHead(200, {'Content-Type':'text/javascript', 'Cache-Control':'no-store'});
     return response.end('window.SHOW5_DISPLAY_CONFIG=' + JSON.stringify(config) + ';');
   }
@@ -140,12 +140,15 @@ async function main() {
             const bounds = await page.evaluate(() => {
               const r=document.querySelector('#clock-time').getBoundingClientRect();
               const d=document.querySelector('#clock-date').getBoundingClientRect();
-              return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,dateLeft:d.left,dateRight:d.right,dateTop:d.top,dateBottom:d.bottom,width:innerWidth,height:innerHeight,scroll:document.documentElement.scrollWidth};
+              const b=document.querySelector('#clock-style').getBoundingClientRect();
+              const controlsOverlap=d.right>b.left && b.right>d.left && d.bottom>b.top && b.bottom>d.top;
+              return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,dateLeft:d.left,dateRight:d.right,dateTop:d.top,dateBottom:d.bottom,width:innerWidth,height:innerHeight,scroll:document.documentElement.scrollWidth,controlsOverlap};
             });
-            assert(bounds.left>=0 && bounds.right<=bounds.width && bounds.top>=0 && bounds.bottom<=bounds.height && bounds.dateLeft>=0 && bounds.dateRight<=bounds.width && bounds.dateTop>=0 && bounds.dateBottom<=bounds.height && bounds.scroll<=bounds.width,'Clock must fit the tested viewport');
+            assert(bounds.left>=0 && bounds.right<=bounds.width && bounds.top>=0 && bounds.bottom<=bounds.height && bounds.dateLeft>=0 && bounds.dateRight<=bounds.width && bounds.dateTop>=0 && bounds.dateBottom<=bounds.height && bounds.scroll<=bounds.width && !bounds.controlsOverlap,'Clock and controls must fit without overlap');
           }
           const before=await page.locator('#clock-time').innerText();
-          await page.clock.runFor(60000);
+          await page.clock.setSystemTime(new Date('2026-10-15T21:34:59.500Z'));
+          await page.clock.runFor(1000);
           await eventually(() => page.locator('#clock-time').innerText().then(value => value!==before),true,'DOM clock must advance after real timer callbacks');
           await page.screenshot({path:path.join(diagnostics,`${locale}-${hour12?'12':'24'}.png`)});
         });
@@ -216,9 +219,15 @@ async function main() {
       assert(await canvas.isVisible());
       assert.equal(await style.getAttribute('aria-label'),'Clock style: Liquid 3D');
       await page.screenshot({path:path.join(diagnostics,'liquid-960.png')});
-      const previous=await frame();
+      const silhouette=() => canvas.evaluate(element=> {
+        const pixels=element.getContext('2d').getImageData(0,0,element.width,element.height).data;
+        let hash=0;
+        for (let i=3;i<pixels.length;i+=4) hash=(Math.imul(hash,31)+(pixels[i]>240 ? 1 : 0))|0;
+        return hash;
+      });
+      const previous=await silhouette();
       await page.clock.runFor(250);
-      assert.notEqual(await frame(),previous);
+      assert.notEqual(await silhouette(),previous,'The silhouette must move, including at an unchanged time');
       await page.clock.setSystemTime(new Date('2026-10-15T21:39:59.500Z'));
       await page.clock.runFor(1000);
       assert.equal(await page.locator('#clock-time').innerText(),'21:40');
@@ -249,7 +258,37 @@ async function main() {
       await go({locale:'en-US',clockStyle:'classic'}); await waitState('ready');
       assert.equal(await canvas.isVisible(),false);
     });
-    assert.equal(scenarios.length,15);
+    await scenario('seconds sweep and the calendar changes at midnight in the configured time zone', async () => {
+      await page.emulateMedia({reducedMotion:'no-preference'});
+      await go({locale:'en-US',hour12:true,timeZone:'America/Los_Angeles'}); await waitState('ready');
+      const seconds=page.locator('#clock-seconds-number');
+      const arc=page.locator('#clock-seconds-arc');
+      const day=page.locator('#clock-calendar-day');
+      const month=page.locator('#clock-calendar-month');
+      const weekday=page.locator('#clock-calendar-weekday');
+      const time=page.locator('#clock-label');
+      await page.clock.setSystemTime(new Date('2027-01-01T07:59:58.500Z'));
+      await page.clock.runFor(1000);
+      assert.match(await time.textContent(),/^11:59.*PM$/);
+      assert.equal(await day.textContent(),'31');
+      assert.equal(await month.textContent(),'December · 2026');
+      assert.equal(await weekday.textContent(),'Thursday');
+      assert.equal(await seconds.textContent(),'59');
+      const before=parseFloat(await arc.getAttribute('stroke-dasharray'));
+      await page.clock.runFor(200);
+      assert(parseFloat(await arc.getAttribute('stroke-dasharray'))>before,'The ring sweeps between seconds');
+      await page.clock.runFor(420);
+      assert.match(await time.textContent(),/^12:00.*AM$/);
+      assert.equal(await seconds.textContent(),'00');
+      assert.equal(await day.textContent(),'1');
+      assert.equal(await month.textContent(),'January · 2027');
+      assert.equal(await weekday.textContent(),'Friday');
+      await page.emulateMedia({reducedMotion:'reduce'});
+      await page.clock.runFor(1250);
+      assert.match(await arc.getAttribute('stroke-dasharray'),/^1 60$/);
+      assert.equal(await seconds.textContent(),'01');
+    });
+    assert.equal(scenarios.length,16);
     fs.writeFileSync(process.env.CI_BROWSER_EVIDENCE,JSON.stringify({...runtime,scenarios,testsPassed:scenarios.length,testsFailed:0,
       applicationFiles:Object.fromEntries([...assets].map(([name,bytes])=>[name,crypto.createHash('sha256').update(bytes).digest('hex')])),
       ...(candidate?{candidateArchiveSha256:candidate.archiveSha256}:{})},null,2)+'\n');

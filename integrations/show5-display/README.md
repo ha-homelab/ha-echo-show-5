@@ -10,13 +10,15 @@ the entire screen without a title or clock header. `object-fit: cover` preserves
 proportions and crops the excess at the edges instead of stretching or adding
 borders; timestamps embedded by a camera remain part of its video.
 
-Revision **`20261117-r16`** opens on **Liquid 3D**, with rounded multicolour
-digits that bend, change colour and morph when time advances. Tap the style
+Revision **`20261117-r17`** opens on **Liquid 3D**. The clock projects the
+tubes' curved cross sections in perspective as the digits turn, flex and
+morph. The calendar tile shows the local day, weekday, month and year, next
+to a numerical seconds display with a 60-tick progress ring. Tap the style
 button in the lower right to switch to **Classic** or back. The choice is saved
 in this display's browser storage. A fresh installation starts in Liquid 3D
 unless `clockStyle: "classic"` is set in `config.js`. The animation stops
 behind cameras and the Room panel or when the page is hidden. Reduced motion
-keeps the Liquid 3D colours and updates the time with a static redraw.
+keeps the Liquid 3D colours and updates the seconds ring in single-second steps.
 
 Revision **`20261029-r15`** keeps a successful live static response even if
 the offline cache is unavailable or its refresh fails, for example because
@@ -204,16 +206,16 @@ do not add external scripts, frames or navigation to this authenticated page.
 1. Keep a private backup of the selected device's existing complete display
    release outside `/config/www`.
 2. Create a new versioned directory, for example
-   `/config/www/show5-display-20261117-r16/`. Copy these **ten assets**:
+   `/config/www/show5-display-20261117-r17/`. Copy these **ten assets**:
    `display.css`, `i18n.js`, `room.js`, `stream.js`, `auth.js`, `liquid-clock.js`, `display.js`,
    `blank-video.svg`, `offline-worker.js`, and the filled `config.js`.
-   Copy the source `index.html` as **`index-20261117-r16.html`**. That makes
+   Copy the source `index.html` as **`index-20261117-r17.html`**. That makes
    **eleven files**, including the HTML entry and deployment-specific configuration.
-   Keep every versioned asset URL in the HTML at **`?v=20261117-r16`** for this
+   Keep every versioned asset URL in the HTML at **`?v=20261117-r17`** for this
    release. Preserve the deferred script order: configuration, i18n, room,
    stream, auth, liquid clock, then display. Do not copy tests, private data or backup files.
 3. Open
-   `/local/show5-display-20261117-r16/index-20261117-r16.html?external_auth=1`
+   `/local/show5-display-20261117-r17/index-20261117-r17.html?external_auth=1`
    in the selected VACA WebView. Verify the clock and the sanitized
    `Show5Auth.status()` result. The directory prefix may identify the endpoint;
    keep each endpoint's configuration and service-worker scope separate.

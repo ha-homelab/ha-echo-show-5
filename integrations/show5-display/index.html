@@ -6,14 +6,14 @@
   <meta name="color-scheme" content="dark">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; media-src 'self' blob:; img-src 'self' blob:; base-uri 'none'; form-action 'none'; object-src 'none'; frame-src 'none'; worker-src 'self'">
   <title>Clock</title>
-  <link rel="stylesheet" href="display.css?v=20261117-r16">
-  <script src="config.js?v=20261117-r16" defer></script>
-  <script src="i18n.js?v=20261117-r16" defer></script>
-  <script src="room.js?v=20261117-r16" defer></script>
-  <script src="stream.js?v=20261117-r16" defer></script>
-  <script src="auth.js?v=20261117-r16" defer></script>
-  <script src="liquid-clock.js?v=20261117-r16" defer></script>
-  <script src="display.js?v=20261117-r16" defer></script>
+  <link rel="stylesheet" href="display.css?v=20261117-r17">
+  <script src="config.js?v=20261117-r17" defer></script>
+  <script src="i18n.js?v=20261117-r17" defer></script>
+  <script src="room.js?v=20261117-r17" defer></script>
+  <script src="stream.js?v=20261117-r17" defer></script>
+  <script src="auth.js?v=20261117-r17" defer></script>
+  <script src="liquid-clock.js?v=20261117-r17" defer></script>
+  <script src="display.js?v=20261117-r17" defer></script>
 </head>
 <body>
   <main id="display" aria-label="Clock and camera">
@@ -25,7 +25,31 @@
         <time id="clock-time"><span id="clock-label">--:--</span><canvas id="liquid-clock" width="800" height="260" aria-hidden="true"></canvas></time>
         <span id="clock-period" aria-hidden="true"></span>
       </div>
-      <p id="clock-date"></p>
+      <div id="clock-date">
+        <p id="clock-date-label"></p>
+        <div id="liquid-calendar" aria-hidden="true">
+          <span id="clock-calendar-day"></span>
+          <div class="calendar-copy">
+            <strong id="clock-calendar-weekday"></strong>
+            <span id="clock-calendar-month"></span>
+          </div>
+          <div class="second-orbit">
+            <svg viewBox="0 0 64 64" focusable="false">
+              <defs>
+                <linearGradient id="orbit-colour" x1="0%" y1="100%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#f18fe9"/>
+                  <stop offset="48%" stop-color="#8fa6ff"/>
+                  <stop offset="100%" stop-color="#78fce7"/>
+                </linearGradient>
+              </defs>
+              <circle class="orbit-track" cx="32" cy="32" r="28" pathLength="60" stroke-dasharray=".32 .68"/>
+              <circle id="clock-seconds-arc" cx="32" cy="32" r="24" pathLength="60" stroke-dasharray="0 60"
+                stroke="url(#orbit-colour)" transform="rotate(-90 32 32)"/>
+            </svg>
+            <span id="clock-seconds-number">00</span>
+          </div>
+        </div>
+      </div>
       <p id="room-timer" role="status" hidden></p>
       <button id="clock-style" type="button" hidden><span class="clock-style-mark" aria-hidden="true"></span><span id="clock-style-name"></span></button>
       <section id="room-panel" aria-label="Room" hidden>
@@ -41,7 +65,7 @@
     <section id="camera-view" aria-label="Camera" hidden>
       <div class="camera-frame">
         <img id="camera-image" alt="Camera image" decoding="async" draggable="false" hidden>
-        <video id="camera-video" aria-label="Camera video" autoplay muted playsinline poster="blank-video.svg?v=20261117-r16" disableremoteplayback hidden></video>
+        <video id="camera-video" aria-label="Camera video" autoplay muted playsinline poster="blank-video.svg?v=20261117-r17" disableremoteplayback hidden></video>
         <p id="camera-status" hidden></p>
       </div>
     </section>
