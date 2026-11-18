@@ -372,25 +372,35 @@
     var formats = i18n.createFormatters(config && config.locale, config);
     document.documentElement.dataset.hourCycle = config && config.hour12 ? "h12" : "h23";
     document.documentElement.dataset.formatLocale = formats.locale;
+    var clockView = document.getElementById("clock-view");
     var clockTime = document.getElementById("clock-time");
     var clockLabel = document.getElementById("clock-label") || clockTime;
     var clockDate = document.getElementById("clock-date-label") || document.getElementById("clock-date");
     var language = i18n.create(config && config.locale);
     var liquid = root.Show5LiquidClock && root.Show5LiquidClock.create(document, root.SHOW5_DISPLAY_CONFIG, language, formats);
-    var lastTime, lastDate;
+    var lastTime, lastCalendar, lastDate, lastAccessibleTime;
     function tick() {
       var instant = new Date();
       var time = formats.time.format(instant);
-      var date = formats.date.format(instant);
       if (time !== lastTime) {
-        clockTime.setAttribute("datetime", instant.toISOString());
         clockLabel.textContent = lastTime = time;
         if (liquid) { liquid.updateTime(formats.time, instant); }
       }
-      if (date !== lastDate) {
-        clockDate.textContent = lastDate = date;
+      var withSeconds = liquid && clockView.classList.contains("liquid-style");
+      var accessibleTime = withSeconds ? formats.preciseTime.format(instant) : time;
+      if (accessibleTime !== lastAccessibleTime) {
+        clockTime.setAttribute("aria-label", accessibleTime);
+        clockTime.setAttribute("datetime", instant.toISOString());
+        lastAccessibleTime = accessibleTime;
+      }
+      var calendar = formats.calendar.format(instant);
+      if (calendar !== lastCalendar) {
+        lastCalendar = calendar;
+        lastDate = formats.date.format(instant);
         if (liquid) { liquid.updateDate(instant); }
       }
+      var dateLabel = withSeconds ? lastCalendar : lastDate;
+      if (clockDate.textContent !== dateLabel) { clockDate.textContent = dateLabel; }
       if (liquid) { liquid.tick(instant); }
     }
     var clockTimer;

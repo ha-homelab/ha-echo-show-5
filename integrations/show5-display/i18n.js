@@ -66,13 +66,20 @@
     // Reduced Android Intl builds can lack a locale. Keep a usable clock and
     // explicit formatter locale; UI translations do not depend on OS packs.
     if (Intl.DateTimeFormat.supportedLocalesOf([locale]).length === 0) { locale = "en-US"; }
-    var time = new Intl.DateTimeFormat(locale, {
+    var clockFields = {
       timeZone: options.timeZone, hour: "2-digit", minute: "2-digit", hourCycle: options.hour12 ? "h12" : "h23"
-    });
-    var date = new Intl.DateTimeFormat(locale, {
+    };
+    var dateFields = {
       timeZone: options.timeZone, weekday: "long", day: "numeric", month: "long"
+    };
+    var time = new Intl.DateTimeFormat(locale, clockFields);
+    return Object.freeze({
+      locale: time.resolvedOptions().locale,
+      time: time,
+      preciseTime: new Intl.DateTimeFormat(locale, Object.assign({ second: "2-digit" }, clockFields)),
+      date: new Intl.DateTimeFormat(locale, dateFields),
+      calendar: new Intl.DateTimeFormat(locale, Object.assign({ year: "numeric" }, dateFields))
     });
-    return Object.freeze({ locale: time.resolvedOptions().locale, time: time, date: date });
   }
 
   var exported = Object.freeze({ create: create, createFormatters: createFormatters,

@@ -116,11 +116,18 @@ html[data-hour-cycle="h12"] #clock-time { font-size: clamp(4rem, 20vw, 14rem); }
 
 #clock-view.liquid-style {
   background:
-    radial-gradient(ellipse at 78% 28%, #30123b 0%, transparent 51%),
-    radial-gradient(ellipse at 23% 32%, #142b48 0%, transparent 56%),
-    radial-gradient(ellipse at 50% 73%, #232040 0%, transparent 60%),
-    #080713;
+    radial-gradient(ellipse at 78% 25%, #281536, transparent 54%),
+    radial-gradient(ellipse at 20% 30%, #112842, transparent 58%),
+    radial-gradient(ellipse at 50% 68%, #191d37, transparent 64%),
+    #080912;
 }
+.liquid-style #room-toggle, .liquid-style #clock-style {
+  background: linear-gradient(150deg, #25314b, #171928);
+  border: 1px solid #657089;
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 #ffffff12;
+}
+.liquid-style #room-toggle { font-size: 16px; }
 .liquid-style #clock-time { display: block; padding: 0; }
 .liquid-style #clock-label, .liquid-style #clock-date-label {
   position: absolute;
@@ -148,42 +155,46 @@ html[data-hour-cycle="h12"] #clock-time { font-size: clamp(4rem, 20vw, 14rem); }
 .liquid-style #clock-date { margin: 0; }
 .liquid-style #liquid-calendar {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(min-content, 1fr) auto;
   align-items: center;
-  gap: clamp(8px, 2vw, 19px);
+  gap: clamp(7px, 1.7vw, 17px);
   width: min(58vw, 500px);
-  padding: clamp(5px, 1vw, 11px);
+  padding: clamp(6px, 1vw, 11px);
   color: #f6f1ff;
-  background: linear-gradient(120deg, #25253b, #18152b 60%, #1a273b);
-  border: 1px solid #575872;
-  border-radius: clamp(15px, 3vw, 25px);
-  box-shadow: 0 9px 24px #0505108c, inset 0 1px 0 #ffffff1c;
+  background:
+    radial-gradient(ellipse at 8% -40%, #52607a66, transparent 72%),
+    linear-gradient(110deg, #24253b, #171a2d 61%, #192b40);
+  border: 1px solid #626983;
+  border-radius: clamp(16px, 3.3vw, 30px);
+  box-shadow: 0 10px 20px #05051080, inset 0 1px 0 #ffffff24;
 }
 #clock-calendar-day {
   display: grid;
   place-items: center;
   min-width: clamp(41px, 7.4vw, 71px);
   min-height: clamp(41px, 7.4vw, 71px);
-  border: 1px solid #b8b5ed;
-  border-radius: clamp(10px, 1.8vw, 16px);
+  border: 1px solid #d6d7f5;
+  border-radius: clamp(11px, 2vw, 18px);
   color: #191734;
-  background: linear-gradient(145deg, #d9fffa, #b1bbfe 52%, #eac0ec);
-  box-shadow: inset 0 1px 0 #fff9, 0 4px 10px #0b091caa;
+  background: radial-gradient(ellipse at 10% -5%, #f0fff9, transparent 73%),
+    linear-gradient(150deg, #bcf6ec, #acb9fa 56%, #dcb6f1);
+  box-shadow: inset 0 1px 0 #fffe, 0 4px 10px #0b091caa;
   font-size: clamp(23px, 4.9vw, 46px);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
-.calendar-copy { display: grid; gap: 3px; min-width: 0; line-height: 1.15; }
+.calendar-copy { display: grid; gap: 3px; min-width: 0; line-height: 1.2; }
 #clock-calendar-weekday {
   font-size: clamp(14px, 3.1vw, 30px);
   font-weight: 650;
   overflow-wrap: break-word;
 }
 #clock-calendar-month {
-  color: #d3cbee;
+  color: #ddd7f0;
   font-size: clamp(10px, 1.8vw, 17px);
-  letter-spacing: .04em;
+  letter-spacing: .025em;
+  font-variant-numeric: tabular-nums;
 }
 .second-orbit {
   display: grid;
@@ -192,17 +203,22 @@ html[data-hour-cycle="h12"] #clock-time { font-size: clamp(4rem, 20vw, 14rem); }
   width: clamp(43px, 8vw, 76px);
   height: clamp(43px, 8vw, 76px);
   color: #edfbff;
-  font-size: clamp(16px, 3.2vw, 30px);
+  font-size: clamp(17px, 3.4vw, 32px);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   line-height: 1;
-  background: radial-gradient(circle, #152d43, transparent 72%);
+  background: radial-gradient(circle, #263f59 0%, #17273a 53%, transparent 69%);
 }
 .second-orbit svg { position: absolute; inset: 0; width: 100%; height: 100%; fill: none; }
-.orbit-track { stroke: #8b9eb9; stroke-width: 1.6; }
-#clock-seconds-arc { stroke-width: 3.5; }
+.orbit-track { stroke: #9bb1cc; stroke-width: 1.25; stroke-linecap: round; }
+.orbit-rail { stroke: #7691b64f; stroke-width: 3.2; }
+#clock-seconds-arc { stroke-width: 3.2; }
 
 @media (max-height: 300px) {
   #clock-style { font-size: 12px; padding-right: 10px; padding-left: 10px; }
+  .liquid-style #room-toggle { top: auto; right: auto; bottom: 10px; left: 12px; font-size: 14px; }
+  .liquid-style #room-network { top: 8px; margin: 0; font-size: 13px; }
+  .liquid-style #room-timer { margin-top: 8px; font-size: 20px; }
+  .liquid-style #liquid-clock { width: min(89vw, 160vh, 880px); }
   .liquid-style #liquid-calendar { width: min(45vw, 500px); }
 }

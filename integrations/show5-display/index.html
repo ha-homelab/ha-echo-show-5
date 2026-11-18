@@ -6,14 +6,14 @@
   <meta name="color-scheme" content="dark">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; media-src 'self' blob:; img-src 'self' blob:; base-uri 'none'; form-action 'none'; object-src 'none'; frame-src 'none'; worker-src 'self'">
   <title>Clock</title>
-  <link rel="stylesheet" href="display.css?v=20261117-r17">
-  <script src="config.js?v=20261117-r17" defer></script>
-  <script src="i18n.js?v=20261117-r17" defer></script>
-  <script src="room.js?v=20261117-r17" defer></script>
-  <script src="stream.js?v=20261117-r17" defer></script>
-  <script src="auth.js?v=20261117-r17" defer></script>
-  <script src="liquid-clock.js?v=20261117-r17" defer></script>
-  <script src="display.js?v=20261117-r17" defer></script>
+  <link rel="stylesheet" href="display.css?v=20261117-r18">
+  <script src="config.js?v=20261117-r18" defer></script>
+  <script src="i18n.js?v=20261117-r18" defer></script>
+  <script src="room.js?v=20261117-r18" defer></script>
+  <script src="stream.js?v=20261117-r18" defer></script>
+  <script src="auth.js?v=20261117-r18" defer></script>
+  <script src="liquid-clock.js?v=20261117-r18" defer></script>
+  <script src="display.js?v=20261117-r18" defer></script>
 </head>
 <body>
   <main id="display" aria-label="Clock and camera">
@@ -43,6 +43,7 @@
                 </linearGradient>
               </defs>
               <circle class="orbit-track" cx="32" cy="32" r="28" pathLength="60" stroke-dasharray=".32 .68"/>
+              <circle class="orbit-rail" cx="32" cy="32" r="24"/>
               <circle id="clock-seconds-arc" cx="32" cy="32" r="24" pathLength="60" stroke-dasharray="0 60"
                 stroke="url(#orbit-colour)" transform="rotate(-90 32 32)"/>
             </svg>
@@ -65,7 +66,7 @@
     <section id="camera-view" aria-label="Camera" hidden>
       <div class="camera-frame">
         <img id="camera-image" alt="Camera image" decoding="async" draggable="false" hidden>
-        <video id="camera-video" aria-label="Camera video" autoplay muted playsinline poster="blank-video.svg?v=20261117-r17" disableremoteplayback hidden></video>
+        <video id="camera-video" aria-label="Camera video" autoplay muted playsinline poster="blank-video.svg?v=20261117-r18" disableremoteplayback hidden></video>
         <p id="camera-status" hidden></p>
       </div>
     </section>

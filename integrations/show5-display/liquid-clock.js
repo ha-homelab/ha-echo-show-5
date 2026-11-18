@@ -2,12 +2,19 @@
   "use strict";
 
   var WIDTH = 800, HEIGHT = 260, POINTS = 54;
-  var BANDS = 10, VIEW_DISTANCE = 425;
+  var BANDS = 12, VIEW_DISTANCE = 425;
   var REFLECTION = [20, 5, 16, 9, 24];
-  var PROFILE = Array.from({ length: BANDS + 1 }, function (_, i) {
-    var side = (2 * i / BANDS) - 1;
+  // Adjacent bands overlap slightly so antialiasing at a shared edge cannot
+  // reveal a dark seam. The outer bands stop at the actual silhouette.
+  var PROFILE = Array.from({ length: BANDS * 2 }, function (_, i) {
+    var band = Math.floor(i / 2);
+    var edge = i % 2 === 0 ? band - 0.12 : band + 1.12;
+    var side = 2 * Math.max(0, Math.min(BANDS, edge)) / BANDS - 1;
     return [side, Math.sqrt(1 - side * side)];
   });
+  var RING_STRIDE = PROFILE.length * 2;
+  var CAP = [Math.PI / 10, Math.PI / 5, 3 * Math.PI / 10, 2 * Math.PI / 5, Math.PI / 2]
+    .map(function (angle) { return [Math.sin(angle), Math.cos(angle)]; });
   var FRAME_MS = 50, MORPH_MS = 1150;
   var STORAGE_KEY = "show5-clock-style";
 
@@ -16,13 +23,13 @@
   // have different numbers of curves. Closed loops share their endpoints.
   var PATHS = [
     "M54 3 C18 3 8 39 8 83 C8 127 18 163 54 163 C90 163 100 127 100 83 C100 39 90 3 54 3Z",
-    "M23 35 C40 30 55 8 60 10 C66 12 62 111 62 161",
-    "M9 38 C15 17 30 3 54 3 C92 3 107 33 94 60 C81 88 26 110 11 159 C42 161 74 161 102 161",
-    "M13 20 C32 1 70 -5 90 13 C117 38 82 74 50 77 C92 68 112 113 91 142 C72 169 28 171 10 146",
-    "M68 5 C52 30 22 68 8 103 C34 105 76 104 104 104 M80 40 C80 84 80 122 80 161",
-    "M98 5 C71 5 47 5 20 6 C17 29 14 55 13 77 C33 59 69 60 86 75 C109 94 107 130 89 149 C69 170 29 169 10 145",
+    "M34 47 C46 38 54 24 63 15 C70 8 74 14 74 29 C74 54 67 108 66 158",
+    "M11 38 C18 16 33 4 56 4 C94 4 104 38 96 56 C84 83 48 107 25 129 C7 146 15 160 37 160 C59 160 78 158 101 158",
+    "M15 22 C36 0 73 -6 91 17 C109 42 86 61 66 67 C44 74 47 84 66 88 C92 93 109 119 89 145 C69 169 33 167 13 145",
+    "M68 5 C51 27 31 60 15 83 C4 99 10 104 31 104 C56 104 80 104 104 104 M80 39 C80 80 80 121 80 161",
+    "M99 5 C83 5 62 5 43 5 C23 5 18 13 16 32 C14 50 7 69 22 73 C38 77 59 66 79 73 C108 83 111 129 88 150 C68 170 34 168 12 145",
     "M93 15 C61 -12 25 11 14 49 C2 89 7 139 34 156 C62 174 96 157 101 128 C110 80 59 58 25 85 C18 91 12 99 11 111",
-    "M9 6 C39 5 75 5 101 6 C88 35 76 49 60 79 C44 109 35 134 32 162",
+    "M10 6 C29 5 59 5 81 6 C103 7 106 17 94 34 C79 55 47 103 32 159",
     "M54 79 C18 69 9 50 13 33 C18 11 33 3 54 3 C90 3 107 32 90 56 C83 67 68 75 54 79 C23 87 4 104 9 130 C13 151 30 163 54 163 C80 163 100 151 100 128 C100 103 82 89 54 79Z",
     "M15 149 C47 177 83 154 94 116 C107 75 101 26 74 9 C46 -9 12 8 7 37 C-2 85 49 108 83 80 C90 74 96 65 97 54"
   ];
@@ -55,11 +62,6 @@
     return t * t * (3 - 2 * t);
   }
 
-  function project(x, y, z) {
-    var scale = VIEW_DISTANCE / (VIEW_DISTANCE - z);
-    return [x * scale, y * scale];
-  }
-
   function palette(ctx, hue, lighting, specular, flow) {
     var paint = ctx.createLinearGradient(-90, -100 + flow, 85, 95 - flow);
     for (var i = 0; i < 5; i++) {
@@ -67,6 +69,44 @@
       paint.addColorStop(i / 4, "hsl(" + Math.round((hue + i * 47) % 360) + ", 93%, " + Math.round(colour) + "%)");
     }
     return paint;
+  }
+
+  function distance(a, b) {
+    return Math.hypot(a[0] - b[0], a[1] - b[1]);
+  }
+
+  function closedLoop(line) {
+    return distance(line[0], line[line.length - 1]) < 0.001;
+  }
+
+  function rollLoop(line, offset) {
+    if (!offset) { return line; }
+    var shifted = line.slice(offset, -1).concat(line.slice(0, offset));
+    return shifted.concat([shifted[0]]);
+  }
+
+  function alignLines(from, to) {
+    if (from === to || from[0] === from[1] || to[0] === to[1]) { return [from, to]; }
+    // Move a closed contour's arbitrary seam to the nearest matching point.
+    // For open strokes, match the closer endpoint direction. This prevents
+    // opposing samples from collapsing into a sharp knot during the morph.
+    var toClosed = closedLoop(to);
+    var rollFrom = !toClosed && closedLoop(from);
+    var shifts = toClosed || rollFrom ? POINTS - 1 : 1;
+    var best = Infinity, source = from, target = to;
+    [to, to.slice().reverse()].forEach(function (direction) {
+      for (var shift = 0; shift < shifts; shift++) {
+        var a = rollFrom ? rollLoop(from, shift) : from;
+        var b = toClosed ? rollLoop(direction, shift) : direction;
+        var cost = 0;
+        for (var p = 0; p < POINTS; p++) {
+          var dx = a[p][0] - b[p][0], dy = a[p][1] - b[p][1];
+          cost += dx * dx + dy * dy;
+        }
+        if (cost < best) { best = cost; source = a; target = b; }
+      }
+    });
+    return [source, target];
   }
 
   function ringsFor(line, wave) {
@@ -83,38 +123,85 @@
       return [cy * x + sy * z, cp * y - sp * turnedZ, sp * y + cp * turnedZ,
         21 + 3.6 * Math.sin(v * 0.042 + u * 0.022 - wave)];
     });
-    var closed = Math.hypot(centres[0][0] - centres[centres.length - 1][0],
-      centres[0][1] - centres[centres.length - 1][1]) < 1;
-    var rings = [];
+    var last = centres.length - 1;
+    var seam = distance(centres[0], centres[last]);
+    var closed = seam < 0.001;
+    var radii = centres.map(function (point, i) {
+      var before = centres[i ? i - 1 : closed ? last - 1 : 0];
+      var after = centres[i === last ? (closed ? 1 : last) : i + 1];
+      var dx = point[0] - before[0], dy = point[1] - before[1];
+      var ex = after[0] - point[0], ey = after[1] - point[1];
+      var cross = Math.abs(dx * ey - dy * ex);
+      if (cross < 0.001) { return point[3]; }
+      // Inner offsets fold when the tube outgrows the local bend. Fit a
+      // circumcircle through adjacent centres and leave room for perspective.
+      var bend = distance(before, point) * distance(point, after) * distance(before, after) / (2 * cross);
+      return Math.min(point[3], 0.86 * bend);
+    });
+    var total = 0;
+    for (var i = 1; i <= last; i++) {
+      var length = distance(centres[i - 1], centres[i]);
+      total += length;
+      radii[i] = Math.min(radii[i], radii[i - 1] + length * 0.42);
+    }
+    for (var j = last - 1; j >= 0; j--) {
+      radii[j] = Math.min(radii[j], radii[j + 1] + distance(centres[j], centres[j + 1]) * 0.42);
+    }
+    if (closed) { radii[0] = radii[last] = Math.min(radii[0], radii[last]); }
+    // One compact vertex buffer keeps the animation from allocating a
+    // coordinate pair for every projected point on every frame.
+    var rings = new Float32Array((centres.length + (closed ? 0 : 2 * CAP.length)) * RING_STRIDE);
+    var cursor = 0;
+    var growth = Math.min(1, total / 46);
+    var endJoin = Math.max(0, 1 - seam / 20);
 
     centres.forEach(function (point, i) {
-      var before = centres[i ? i - 1 : closed ? centres.length - 2 : 0];
-      var after = centres[i === centres.length - 1 ? (closed ? 1 : i) : i + 1];
+      var before = centres[i ? i - 1 : 0];
+      var after = centres[i === last ? last : i + 1];
       var dx = after[0] - before[0], dy = after[1] - before[1], dz = after[2] - before[2];
-      var flat = Math.hypot(dx, dy) || 1;
+      // Open ends ease into the shared closed-loop tangent during a morph.
+      if (endJoin && (i === 0 || i === last)) {
+        var wrapBefore = centres[last - 1], wrapAfter = centres[1];
+        dx = mix(dx, wrapAfter[0] - wrapBefore[0], endJoin);
+        dy = mix(dy, wrapAfter[1] - wrapBefore[1], endJoin);
+        dz = mix(dz, wrapAfter[2] - wrapBefore[2], endJoin);
+      }
+      var flat = Math.hypot(dx, dy);
+      if (flat < 0.001) {
+        dx = after[0] - point[0];
+        dy = after[1] - point[1];
+        dz = after[2] - point[2];
+        flat = Math.hypot(dx, dy);
+      }
+      if (flat < 0.001) { dx = 1; dy = dz = 0; flat = 1; }
       var length = Math.hypot(flat, dz);
       // The tube's cross section uses two axes perpendicular to its tangent.
       var nx = -dy / flat, ny = dx / flat;
       var bx = -ny * dz / length, by = nx * dz / length, bz = flat / length;
 
-      function ring(offset, radius) {
+      function appendRing(offset, radius) {
         var x = point[0] + dx * offset / length;
         var y = point[1] + dy * offset / length;
         var z = point[2] + dz * offset / length;
-        return PROFILE.map(function (sample) {
+        for (var index = 0; index < PROFILE.length; index++) {
+          var sample = PROFILE[index];
           var side = sample[0] * radius, front = sample[1] * radius;
-          return project(x + nx * side + bx * front, y + ny * side + by * front, z + bz * front);
-        });
+          var scale = VIEW_DISTANCE / (VIEW_DISTANCE - z - bz * front);
+          rings[cursor++] = (x + nx * side + bx * front) * scale;
+          rings[cursor++] = (y + ny * side + by * front) * scale;
+        }
       }
 
-      var radius = point[3];
-      // Extend a hemisphere from each open end without rounding across a loop.
+      var radius = radii[i] * growth;
+      var capLength = radius * (1 - endJoin);
       if (i === 0 && !closed) {
-        rings.push(ring(-radius, 0), ring(-0.87 * radius, 0.5 * radius), ring(-0.5 * radius, 0.87 * radius));
+        for (var cap = CAP.length - 1; cap >= 0; cap--) {
+          appendRing(-capLength * CAP[cap][0], radius * CAP[cap][1]);
+        }
       }
-      rings.push(ring(0, radius));
-      if (i === centres.length - 1 && !closed) {
-        rings.push(ring(0.5 * radius, 0.87 * radius), ring(0.87 * radius, 0.5 * radius), ring(radius, 0));
+      appendRing(0, radius);
+      if (i === last && !closed) {
+        CAP.forEach(function (step) { appendRing(capLength * step[0], radius * step[1]); });
       }
     });
     return rings;
@@ -122,9 +209,15 @@
 
   function ribbon(ctx, rings, left, right) {
     ctx.beginPath();
-    ctx.moveTo(rings[0][left][0], rings[0][left][1]);
-    for (var i = 1; i < rings.length; i++) { ctx.lineTo(rings[i][left][0], rings[i][left][1]); }
-    for (var j = rings.length - 1; j >= 0; j--) { ctx.lineTo(rings[j][right][0], rings[j][right][1]); }
+    var start = left * 2;
+    var opposite = right * 2;
+    ctx.moveTo(rings[start], rings[start + 1]);
+    for (var i = start + RING_STRIDE; i < rings.length; i += RING_STRIDE) {
+      ctx.lineTo(rings[i], rings[i + 1]);
+    }
+    for (var j = rings.length - RING_STRIDE + opposite; j >= 0; j -= RING_STRIDE) {
+      ctx.lineTo(rings[j], rings[j + 1]);
+    }
     ctx.closePath();
   }
 
@@ -140,27 +233,24 @@
     ctx.save();
     ctx.translate(6, 11);
     ctx.fillStyle = "rgba(0, 0, 12, 0.60)";
-    meshes.forEach(function (rings) { ribbon(ctx, rings, 0, BANDS); ctx.fill(); });
+    var edge = PROFILE.length - 1;
+    meshes.forEach(function (rings) { ribbon(ctx, rings, 0, edge); ctx.fill(); });
     ctx.restore();
 
-    var paints = PROFILE.slice(0, BANDS).map(function (sample, band) {
-      var near = (sample[1] + PROFILE[band + 1][1]) / 2;
+    var paints = [];
+    for (var band = 0; band < BANDS; band++) {
       var half = (band + 0.5) / BANDS;
-      var highlight = Math.exp(-70 * Math.pow(half - light, 2));
+      var side = 2 * half - 1;
+      var near = Math.sqrt(1 - side * side);
+      var highlight = Math.exp(-55 * Math.pow(half - light, 2));
       var lightness = 27 + 37 * near + 17 * highlight + 9 * Math.pow(half, 4);
-      return palette(ctx, hue + 17 * (1 - near), lightness, highlight, flow);
-    });
+      paints.push(palette(ctx, hue + 17 * (1 - near), lightness, highlight, flow));
+    }
     meshes.forEach(function (rings) {
-      ribbon(ctx, rings, 0, BANDS);
-      ctx.fillStyle = paints[0];
-      ctx.fill();
       for (var band = 0; band < BANDS; band++) {
-        ribbon(ctx, rings, band, band + 1);
-        ctx.fillStyle = ctx.strokeStyle = paints[band];
+        ribbon(ctx, rings, band * 2, band * 2 + 1);
+        ctx.fillStyle = paints[band];
         ctx.fill();
-        // Cover subpixel gaps between neighbouring bands on low-DPI displays.
-        ctx.lineWidth = 0.8;
-        ctx.stroke();
       }
     });
     ctx.restore();
@@ -189,7 +279,7 @@
     var seconds = document.getElementById("clock-seconds-number");
     var secondArc = document.getElementById("clock-seconds-arc");
     if (!canvas || !button || !period || !seconds || !secondArc || !formats.time.formatToParts ||
-        !root.matchMedia || !root.MutationObserver) { return null; }
+        !formats.calendar.formatToParts || !root.matchMedia || !root.MutationObserver) { return null; }
     var context;
     try { context = canvas.getContext("2d"); } catch (_) { return null; }
     if (!context) { return null; }
@@ -209,14 +299,10 @@
     var calendarDay = document.getElementById("clock-calendar-day");
     var calendarWeekday = document.getElementById("clock-calendar-weekday");
     var calendarMonth = document.getElementById("clock-calendar-month");
-    var calendarFormat = new Intl.DateTimeFormat(formats.locale, {
-      timeZone: formats.date.resolvedOptions().timeZone, weekday: "long",
-      day: "numeric", month: "long", year: "numeric"
-    });
     var media = root.matchMedia("(prefers-reduced-motion: reduce)");
     var stored = readStyle();
     var style = stored === "classic" || stored === "liquid" ? stored : config && config.clockStyle === "classic" ? "classic" : "liquid";
-    var lastSecond, digits = "", glyphs = [], hourLength = 0, start = 0, timer = null, pageHidden = false;
+    var lastSecond, lastArc, drawnStill = null, digits = "", glyphs = [], hourLength = 0, start = 0, timer = null, pageHidden = false;
 
     function visible() {
       return style === "liquid" && glyphs.length > 0 && !document.hidden && !pageHidden &&
@@ -252,15 +338,36 @@
         seconds.textContent = (whole < 10 ? "0" : "") + whole;
         lastSecond = whole;
       }
-      secondArc.setAttribute("stroke-dasharray", (media.matches ? whole : intoMinute.toFixed(2)) + " 60");
+      var arc = (media.matches ? whole : intoMinute.toFixed(2)) + " 60";
+      if (arc !== lastArc) {
+        secondArc.setAttribute("stroke-dasharray", arc);
+        lastArc = arc;
+      }
+    }
+
+    function paintFrame() {
+      timer = null;
+      if (!visible()) { return; }
+      var frameStart = root.performance.now();
+      updateSeconds(Date.now());
+      if (!media.matches || drawnStill !== glyphs) {
+        render(frameStart);
+        drawnStill = media.matches ? glyphs : null;
+      }
+      if (!media.matches) {
+        // Aim for the frame interval including render time. Keep a gap even
+        // on a slow WebView so drawing cannot monopolize the event loop.
+        var delay = Math.max(16, FRAME_MS - (root.performance.now() - frameStart));
+        timer = root.setTimeout(paintFrame, delay);
+      }
     }
 
     function refresh() {
-      if (timer !== null) { root.clearTimeout(timer); timer = null; }
-      if (!visible()) { return; }
-      updateSeconds(Date.now());
-      render(root.performance.now());
-      if (!media.matches) { timer = root.setTimeout(refresh, FRAME_MS); }
+      if (timer !== null && (!visible() || media.matches)) {
+        root.clearTimeout(timer);
+        timer = null;
+      }
+      if (timer === null && visible()) { paintFrame(); }
     }
 
     function select() {
@@ -300,8 +407,12 @@
         var t = media.matches || !visible() ? 1 : progress(now - start);
         glyphs = next.split("").map(function (digit, i) {
           var to = paths[Number(digit)];
-          var from = previous[i] ? interpolate(previous[i].from, previous[i].to, t) : to;
-          return { from: from, to: to };
+          var old = previous[i];
+          if (!old) { return { digit: digit, from: to, to: to }; }
+          if (old.digit === digit && t === 1) { return { digit: digit, from: old.to, to: old.to }; }
+          var from = interpolate(old.from, old.to, t);
+          var paired = [alignLines(from[0], to[0]), alignLines(from[1], to[1])];
+          return { digit: digit, from: [paired[0][0], paired[1][0]], to: [paired[0][1], paired[1][1]] };
         });
         hourLength = hour.value.length;
       }
@@ -312,7 +423,7 @@
 
     function updateDate(instant) {
       var date = {};
-      calendarFormat.formatToParts(instant).forEach(function (part) { date[part.type] = part.value; });
+      formats.calendar.formatToParts(instant).forEach(function (part) { date[part.type] = part.value; });
       calendarDay.textContent = date.day;
       calendarWeekday.textContent = date.weekday;
       calendarMonth.textContent = date.month + " · " + date.year;

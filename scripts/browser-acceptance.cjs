@@ -80,7 +80,7 @@ async function main() {
       if (ws.url() !== origin.replace('http:', 'ws:') + '/api/websocket') {
         unexpected.push(ws.url()); ws.close(); return;
       }
-      const connection = {ws, closed:false, subscriptions:[], mode:behavior};
+      const connection = {ws, closed:false, subscriptions:[], mode:behavior, remote:Boolean(selection.remoteTarget)};
       sockets.push(connection);
       ws.onClose(() => { connection.closed=true; });
       ws.onMessage(raw => {
@@ -93,6 +93,9 @@ async function main() {
           connection.subscriptions.push(message.id);
           const error = connection.mode === 'unknown' ? 'unknown_command' : connection.mode === 'forbidden' ? 'unauthorized' : null;
           ws.send(JSON.stringify({type:'result',id:message.id,success:!error,...(error ? {error:{code:error}} : {})}));
+        } else if (message.type === 'subscribe_events' && connection.remote) {
+          assert.equal(message.event_type,'show5_remote_display');
+          ws.send(JSON.stringify({type:'result',id:message.id,success:true}));
         } else if (message.type === 'ping') ws.send(JSON.stringify({type:'pong',id:message.id}));
         else throw new Error('Unexpected synthetic HA command: ' + message.type);
       });
@@ -130,7 +133,8 @@ async function main() {
     for (const [locale,title] of Object.entries(languages)) {
       for (const hour12 of [false,true]) {
         await scenario(`${locale} ${hour12?'12':'24'}-hour clock renders and advances at both viewport sizes`,async () => {
-          await go({locale,hour12}); await waitState('ready');
+          await go({locale,hour12,remoteTarget:'clock_fixture',room:{offline:false}}); await waitState('ready');
+          assert(await page.locator('#room-toggle').isVisible());
           assert.equal(await page.title(),title);
           assert.equal(await page.locator('html').getAttribute('lang'),locale);
           assert.equal(await page.locator('html').getAttribute('data-hour-cycle'),hour12?'h12':'h23');
@@ -141,7 +145,11 @@ async function main() {
               const r=document.querySelector('#clock-time').getBoundingClientRect();
               const d=document.querySelector('#clock-date').getBoundingClientRect();
               const b=document.querySelector('#clock-style').getBoundingClientRect();
-              const controlsOverlap=d.right>b.left && b.right>d.left && d.bottom>b.top && b.bottom>d.top;
+              const room=document.querySelector('#room-toggle').getBoundingClientRect();
+              function overlap(a,b) {
+                return a.right>b.left && b.right>a.left && a.bottom>b.top && b.bottom>a.top;
+              }
+              const controlsOverlap=overlap(d,b) || (innerHeight<=300 && (overlap(r,room) || overlap(d,room)));
               return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,dateLeft:d.left,dateRight:d.right,dateTop:d.top,dateBottom:d.bottom,width:innerWidth,height:innerHeight,scroll:document.documentElement.scrollWidth,controlsOverlap};
             });
             assert(bounds.left>=0 && bounds.right<=bounds.width && bounds.top>=0 && bounds.bottom<=bounds.height && bounds.dateLeft>=0 && bounds.dateRight<=bounds.width && bounds.dateTop>=0 && bounds.dateBottom<=bounds.height && bounds.scroll<=bounds.width && !bounds.controlsOverlap,'Clock and controls must fit without overlap');
@@ -283,10 +291,18 @@ async function main() {
       assert.equal(await day.textContent(),'1');
       assert.equal(await month.textContent(),'January · 2027');
       assert.equal(await weekday.textContent(),'Friday');
+      assert.match(await page.locator('#clock-time').getAttribute('aria-label'),/^12:00:00.*AM$/);
       await page.emulateMedia({reducedMotion:'reduce'});
       await page.clock.runFor(1250);
       assert.match(await arc.getAttribute('stroke-dasharray'),/^1 60$/);
       assert.equal(await seconds.textContent(),'01');
+      // January 1 is also Friday in 2038. The year must still refresh.
+      await page.clock.setSystemTime(new Date('2038-01-01T08:00:00.120Z'));
+      await page.clock.runFor(250);
+      await page.evaluate(()=>window.dispatchEvent(new Event('pageshow')));
+      assert.equal(await weekday.textContent(),'Friday');
+      assert.equal(await month.textContent(),'January · 2038');
+      assert.match(await page.locator('#clock-date-label').textContent(),/2038/);
     });
     assert.equal(scenarios.length,16);
     fs.writeFileSync(process.env.CI_BROWSER_EVIDENCE,JSON.stringify({...runtime,scenarios,testsPassed:scenarios.length,testsFailed:0,
