@@ -478,23 +478,21 @@ test("offscreen decode is abortable and never mutates the visible image", async 
 
 function browserHarness(config = CONFIG, search = "?external_auth=1") {
   const document = fakeDocument(); const timers = new Timers();
-  const calls = []; const events = []; const listeners = {}; const intervals = new Map();
-  let intervalId = 0;
+  const calls = []; const events = []; const listeners = {};
   const sandbox = { document, SHOW5_DISPLAY_CONFIG: config, location: { search },
     Show5Auth: { fetchSnapshot(entityId, options) { calls.push({ entityId, options }); return new Promise(() => {}); } },
     URL: { createObjectURL() { return "blob:browser"; }, revokeObjectURL() {} }, URLSearchParams, AbortController,
     performance: { now: () => timers.time }, setTimeout: timers.set, clearTimeout: timers.clear,
-    setInterval(fn) { const id = ++intervalId; intervals.set(id, fn); return id; }, clearInterval(id) { intervals.delete(id); },
     addEventListener(name, fn) { listeners[name] = fn; }, dispatchEvent(event) { events.push(event.type); },
     Event: class { constructor(type) { this.type = type; } }
   };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, "../i18n.js"), "utf8"), sandbox);
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, "../display.js"), "utf8"), sandbox);
-  return { sandbox, document, timers, calls, events, listeners, intervals };
+  return { sandbox, document, timers, calls, events, listeners };
 }
 
 test("browser bootstrap exposes only the display controls and delegates authenticated snapshots", async () => {
-  const { sandbox, document, calls, events, listeners, intervals } = browserHarness();
+  const { sandbox, document, timers, calls, events, listeners } = browserHarness();
   assert.deepEqual(Object.keys(sandbox.Show5Display).sort(), ["showCamera", "showClock", "showMotionCamera"]);
   assert.ok(events.includes("show5-display-ready"));
   assert.match(document.elements["clock-time"].textContent, /^\d{2}:\d{2}$/);
@@ -503,9 +501,9 @@ test("browser bootstrap exposes only the display controls and delegates authenti
   assert.equal(calls[0].entityId, "camera.porch");
   document.hidden = true; document.listeners.visibilitychange();
   assert.equal(calls[0].options.signal.aborted, true);
-  listeners.pagehide(); assert.equal(intervals.size, 0);
+  listeners.pagehide(); assert.equal(timers.tasks.size, 0);
   document.hidden = false; listeners.pageshow();
-  assert.equal(intervals.size, 1);
+  assert.equal(timers.tasks.size, 1);
   assert.equal(document.elements["camera-view"].hidden, true);
 });
 
@@ -528,15 +526,15 @@ test("browser bootstrap applies the configured locale without URL overrides or n
 
 test("page assets are local, CSP disallows external scripts and camera CSS preserves aspect", () => {
   const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
-  assert.deepEqual([...html.matchAll(/<script src="([^"]+)" defer>/g)].map(x => x[1]), ["config.js?v=20261029-r15", "i18n.js?v=20261029-r15", "room.js?v=20261029-r15", "stream.js?v=20261029-r15", "auth.js?v=20261029-r15", "display.js?v=20261029-r15"]);
-  assert.match(html, /href="display.css\?v=20261029-r15"/);
+  assert.deepEqual([...html.matchAll(/<script src="([^"]+)" defer>/g)].map(x => x[1]), ["config.js?v=20261117-r18", "i18n.js?v=20261117-r18", "room.js?v=20261117-r18", "stream.js?v=20261117-r18", "auth.js?v=20261117-r18", "liquid-clock.js?v=20261117-r18", "display.js?v=20261117-r18"]);
+  assert.match(html, /href="display.css\?v=20261117-r18"/);
   assert.match(html, /default-src 'none'/);
   assert.match(html, /script-src 'self'/);
   assert.match(html, /connect-src 'self'/);
   assert.match(html, /img-src 'self' blob:/);
   assert.doesNotMatch(html, /https?:\/\/|unsafe-inline|unsafe-eval|<iframe|<audio/);
   assert.match(html, /media-src 'self' blob:/);
-  assert.match(html, /<video id="camera-video" aria-label="Camera video" autoplay muted playsinline poster="blank-video.svg\?v=20261029-r15" disableremoteplayback hidden>/);
+  assert.match(html, /<video id="camera-video" aria-label="Camera video" autoplay muted playsinline poster="blank-video.svg\?v=20261117-r18" disableremoteplayback hidden>/);
   const css = fs.readFileSync(path.join(__dirname, "../display.css"), "utf8");
   assert.match(css, /object-fit:\s*cover/);
   assert.doesNotMatch(css, /@import|https?:\/\//);

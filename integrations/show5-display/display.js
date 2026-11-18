@@ -372,15 +372,56 @@
     var formats = i18n.createFormatters(config && config.locale, config);
     document.documentElement.dataset.hourCycle = config && config.hour12 ? "h12" : "h23";
     document.documentElement.dataset.formatLocale = formats.locale;
+    var clockView = document.getElementById("clock-view");
+    var clockTime = document.getElementById("clock-time");
+    var clockLabel = document.getElementById("clock-label") || clockTime;
+    var clockDate = document.getElementById("clock-date-label") || document.getElementById("clock-date");
+    var language = i18n.create(config && config.locale);
+    var liquid = root.Show5LiquidClock && root.Show5LiquidClock.create(document, root.SHOW5_DISPLAY_CONFIG, language, formats);
+    var lastTime, lastCalendar, lastDate, lastAccessibleTime;
     function tick() {
       var instant = new Date();
-      document.getElementById("clock-time").textContent = formats.time.format(instant);
-      document.getElementById("clock-date").textContent = formats.date.format(instant);
+      var time = formats.time.format(instant);
+      if (time !== lastTime) {
+        clockLabel.textContent = lastTime = time;
+        if (liquid) { liquid.updateTime(formats.time, instant); }
+      }
+      var withSeconds = liquid && clockView.classList.contains("liquid-style");
+      var accessibleTime = withSeconds ? formats.preciseTime.format(instant) : time;
+      if (accessibleTime !== lastAccessibleTime) {
+        clockTime.setAttribute("aria-label", accessibleTime);
+        clockTime.setAttribute("datetime", instant.toISOString());
+        lastAccessibleTime = accessibleTime;
+      }
+      var calendar = formats.calendar.format(instant);
+      if (calendar !== lastCalendar) {
+        lastCalendar = calendar;
+        lastDate = formats.date.format(instant);
+        if (liquid) { liquid.updateDate(instant); }
+      }
+      var dateLabel = withSeconds ? lastCalendar : lastDate;
+      if (clockDate.textContent !== dateLabel) { clockDate.textContent = dateLabel; }
+      if (liquid) { liquid.tick(instant); }
     }
-    tick();
-    var clockTimer = root.setInterval(tick, 1000);
+    var clockTimer;
+    function tickAndSchedule() {
+      tick();
+      // Keep minute rollover aligned with the graphical seconds indicator.
+      clockTimer = root.setTimeout(tickAndSchedule, 1000 - Date.now() % 1000);
+    }
+    tickAndSchedule();
+    var controller;
+    root.addEventListener("pagehide", function () {
+      if (controller) { controller.setHidden(true); }
+      root.clearTimeout(clockTimer);
+    });
+    root.addEventListener("pageshow", function () {
+      if (controller) { controller.setHidden(document.hidden); }
+      root.clearTimeout(clockTimer);
+      tickAndSchedule();
+    });
     if (!config) { view.showClock(); return; }
-    var controller = createController({ config: config, view: view, startVideo: function (entityId, video, options) {
+    controller = createController({ config: config, view: view, startVideo: function (entityId, video, options) {
       if (!root.Show5Auth || typeof root.Show5Auth.startVideo !== "function") { return Promise.reject(new Error("Video is unavailable")); }
       return root.Show5Auth.startVideo(entityId, video, options);
     }, fetchSnapshot: function (entityId, options) {
@@ -393,13 +434,6 @@
       showMotionCamera: controller.showMotionCamera, showClock: controller.showClock });
     document.getElementById("camera-image").addEventListener("error", controller.snapshotFailed);
     document.addEventListener("visibilitychange", function () { controller.setHidden(document.hidden); });
-    root.addEventListener("pagehide", function () { controller.setHidden(true); root.clearInterval(clockTimer); });
-    root.addEventListener("pageshow", function () {
-      controller.setHidden(document.hidden);
-      root.clearInterval(clockTimer);
-      tick();
-      clockTimer = root.setInterval(tick, 1000);
-    });
     controller.setHidden(document.hidden);
     var initialRole = roleFromSearch(root.location.search);
     if (initialRole) { controller.showCamera(initialRole); }

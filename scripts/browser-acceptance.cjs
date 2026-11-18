@@ -12,7 +12,7 @@ const runtime = JSON.parse(fs.readFileSync(path.join(diagnostics, 'runtime.json'
 const root = path.resolve(__dirname, '..');
 const candidateMode = Boolean(process.env.CI_BROWSER_CANDIDATE_ARTIFACT_ID);
 const directory = path.join(root, candidateMode ? '.browser-display' : 'integrations/show5-display');
-const names = ['index.html', 'display.css', 'i18n.js', 'stream.js', 'auth.js', 'display.js', 'room.js', 'offline-worker.js', 'blank-video.svg'];
+const names = ['index.html', 'display.css', 'i18n.js', 'stream.js', 'auth.js', 'liquid-clock.js', 'display.js', 'room.js', 'offline-worker.js', 'blank-video.svg'];
 const assets = new Map(names.map(name => {
   const file = path.join(directory, name);
   assert(fs.lstatSync(file).isFile() && !fs.lstatSync(file).isSymbolicLink());
@@ -32,7 +32,7 @@ const server = http.createServer((request, response) => {
     return response.writeHead(405).end();
   }
   if (url.pathname === '/config.js') {
-    const config = {...selection, timeZone:'UTC', cameraSeconds:5, cameraMode:'snapshots', cameras:{front:{entityId:'camera.front',motion:{topic:'fixture/front',payload:'motion'}}}};
+    const config = {timeZone:'UTC', ...selection, cameraSeconds:5, cameraMode:'snapshots', cameras:{front:{entityId:'camera.front',motion:{topic:'fixture/front',payload:'motion'}}}};
     response.writeHead(200, {'Content-Type':'text/javascript', 'Cache-Control':'no-store'});
     return response.end('window.SHOW5_DISPLAY_CONFIG=' + JSON.stringify(config) + ';');
   }
@@ -80,7 +80,7 @@ async function main() {
       if (ws.url() !== origin.replace('http:', 'ws:') + '/api/websocket') {
         unexpected.push(ws.url()); ws.close(); return;
       }
-      const connection = {ws, closed:false, subscriptions:[], mode:behavior};
+      const connection = {ws, closed:false, subscriptions:[], mode:behavior, remote:Boolean(selection.remoteTarget)};
       sockets.push(connection);
       ws.onClose(() => { connection.closed=true; });
       ws.onMessage(raw => {
@@ -93,6 +93,9 @@ async function main() {
           connection.subscriptions.push(message.id);
           const error = connection.mode === 'unknown' ? 'unknown_command' : connection.mode === 'forbidden' ? 'unauthorized' : null;
           ws.send(JSON.stringify({type:'result',id:message.id,success:!error,...(error ? {error:{code:error}} : {})}));
+        } else if (message.type === 'subscribe_events' && connection.remote) {
+          assert.equal(message.event_type,'show5_remote_display');
+          ws.send(JSON.stringify({type:'result',id:message.id,success:true}));
         } else if (message.type === 'ping') ws.send(JSON.stringify({type:'pong',id:message.id}));
         else throw new Error('Unexpected synthetic HA command: ' + message.type);
       });
@@ -130,7 +133,8 @@ async function main() {
     for (const [locale,title] of Object.entries(languages)) {
       for (const hour12 of [false,true]) {
         await scenario(`${locale} ${hour12?'12':'24'}-hour clock renders and advances at both viewport sizes`,async () => {
-          await go({locale,hour12}); await waitState('ready');
+          await go({locale,hour12,remoteTarget:'clock_fixture',room:{offline:false}}); await waitState('ready');
+          assert(await page.locator('#room-toggle').isVisible());
           assert.equal(await page.title(),title);
           assert.equal(await page.locator('html').getAttribute('lang'),locale);
           assert.equal(await page.locator('html').getAttribute('data-hour-cycle'),hour12?'h12':'h23');
@@ -140,12 +144,19 @@ async function main() {
             const bounds = await page.evaluate(() => {
               const r=document.querySelector('#clock-time').getBoundingClientRect();
               const d=document.querySelector('#clock-date').getBoundingClientRect();
-              return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,dateLeft:d.left,dateRight:d.right,dateTop:d.top,dateBottom:d.bottom,width:innerWidth,height:innerHeight,scroll:document.documentElement.scrollWidth};
+              const b=document.querySelector('#clock-style').getBoundingClientRect();
+              const room=document.querySelector('#room-toggle').getBoundingClientRect();
+              function overlap(a,b) {
+                return a.right>b.left && b.right>a.left && a.bottom>b.top && b.bottom>a.top;
+              }
+              const controlsOverlap=overlap(d,b) || (innerHeight<=300 && (overlap(r,room) || overlap(d,room)));
+              return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,dateLeft:d.left,dateRight:d.right,dateTop:d.top,dateBottom:d.bottom,width:innerWidth,height:innerHeight,scroll:document.documentElement.scrollWidth,controlsOverlap};
             });
-            assert(bounds.left>=0 && bounds.right<=bounds.width && bounds.top>=0 && bounds.bottom<=bounds.height && bounds.dateLeft>=0 && bounds.dateRight<=bounds.width && bounds.dateTop>=0 && bounds.dateBottom<=bounds.height && bounds.scroll<=bounds.width,'Clock must fit the tested viewport');
+            assert(bounds.left>=0 && bounds.right<=bounds.width && bounds.top>=0 && bounds.bottom<=bounds.height && bounds.dateLeft>=0 && bounds.dateRight<=bounds.width && bounds.dateTop>=0 && bounds.dateBottom<=bounds.height && bounds.scroll<=bounds.width && !bounds.controlsOverlap,'Clock and controls must fit without overlap');
           }
           const before=await page.locator('#clock-time').innerText();
-          await page.clock.runFor(60000);
+          await page.clock.setSystemTime(new Date('2026-10-15T21:34:59.500Z'));
+          await page.clock.runFor(1000);
           await eventually(() => page.locator('#clock-time').innerText().then(value => value!==before),true,'DOM clock must advance after real timer callbacks');
           await page.screenshot({path:path.join(diagnostics,`${locale}-${hour12?'12':'24'}.png`)});
         });
@@ -162,6 +173,10 @@ async function main() {
       await eventually(() => page.locator('#camera-image').evaluate(image => !image.hidden && image.complete && image.naturalWidth>0),true,'Actual image must decode');
       assert.equal(await page.locator('#camera-view').getAttribute('aria-label'),'Front');
       assert.equal(await page.locator('#clock-view').isVisible(),false);
+      const frame = () => page.locator('#liquid-clock').evaluate(canvas => canvas.toDataURL());
+      const paused = await frame();
+      await page.clock.runFor(500);
+      assert.equal(await frame(),paused);
       await page.clock.runFor(5001);
       await eventually(() => page.locator('#clock-view').isVisible(),true,'Camera lease must return to the clock');
       assert(snapshots.length>0);
@@ -203,7 +218,93 @@ async function main() {
       assert.deepEqual(await page.evaluate(()=>[localStorage.length,sessionStorage.length,document.cookie]),[0,0,'']);
       assert(!(await page.locator('body').innerText()).includes(token));
     });
-    assert.equal(scenarios.length,14);
+    await scenario('Liquid 3D is the default and preserves a Classic or reduced-motion choice',async () => {
+      await page.setViewportSize({width:960,height:480});
+      await go(); await waitState('ready');
+      const canvas=page.locator('#liquid-clock');
+      const style=page.locator('#clock-style');
+      const frame=() => canvas.evaluate(element=>element.toDataURL());
+      assert(await canvas.isVisible());
+      assert.equal(await style.getAttribute('aria-label'),'Clock style: Liquid 3D');
+      await page.screenshot({path:path.join(diagnostics,'liquid-960.png')});
+      const silhouette=() => canvas.evaluate(element=> {
+        const pixels=element.getContext('2d').getImageData(0,0,element.width,element.height).data;
+        let hash=0;
+        for (let i=3;i<pixels.length;i+=4) hash=(Math.imul(hash,31)+(pixels[i]>240 ? 1 : 0))|0;
+        return hash;
+      });
+      const previous=await silhouette();
+      await page.clock.runFor(250);
+      assert.notEqual(await silhouette(),previous,'The silhouette must move, including at an unchanged time');
+      await page.clock.setSystemTime(new Date('2026-10-15T21:39:59.500Z'));
+      await page.clock.runFor(1000);
+      assert.equal(await page.locator('#clock-time').innerText(),'21:40');
+      const start=await frame();
+      await page.clock.runFor(550);
+      assert.notEqual(await frame(),start);
+      await page.clock.runFor(700);
+      await page.screenshot({path:path.join(diagnostics,'liquid-next-minute.png')});
+      await page.evaluate(()=>document.querySelector('#clock-view').classList.add('room-open'));
+      const covered=await frame();
+      await page.clock.runFor(250);
+      assert.equal(await frame(),covered);
+      await page.evaluate(()=>document.querySelector('#clock-view').classList.remove('room-open'));
+      await page.emulateMedia({reducedMotion:'reduce'});
+      await eventually(async()=> {
+        const still=await frame();
+        await page.clock.runFor(250);
+        return await frame()===still;
+      },true,'Reduced motion leaves the clock still');
+      await style.evaluate(button=>button.click());
+      assert.equal(await canvas.isVisible(),false);
+      assert.equal(await style.getAttribute('aria-label'),'Clock style: Classic');
+      await go(); await waitState('ready');
+      assert.equal(await canvas.isVisible(),false);
+      await style.evaluate(button=>button.click());
+      assert(await canvas.isVisible());
+      await page.evaluate(()=>localStorage.removeItem('show5-clock-style'));
+      await go({locale:'en-US',clockStyle:'classic'}); await waitState('ready');
+      assert.equal(await canvas.isVisible(),false);
+    });
+    await scenario('seconds sweep and the calendar changes at midnight in the configured time zone', async () => {
+      await page.emulateMedia({reducedMotion:'no-preference'});
+      await go({locale:'en-US',hour12:true,timeZone:'America/Los_Angeles'}); await waitState('ready');
+      const seconds=page.locator('#clock-seconds-number');
+      const arc=page.locator('#clock-seconds-arc');
+      const day=page.locator('#clock-calendar-day');
+      const month=page.locator('#clock-calendar-month');
+      const weekday=page.locator('#clock-calendar-weekday');
+      const time=page.locator('#clock-label');
+      await page.clock.setSystemTime(new Date('2027-01-01T07:59:58.500Z'));
+      await page.clock.runFor(1000);
+      assert.match(await time.textContent(),/^11:59.*PM$/);
+      assert.equal(await day.textContent(),'31');
+      assert.equal(await month.textContent(),'December · 2026');
+      assert.equal(await weekday.textContent(),'Thursday');
+      assert.equal(await seconds.textContent(),'59');
+      const before=parseFloat(await arc.getAttribute('stroke-dasharray'));
+      await page.clock.runFor(200);
+      assert(parseFloat(await arc.getAttribute('stroke-dasharray'))>before,'The ring sweeps between seconds');
+      await page.clock.runFor(420);
+      assert.match(await time.textContent(),/^12:00.*AM$/);
+      assert.equal(await seconds.textContent(),'00');
+      assert.equal(await day.textContent(),'1');
+      assert.equal(await month.textContent(),'January · 2027');
+      assert.equal(await weekday.textContent(),'Friday');
+      assert.match(await page.locator('#clock-time').getAttribute('aria-label'),/^12:00:00.*AM$/);
+      await page.emulateMedia({reducedMotion:'reduce'});
+      await page.clock.runFor(1250);
+      assert.match(await arc.getAttribute('stroke-dasharray'),/^1 60$/);
+      assert.equal(await seconds.textContent(),'01');
+      // January 1 is also Friday in 2038. The year must still refresh.
+      await page.clock.setSystemTime(new Date('2038-01-01T08:00:00.120Z'));
+      await page.clock.runFor(250);
+      await page.evaluate(()=>window.dispatchEvent(new Event('pageshow')));
+      assert.equal(await weekday.textContent(),'Friday');
+      assert.equal(await month.textContent(),'January · 2038');
+      assert.match(await page.locator('#clock-date-label').textContent(),/2038/);
+    });
+    assert.equal(scenarios.length,16);
     fs.writeFileSync(process.env.CI_BROWSER_EVIDENCE,JSON.stringify({...runtime,scenarios,testsPassed:scenarios.length,testsFailed:0,
       applicationFiles:Object.fromEntries([...assets].map(([name,bytes])=>[name,crypto.createHash('sha256').update(bytes).digest('hex')])),
       ...(candidate?{candidateArchiveSha256:candidate.archiveSha256}:{})},null,2)+'\n');
