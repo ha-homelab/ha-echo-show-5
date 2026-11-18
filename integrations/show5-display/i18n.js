@@ -7,6 +7,7 @@
   var MESSAGES = Object.freeze({
     en: Object.freeze({
       room: "Room", offline: "Home Assistant offline", stale: "Last known value", received: "Checked", working: "Working…", sent: "Done", actionFailed: "Not confirmed. Check the device before retrying.", dismiss: "Dismiss", localTimer: "Local timer", homeTimer: "Home timer", timerDone: "Time is up", localTimerNote: "Local chime requires this page to stay open.", minutes: "min", clear: "Clear", storageUnavailable: "Timer cannot be saved on this device.", offlineUnavailable: "Offline page cache is unavailable.",
+      clockStyle: "Clock style", clockLiquid: "Liquid 3D", clockClassic: "Classic",
       title: "Clock", display: "Clock and camera", clock: "Clock", camera: "Camera",
       cameraImage: "Camera image", cameraVideo: "Camera video",
       loading: "Loading camera…", connecting: "Connecting to camera…",
@@ -14,6 +15,7 @@
     }),
     ru: Object.freeze({
       room: "Комната", offline: "Home Assistant недоступен", stale: "Последнее известное значение", received: "Проверено", working: "Выполняется…", sent: "Готово", actionFailed: "Не подтверждено. Проверьте устройство перед повтором.", dismiss: "Закрыть", localTimer: "Локальный таймер", homeTimer: "Таймер дома", timerDone: "Время вышло", localTimerNote: "Для сигнала оставьте эту страницу открытой.", minutes: "мин", clear: "Сбросить", storageUnavailable: "Таймер не удалось сохранить на устройстве.", offlineUnavailable: "Офлайн-кэш страницы недоступен.",
+      clockStyle: "Стиль часов", clockLiquid: "Жидкие 3D", clockClassic: "Классика",
       title: "Часы", display: "Часы и камера", clock: "Часы", camera: "Камера",
       cameraImage: "Изображение с камеры", cameraVideo: "Видео с камеры",
       loading: "Загрузка камеры…", connecting: "Подключение к камере…",
@@ -21,6 +23,7 @@
     }),
     de: Object.freeze({
       room: "Zimmer", offline: "Home Assistant offline", stale: "Letzter bekannter Wert", received: "Geprüft", working: "Wird ausgeführt…", sent: "Erledigt", actionFailed: "Nicht bestätigt. Gerät vor erneutem Versuch prüfen.", dismiss: "Schließen", localTimer: "Lokaler Timer", homeTimer: "Haus-Timer", timerDone: "Zeit abgelaufen", localTimerNote: "Für den Signalton muss diese Seite offen bleiben.", minutes: "Min.", clear: "Löschen", storageUnavailable: "Timer kann nicht gespeichert werden.", offlineUnavailable: "Offline-Seitenspeicher nicht verfügbar.",
+      clockStyle: "Uhrstil", clockLiquid: "Flüssig 3D", clockClassic: "Klassisch",
       title: "Uhr", display: "Uhr und Kamera", clock: "Uhr", camera: "Kamera",
       cameraImage: "Kamerabild", cameraVideo: "Kameravideo",
       loading: "Kamera wird geladen…", connecting: "Verbindung zur Kamera…",
@@ -28,6 +31,7 @@
     }),
     es: Object.freeze({
       room: "Habitación", offline: "Home Assistant sin conexión", stale: "Último valor conocido", received: "Comprobado", working: "Procesando…", sent: "Hecho", actionFailed: "Sin confirmar. Compruebe el dispositivo antes de repetir.", dismiss: "Cerrar", localTimer: "Temporizador local", homeTimer: "Temporizador de casa", timerDone: "Se acabó el tiempo", localTimerNote: "Deje esta página abierta para oír el aviso.", minutes: "min", clear: "Borrar", storageUnavailable: "No se puede guardar el temporizador.", offlineUnavailable: "Caché de página sin conexión no disponible.",
+      clockStyle: "Estilo del reloj", clockLiquid: "Líquido 3D", clockClassic: "Clásico",
       title: "Reloj", display: "Reloj y cámara", clock: "Reloj", camera: "Cámara",
       cameraImage: "Imagen de la cámara", cameraVideo: "Vídeo de la cámara",
       loading: "Cargando cámara…", connecting: "Conectando con la cámara…",

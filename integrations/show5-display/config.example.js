@@ -7,6 +7,8 @@ window.SHOW5_DISPLAY_CONFIG = {
   locale: "en-US",
   // Keep the compact 24-hour clock, or use true for a 12-hour clock.
   hour12: false,
+  // "liquid" (default) or "classic". The screen's Clock style button can override this.
+  clockStyle: "liquid",
   timeZone: "America/Los_Angeles",
   cameraSeconds: 30,
   // Optional: match the generated HA remote endpoint prefix. No credentials.

@@ -10,6 +10,14 @@ the entire screen without a title or clock header. `object-fit: cover` preserves
 proportions and crops the excess at the edges instead of stretching or adding
 borders; timestamps embedded by a camera remain part of its video.
 
+Revision **`20261117-r16`** opens on **Liquid 3D**, with rounded multicolour
+digits that bend, change colour and morph when time advances. Tap the style
+button in the lower right to switch to **Classic** or back. The choice is saved
+in this display's browser storage. A fresh installation starts in Liquid 3D
+unless `clockStyle: "classic"` is set in `config.js`. The animation stops
+behind cameras and the Room panel or when the page is hidden. Reduced motion
+keeps the Liquid 3D colours and updates the time with a static redraw.
+
 Revision **`20261029-r15`** keeps a successful live static response even if
 the offline cache is unavailable or its refresh fails, for example because
 storage was evicted or its quota is exhausted. A cache-write failure no longer substitutes old content or a network
@@ -127,6 +135,7 @@ Set these non-secret fields in the device's ignored `config.js`:
 ```javascript
 locale: "en-US", // en / ru / de / es, optionally with a region
 hour12: false,   // false: 00:05; true: 12:05 AM (day period follows the locale)
+clockStyle: "liquid", // fresh-install default; use "classic" for plain digits
 timeZone: "America/Los_Angeles",
 ```
 
@@ -138,7 +147,7 @@ not override this setting. `hour12` must be a boolean when supplied; omission
 keeps the existing 24-hour format. The configured IANA time zone controls the
 date and daylight saving transitions independently of the locale.
 
-All 12 page strings are in the same-origin `i18n.js` file: page title, accessible
+Display strings are in the same-origin `i18n.js` file: page title, accessible
 clock/camera/image/video names, loading/connecting/delayed/unavailable messages
 and default Front/Porch names. No translation service, remote font or additional
 network request is used. `document.documentElement.lang` identifies the active
@@ -195,16 +204,16 @@ do not add external scripts, frames or navigation to this authenticated page.
 1. Keep a private backup of the selected device's existing complete display
    release outside `/config/www`.
 2. Create a new versioned directory, for example
-   `/config/www/show5-display-20261029-r15/`. Copy these **nine assets**:
-   `display.css`, `i18n.js`, `room.js`, `stream.js`, `auth.js`, `display.js`,
+   `/config/www/show5-display-20261117-r16/`. Copy these **ten assets**:
+   `display.css`, `i18n.js`, `room.js`, `stream.js`, `auth.js`, `liquid-clock.js`, `display.js`,
    `blank-video.svg`, `offline-worker.js`, and the filled `config.js`.
-   Copy the source `index.html` as **`index-20261029-r15.html`**. That makes
-   **ten files**, including the HTML entry and deployment-specific configuration.
-   Keep every versioned asset URL in the HTML at **`?v=20261029-r15`** for this
+   Copy the source `index.html` as **`index-20261117-r16.html`**. That makes
+   **eleven files**, including the HTML entry and deployment-specific configuration.
+   Keep every versioned asset URL in the HTML at **`?v=20261117-r16`** for this
    release. Preserve the deferred script order: configuration, i18n, room,
-   stream, auth, then display. Do not copy tests, private data or backup files.
+   stream, auth, liquid clock, then display. Do not copy tests, private data or backup files.
 3. Open
-   `/local/show5-display-20261029-r15/index-20261029-r15.html?external_auth=1`
+   `/local/show5-display-20261117-r16/index-20261117-r16.html?external_auth=1`
    in the selected VACA WebView. Verify the clock and the sanitized
    `Show5Auth.status()` result. The directory prefix may identify the endpoint;
    keep each endpoint's configuration and service-worker scope separate.

@@ -103,7 +103,9 @@ function workerHarness() {
 
 test("offline cache restores only its own shell and never intercepts API, media, auth or foreign paths", async () => {
   const h = workerHarness(); await h.event("install");
-  assert.equal(h.stored.size, 9); h.offline(true);
+  assert.equal(h.stored.size, 10); h.offline(true);
+  const clock = await h.event("fetch", { request: new Request("https://ha.example.invalid/local/room/liquid-clock.js?v=r16") });
+  assert.equal(await clock.text(), "synthetic static content");
   const response = await h.event("fetch", { request: new Request("https://ha.example.invalid/local/room/index-r12.html?camera=front") });
   assert.equal(await response.text(), "synthetic static content");
   for (const url of ["https://ha.example.invalid/api/states/sensor.a", "https://ha.example.invalid/api/camera_proxy/camera.front", "https://ha.example.invalid/local/other/index-r12.html", "https://foreign.invalid/local/room/index-r12.html"]) {
@@ -116,9 +118,9 @@ test("offline cache restores only its own shell and never intercepts API, media,
 test("only configured photos enter offline cache and removed photos are purged", async () => {
   const h = workerHarness(); await h.event("install");
   await h.event("message", { data: { type: "CACHE_PHOTOS", photos: ["photos/garden.jpg", "photos/room.jpg"] } });
-  assert.equal(h.stored.size, 11);
+  assert.equal(h.stored.size, 12);
   await h.event("message", { data: { type: "CACHE_PHOTOS", photos: ["photos/room.jpg"] } });
-  assert.equal(h.stored.size, 10); assert.ok(h.removed.includes("https://ha.example.invalid/local/room/photos/garden.jpg"));
+  assert.equal(h.stored.size, 11); assert.ok(h.removed.includes("https://ha.example.invalid/local/room/photos/garden.jpg"));
   const before = h.requests.length;
   await h.event("message", { data: { type: "CACHE_PHOTOS", photos: ["https://foreign.invalid/private.jpg"] } });
   assert.equal(h.requests.length, before);

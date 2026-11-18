@@ -6,13 +6,14 @@
   <meta name="color-scheme" content="dark">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; media-src 'self' blob:; img-src 'self' blob:; base-uri 'none'; form-action 'none'; object-src 'none'; frame-src 'none'; worker-src 'self'">
   <title>Clock</title>
-  <link rel="stylesheet" href="display.css?v=20261029-r15">
-  <script src="config.js?v=20261029-r15" defer></script>
-  <script src="i18n.js?v=20261029-r15" defer></script>
-  <script src="room.js?v=20261029-r15" defer></script>
-  <script src="stream.js?v=20261029-r15" defer></script>
-  <script src="auth.js?v=20261029-r15" defer></script>
-  <script src="display.js?v=20261029-r15" defer></script>
+  <link rel="stylesheet" href="display.css?v=20261117-r16">
+  <script src="config.js?v=20261117-r16" defer></script>
+  <script src="i18n.js?v=20261117-r16" defer></script>
+  <script src="room.js?v=20261117-r16" defer></script>
+  <script src="stream.js?v=20261117-r16" defer></script>
+  <script src="auth.js?v=20261117-r16" defer></script>
+  <script src="liquid-clock.js?v=20261117-r16" defer></script>
+  <script src="display.js?v=20261117-r16" defer></script>
 </head>
 <body>
   <main id="display" aria-label="Clock and camera">
@@ -20,9 +21,13 @@
       <img id="room-photo" alt="" hidden>
       <button id="room-toggle" type="button" aria-controls="room-panel" aria-expanded="false" hidden>Room</button>
       <p id="room-network" role="status" hidden></p>
-      <time id="clock-time">--:--</time>
+      <div id="clock-face">
+        <time id="clock-time"><span id="clock-label">--:--</span><canvas id="liquid-clock" width="800" height="260" aria-hidden="true"></canvas></time>
+        <span id="clock-period" aria-hidden="true"></span>
+      </div>
       <p id="clock-date"></p>
       <p id="room-timer" role="status" hidden></p>
+      <button id="clock-style" type="button" hidden><span class="clock-style-mark" aria-hidden="true"></span><span id="clock-style-name"></span></button>
       <section id="room-panel" aria-label="Room" hidden>
         <header><h1 id="room-title">Room</h1><button id="room-close" type="button">Clock</button></header>
         <div id="room-readings"></div>
@@ -36,7 +41,7 @@
     <section id="camera-view" aria-label="Camera" hidden>
       <div class="camera-frame">
         <img id="camera-image" alt="Camera image" decoding="async" draggable="false" hidden>
-        <video id="camera-video" aria-label="Camera video" autoplay muted playsinline poster="blank-video.svg?v=20261029-r15" disableremoteplayback hidden></video>
+        <video id="camera-video" aria-label="Camera video" autoplay muted playsinline poster="blank-video.svg?v=20261117-r16" disableremoteplayback hidden></video>
         <p id="camera-status" hidden></p>
       </div>
     </section>

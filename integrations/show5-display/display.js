@@ -372,10 +372,22 @@
     var formats = i18n.createFormatters(config && config.locale, config);
     document.documentElement.dataset.hourCycle = config && config.hour12 ? "h12" : "h23";
     document.documentElement.dataset.formatLocale = formats.locale;
+    var clockTime = document.getElementById("clock-time");
+    var clockLabel = document.getElementById("clock-label") || clockTime;
+    var clockDate = document.getElementById("clock-date");
+    var language = i18n.create(config && config.locale);
+    var liquid = root.Show5LiquidClock && root.Show5LiquidClock.create(document, root.SHOW5_DISPLAY_CONFIG, language);
+    var lastTime, lastDate;
     function tick() {
       var instant = new Date();
-      document.getElementById("clock-time").textContent = formats.time.format(instant);
-      document.getElementById("clock-date").textContent = formats.date.format(instant);
+      var time = formats.time.format(instant);
+      var date = formats.date.format(instant);
+      if (time !== lastTime) {
+        clockTime.setAttribute("datetime", instant.toISOString());
+        clockLabel.textContent = lastTime = time;
+        if (liquid) { liquid(formats.time, instant); }
+      }
+      if (date !== lastDate) { clockDate.textContent = lastDate = date; }
     }
     tick();
     var clockTimer = root.setInterval(tick, 1000);

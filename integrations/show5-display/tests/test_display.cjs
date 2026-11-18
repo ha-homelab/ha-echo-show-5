@@ -528,15 +528,15 @@ test("browser bootstrap applies the configured locale without URL overrides or n
 
 test("page assets are local, CSP disallows external scripts and camera CSS preserves aspect", () => {
   const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
-  assert.deepEqual([...html.matchAll(/<script src="([^"]+)" defer>/g)].map(x => x[1]), ["config.js?v=20261029-r15", "i18n.js?v=20261029-r15", "room.js?v=20261029-r15", "stream.js?v=20261029-r15", "auth.js?v=20261029-r15", "display.js?v=20261029-r15"]);
-  assert.match(html, /href="display.css\?v=20261029-r15"/);
+  assert.deepEqual([...html.matchAll(/<script src="([^"]+)" defer>/g)].map(x => x[1]), ["config.js?v=20261117-r16", "i18n.js?v=20261117-r16", "room.js?v=20261117-r16", "stream.js?v=20261117-r16", "auth.js?v=20261117-r16", "liquid-clock.js?v=20261117-r16", "display.js?v=20261117-r16"]);
+  assert.match(html, /href="display.css\?v=20261117-r16"/);
   assert.match(html, /default-src 'none'/);
   assert.match(html, /script-src 'self'/);
   assert.match(html, /connect-src 'self'/);
   assert.match(html, /img-src 'self' blob:/);
   assert.doesNotMatch(html, /https?:\/\/|unsafe-inline|unsafe-eval|<iframe|<audio/);
   assert.match(html, /media-src 'self' blob:/);
-  assert.match(html, /<video id="camera-video" aria-label="Camera video" autoplay muted playsinline poster="blank-video.svg\?v=20261029-r15" disableremoteplayback hidden>/);
+  assert.match(html, /<video id="camera-video" aria-label="Camera video" autoplay muted playsinline poster="blank-video.svg\?v=20261117-r16" disableremoteplayback hidden>/);
   const css = fs.readFileSync(path.join(__dirname, "../display.css"), "utf8");
   assert.match(css, /object-fit:\s*cover/);
   assert.doesNotMatch(css, /@import|https?:\/\//);

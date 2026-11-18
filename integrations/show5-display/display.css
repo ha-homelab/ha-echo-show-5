@@ -86,3 +86,66 @@ html[data-hour-cycle="h12"] #clock-time { font-size: clamp(4rem, 20vw, 14rem); }
   html[data-hour-cycle="h12"] #clock-time { font-size: min(42vh, 20vw); }
   #clock-date { font-size: 7vh; margin-top: 10px; }
 }
+
+#clock-face { position: relative; }
+#liquid-clock, #clock-period { display: none; }
+#clock-style {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 13px;
+  border-color: #56526b;
+  border-radius: 30px;
+  background: #141123;
+  color: #ddd8ef;
+  font-size: 14px;
+}
+.clock-style-mark {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #b0aac5;
+}
+.liquid-style .clock-style-mark { background: linear-gradient(135deg, #8ce9ff, #b18bff 50%, #ff80c1 75%, #ffd380); }
+.room-open #clock-style { visibility: hidden; }
+
+#clock-view.liquid-style {
+  background:
+    radial-gradient(ellipse at 76% 48%, #22102d 0%, transparent 56%),
+    radial-gradient(ellipse at 27% 45%, #101c35 0%, transparent 58%),
+    #080713;
+}
+.liquid-style #clock-time { display: block; padding: 0; }
+.liquid-style #clock-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+.liquid-style #liquid-clock {
+  display: block;
+  width: 89vw;
+  width: min(89vw, 172vh, 880px);
+  height: auto;
+}
+.liquid-style #clock-period:not(:empty) {
+  display: block;
+  position: absolute;
+  right: 2%;
+  bottom: 14%;
+  color: #e7d9ff;
+  font-size: clamp(.65rem, 2vw, 1.1rem);
+  line-height: 1;
+}
+.liquid-style #clock-date {
+  margin-top: 0;
+  color: #d0c2eb;
+  letter-spacing: .13em;
+  font-size: clamp(.8rem, 2.6vw, 1.55rem);
+}

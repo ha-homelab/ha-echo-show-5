@@ -155,6 +155,7 @@
     "integrations/show5-display/display.js",
     "integrations/show5-display/i18n.js",
     "integrations/show5-display/index.html",
+    "integrations/show5-display/liquid-clock.js",
     "integrations/show5-display/offline-worker.js",
     "integrations/show5-display/room.js",
     "integrations/show5-display/stream.js",
