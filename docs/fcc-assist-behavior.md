@@ -79,7 +79,9 @@ docker build --platform linux/amd64 -t fcc-voice-bridge:0.1.4 \
 
 Distribute the image to the deployment node before applying the source
 `integrations/fcc-voice-backup/k8s/bridge.yaml`; it uses `imagePullPolicy: Never`.
-Use the established private overlay and credential path. The change requires
+Use the established private overlay and credential path. Check the included
+[Wyoming ingress policy](fcc-voice-backup.md#wyoming-ingress-requirements)
+before deploying, including the host-network client path. The change requires
 no new secret, HA permission, external model route or provider registration.
 Keep the previous image available for rollback.
 
