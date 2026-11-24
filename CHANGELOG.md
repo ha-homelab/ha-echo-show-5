@@ -1,7 +1,35 @@
 # Changelog
 
-## [0.1.8] - Unreleased
+## [0.1.9] - Unreleased
 
+### Changed
+
+- Protect FCC Wyoming services with default ingress policies (#173).
+- Feat/liquid clock polish (#171).
+- Make Liquid 3D the default Show clock (#170).
+- keep local instruction files out of git.
+- add a navigation index for docs/.
+- refresh pip-compile outputs application dependencies (#164).
+- Add native voice feedback above the clock (#154).
+- Fix built-in Show microphone leveling for Myshka activation (#149).
+- verify current default branch before reviewed merges (#153).
+- preserve metadata recovery during event bursts (#152).
+
+### Upgrade
+
+For the optional Android update, use the existing matching signing identity and an authorized management connection. Preserve app data, model files and the previous signed APK. See the [microphone qualification and rollout record](docs/wake-audio-2026-11-06.md).
+
+Rebuild the cloud-audio component from the updated locked source if you operate it, using the existing installation procedure and retaining its configuration and previous verified package for rollback. This release distributes the integration-source suite; it does not deploy a container, install an APK or flash firmware.
+
+### Security
+
+The Kubernetes manifests now restrict ingress to both FCC Wyoming listeners.
+Review the [client policy and upgrade checks](docs/fcc-voice-backup.md#wyoming-ingress-requirements)
+before rollout. Discovered and reported by **Ankush Kumar Mohapatra**.
+
+Remove the SDK dependency that required the vulnerable WebSocket client tracked in issue #131. Keep strict dependency hashes, unchanged wire descriptors and TLS verification enabled. Local protocol and generated-code checks do not establish provider, physical audio or device acceptance.
+
+## [0.1.8] - 2026-11-04
 ### Changed
 
 - Add the signed VACA `7016` build composition with 20 ms microphone leveling for the built-in Cronos input. Preserve the personal wake model, operator threshold and existing call/announcement guards. Native replay improves the retained owner validation set from 22/24 to 24/24 positive detections, with 0/32 negative activations; this is not a new live acoustic trial.
